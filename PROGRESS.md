@@ -9,3 +9,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-07-27 — BLUEPRINT: vault frontmatter/status-tracking convention revised, superseding original spec
 - 2026-07-27 — BLUEPRINT--DISCOVERY: multi-agent implementation shape confirmed
 - 2026-07-27 — BLUEPRINT--DISCOVERY: pipeline-step feature documented
+- 2026-07-28 — BLUEPRINT--BRAINSTORMING: pipeline-step feature documented
