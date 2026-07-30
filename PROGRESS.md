@@ -10,3 +10,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-07-27 — BLUEPRINT--DISCOVERY: multi-agent implementation shape confirmed
 - 2026-07-27 — BLUEPRINT--DISCOVERY: pipeline-step feature documented
 - 2026-07-28 — BLUEPRINT--BRAINSTORMING: pipeline-step feature documented
+- 2026-07-30 — BLUEPRINT--ORIENTATION: shared-concept ownership decision revisited
