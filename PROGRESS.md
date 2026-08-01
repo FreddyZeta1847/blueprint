@@ -14,3 +14,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-07-30 — BLUEPRINT--FEATURE-DETECTION: pipeline-step feature documented
 - 2026-07-30 — BLUEPRINT--REVIEW: pipeline-step feature documented
 - 2026-07-31 — BLUEPRINT--DOCUMENTATION: pipeline-step feature documented
+- 2026-08-02 — BLUEPRINT--DISTRIBUTION: pipeline-step feature documented — all 8 features now designed
