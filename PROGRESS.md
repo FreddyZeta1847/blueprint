@@ -19,3 +19,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-03 — BLUEPRINT--PHASE-1-FOUNDATION: first implementation phase discussed, built, and recorded; repo tooling bug found and fixed (see .claude/issues/001). Remaining phases to be discussed and scoped one at a time.
 - 2026-08-06 — BLUEPRINT: feature-level discussion reopened — a set of candidate additions (decision-indexing, entry-flow/gate, user-agent, governance) under discussion, none locked yet
 - 2026-08-06 — BLUEPRINT: decision-indexing candidate addition settled (structure, storage, and consistency-check mechanism); touches two already-shipped pieces, not yet applied
+- 2026-08-06 — BLUEPRINT: user-agent candidate addition settled (scope, safety boundary, and storage); one mechanism still needs technical verification before it's built
