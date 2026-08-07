@@ -28,3 +28,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-08 — BLUEPRINT--DOCUMENTATION: vault version-control default reversed, superseding the shipped spec; this repo keeps the opt-out path
 - 2026-08-08 — BLUEPRINT: seeded-preferences candidate addition settled (authoring surface, precedence rule, and a boundary correction applied back to an earlier item) — all 7 candidate additions now resolved; vault rewrite and three technical verifications outstanding
 - 2026-08-08 — BLUEPRINT: version-control layout settled (which artifacts are tracked vs. regenerated, and how one is restructured to avoid merge pain); narrows the stated purpose of an earlier-settled check
+- 2026-08-08 — BLUEPRINT: enforcement-model simplified — a mechanism from the most heavily-discussed candidate addition dissolved entirely into pieces that already existed; one automation layer removed, one technical verification dropped, one earlier item reopened for re-check
