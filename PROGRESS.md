@@ -24,3 +24,5 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-07 — BLUEPRINT: discussion-skills candidate addition settled (skill boundaries, shared-engine shape, termination rules, and a conversational-posture rule)
 - 2026-08-08 — BLUEPRINT: governance-input candidate addition settled (authoring format, compilation step, and conflict-presentation rule)
 - 2026-08-08 — BLUEPRINT: shared-vocabulary lifecycle settled (when terms are registered and which checks catch what); full inventory audit run over every designed component, consolidating the automation layer and retiring one inherited check
+- 2026-08-08 — BLUEPRINT: audit-trail candidate addition settled (contents, identity source, generation model); one identity-source assumption still needs verification
+- 2026-08-08 — BLUEPRINT--DOCUMENTATION: vault version-control default reversed, superseding the shipped spec; this repo keeps the opt-out path
