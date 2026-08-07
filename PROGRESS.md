@@ -27,3 +27,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-08 — BLUEPRINT: audit-trail candidate addition settled (contents, identity source, generation model); one identity-source assumption still needs verification
 - 2026-08-08 — BLUEPRINT--DOCUMENTATION: vault version-control default reversed, superseding the shipped spec; this repo keeps the opt-out path
 - 2026-08-08 — BLUEPRINT: seeded-preferences candidate addition settled (authoring surface, precedence rule, and a boundary correction applied back to an earlier item) — all 7 candidate additions now resolved; vault rewrite and three technical verifications outstanding
+- 2026-08-08 — BLUEPRINT: version-control layout settled (which artifacts are tracked vs. regenerated, and how one is restructured to avoid merge pain); narrows the stated purpose of an earlier-settled check
