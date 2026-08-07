@@ -22,3 +22,5 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-06 — BLUEPRINT: user-agent candidate addition settled (scope, safety boundary, and storage); one mechanism still needs technical verification before it's built
 - 2026-08-07 — BLUEPRINT: entry-flow/gate candidate addition settled (routing, brownfield scanning, and a two-mechanism consistency check); the most heavily-discussed item so far, shares an unverified mechanism with the user-agent addition
 - 2026-08-07 — BLUEPRINT: discussion-skills candidate addition settled (skill boundaries, shared-engine shape, termination rules, and a conversational-posture rule)
+- 2026-08-08 — BLUEPRINT: governance-input candidate addition settled (authoring format, compilation step, and conflict-presentation rule)
+- 2026-08-08 — BLUEPRINT: shared-vocabulary lifecycle settled (when terms are registered and which checks catch what); full inventory audit run over every designed component, consolidating the automation layer and retiring one inherited check
