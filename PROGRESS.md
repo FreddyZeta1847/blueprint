@@ -21,3 +21,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-06 — BLUEPRINT: decision-indexing candidate addition settled (structure, storage, and consistency-check mechanism); touches two already-shipped pieces, not yet applied
 - 2026-08-06 — BLUEPRINT: user-agent candidate addition settled (scope, safety boundary, and storage); one mechanism still needs technical verification before it's built
 - 2026-08-07 — BLUEPRINT: entry-flow/gate candidate addition settled (routing, brownfield scanning, and a two-mechanism consistency check); the most heavily-discussed item so far, shares an unverified mechanism with the user-agent addition
+- 2026-08-07 — BLUEPRINT: discussion-skills candidate addition settled (skill boundaries, shared-engine shape, termination rules, and a conversational-posture rule)
