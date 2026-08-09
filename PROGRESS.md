@@ -31,3 +31,5 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-08 — BLUEPRINT: enforcement-model simplified — a mechanism from the most heavily-discussed candidate addition dissolved entirely into pieces that already existed; one automation layer removed, one technical verification dropped, one earlier item reopened for re-check
 - 2026-08-08 — BLUEPRINT: decision-matching mechanism revised after several rounds — an intermediate design was tried and dropped in favor of a simpler one, plus a considered-and-rejected alternative recorded for the record
 - 2026-08-09 — BLUEPRINT: decision-indexing candidate promoted to its own top-level feature file (DECISION-ATOMS), reciprocal links added to Review and Documentation
+- 2026-08-09 — BLUEPRINT: user-agent's outstanding enforcement mechanism resolved and technically verified (partially); hook inventory corrected
+- 2026-08-09 — BLUEPRINT: total-flow/entry-point item rewritten from scratch — a retired mechanism's residual references removed project-wide (Discovery, Brainstorming, Feature-Detection); Ratification-at-Contact simplified
