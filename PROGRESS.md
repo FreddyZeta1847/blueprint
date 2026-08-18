@@ -35,3 +35,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-09 — BLUEPRINT: total-flow/entry-point item rewritten from scratch — a retired mechanism's residual references removed project-wide (Discovery, Brainstorming, Feature-Detection); Ratification-at-Contact simplified
 - 2026-08-18 — BLUEPRINT: documentation-methodology decision settled — current-task.md lifecycle discipline revised, a new machine-only fallback reference file added
 - 2026-08-18 — BLUEPRINT: all three outstanding technical assumptions from the hook architecture verified against official docs; one hook-merge citation corrected, one identity-source fallback simplified
+- 2026-08-18 — BLUEPRINT: shipped docs-management skill fully rewritten to match the current decision-index system and vault-commit default; a new fallback-file mechanism folded into the same schema

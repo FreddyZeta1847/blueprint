@@ -1,6 +1,6 @@
 ---
 name: docs-management
-description: Use whenever creating, reading, or updating a project's design documentation (its Obsidian vault, `vault-<project-name>/`, or equivalent doc system) — the single source of truth for decisions, rationale, and architecture. Covers folder/file layout, naming conventions, frontmatter tags, the Mermaid-diagram rule, the Contracts file, and every file template. Triggers on writing a feature/sub-feature/phase/substep file, updating `_index`/`_features`/`_plans`/`_architecture`, adding or looking up a value in `Contracts/contracts.md`, or any question about where something belongs in the docs.
+description: Use whenever creating, reading, or updating a project's design documentation (its Obsidian vault, `vault-<project-name>/`, or equivalent doc system) — the single source of truth for decisions, rationale, and architecture. Covers folder/file layout, naming conventions, frontmatter tags, the Mermaid-diagram rule, the decision-atoms system, and every file template. Triggers on writing a feature/sub-feature/phase/substep file, updating `_index`/`_features`/`_plans`/`_architecture`, adding or looking up a value in `Vocabulary/registry.json` or a feature's `atoms.json`, or any question about where something belongs in the docs.
 ---
 
 # Docs Management
@@ -14,8 +14,9 @@ document that can go stale beats two that can go stale independently.
 Header comment (Markdown has no native comment syntax, so this HTML comment stands in for one):
 this file defines the vault schema shipped by the Blueprint plugin. It is a deliberate,
 documented fork of a more general Obsidian-vault convention — see the divergences called out
-below (optional sub-features, `contracts.md` naming, no mandatory recap, no `perché` field, no
-assumed `PROGRESS.md`). Do not silently re-merge those differences back in.
+below (optional sub-features, the atoms/registry decision index replacing a hand-maintained
+contracts.md, a machine-only fallback file, no mandatory recap, no `perché` field, no assumed
+`PROGRESS.md`). Do not silently re-merge those differences back in.
 -->
 
 ## Structure
@@ -27,12 +28,17 @@ vault-<project-name>/
 ├── _features.md
 ├── _plans.md
 ├── _current-task.md
-├── Contracts/
-│   ├── contracts.md   (confirmed, live values only)
-│   └── dismissed.md
+├── _full-context.md            (gitignored — machine-read only, mirrored from _current-task.md, see below)
+├── Vocabulary/
+│   ├── registry.json           (committed — shared axis vocabulary)
+│   └── dismissed.json          (committed — Review findings dismissed, with reason)
+├── _index/
+│   └── decisions.json          (gitignored — compiled from every feature's atoms.json)
+├── management-info.md          (optional, per-project — manager-authored rules/preferences)
 ├── features/
 │   └── FEATURE-NAME/                         ← one folder per feature, named after it
 │       ├── FEATURE-NAME.md                   ← the lean parent, always present
+│       ├── atoms.json                         ← this feature's decisions
 │       └── FEATURE-NAME--subfeature-name.md  ← optional, only where the feature-definition
 │                                                test justifies a split within this feature
 └── plans/
@@ -41,7 +47,11 @@ vault-<project-name>/
 ```
 
 The vault folder is named after the project itself (`vault-<project-name>/`), never a generic
-`vault/`. It is gitignored — it's the reasoning behind the code, not a mirror of it.
+`vault/`. **Committed by default** — the vault is the reasoning behind the code, and a teammate
+reading the repo should see it too (the audit/report file, for instance, only means something if
+it can actually reach a teammate). Any installation that wants it private (public repo, sensitive
+project, personal preference) adds it to their own `.gitignore` — a one-line opt-out on their side,
+not a rule the methodology imposes on every project.
 
 **Each feature gets its own folder** under `features/`, named exactly after the feature. The lean
 parent file and any of that feature's sub-feature files live inside it. Obsidian resolves
@@ -52,8 +62,8 @@ parent file and any of that feature's sub-feature files live inside it. Obsidian
 `_architecture.md` — global, system-level architecture: how all features connect and the
 end-to-end workflow of the system. Bird's-eye view; per-feature internal structure lives in that
 feature's own file(s). Updated whenever a feature is added or the connections between features
-change. Also holds any unconfirmed Contracts candidates (tagged `needs-review`) until ratified —
-see Contracts below.
+change. Also holds any unconfirmed decision candidates (tagged `needs-review`) until ratified into
+a `status: locked` atom — see Decision atoms below.
 
 `_features.md` — overview of all features with a short description of each. Updated whenever a new
 feature is added.
@@ -61,11 +71,23 @@ feature is added.
 `_plans.md` — overview of all implementation phases with a short description of each. Updated
 whenever a new phase is added.
 
-`_current-task.md` — the live discussion log. Everything belongs here while a topic is still
-open: reasoning, decisions, tradeoffs, candidate splits. Holds only the *currently-open* thread,
-never a history of settled decisions — the moment something is written to its permanent vault
-home, the corresponding entry is removed from `_current-task.md` in the same pass (see
-`vault-architect`'s job description below).
+`_current-task.md` — the live discussion log, scoped to **one feature at a time** — not one
+sub-feature, not one single decision. Every decision locked during that feature's discussion is
+written in as it happens (reasoning, tradeoffs, candidate splits); if a decision is later revised,
+its entry is updated to show the current answer only — this file is a live snapshot, never a
+history. Each sub-feature's real vault file is still written the moment that sub-feature's own
+discussion concludes (see `vault-architect`'s job description below) — but `_current-task.md`
+itself is only cleared once every sub-feature of the *whole* feature is discussed and written.
+
+`_full-context.md` — a machine-read-only fallback file, plain Markdown, never HTML (HTML recaps
+stay human-facing; this one is read by Claude, never shown to the user as a deliverable). A hook
+mirrors every lock event out of `_current-task.md` into this file, **append-only** — never
+overwritten, so a later reversal (a decision changed, then changed back) leaves the full trail
+standing even after `_current-task.md` has already moved on to showing only the current answer.
+Read only when strictly necessary — a hallucination, a big or repeating mistake, or a clear
+misunderstanding with the user — never in normal flow, or it defeats its own token-saving purpose.
+Distinct from any team-facing audit/report file some installations layer on top: this file has no
+human audience, it exists purely so Claude can re-ground itself.
 
 ## Naming conventions
 
@@ -108,14 +130,16 @@ leave a vault Markdown file untagged.
 
 | File | Frontmatter |
 |---|---|
-| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`) | `tags: [index]` |
+| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`, `_full-context`) | `tags: [index]` |
 | `FEATURE-NAME.md` | `tags: [feature]` |
 | `FEATURE-NAME--subfeature.md` | `tags: [subfeature]` |
 | `PHASE-N-NAME.md` | `tags: [phase]` |
 | `PHASE-N-NAME--substep.md` | `tags: [substep]` |
-| `Contracts/contracts.md`, `Contracts/dismissed.md` | `tags: [contract]` |
 | any unconfirmed / drafted-without-live-confirmation file | add `needs-review` → e.g. `tags: [feature, needs-review]` |
 | any parked / future file | add `parked` → e.g. `tags: [subfeature, parked]` |
+
+`atoms.json`, `Vocabulary/registry.json`, and `_index/decisions.json` are plain JSON data files,
+not frontmatter-tagged Markdown — the frontmatter/tags system above only applies to `.md` files.
 
 **No `perché` field.** Superseded by the Ratification-at-Contact mechanism (owned by
 `using-blueprint`): an item's open questions live as prose (or as the `needs-review` tag) and get
@@ -123,7 +147,7 @@ resolved the moment work actually touches them, not through a dedicated frontmat
 
 Recommended Graph view color groups (Graph view → Settings ⚙ → Groups → New group):
 `tag:#feature` blue · `tag:#subfeature` light blue · `tag:#phase` green ·
-`tag:#substep` light green · `tag:#contract` red · `tag:#index` grey ·
+`tag:#substep` light green · `tag:#index` grey ·
 `tag:#needs-review` yellow · `tag:#parked` muted orange.
 
 ## Diagrams — use Mermaid, not ASCII
@@ -133,34 +157,83 @@ renders them **natively** (no plugin) and they're far cleaner than ASCII box-dra
 doesn't render as a diagram at all and is painful to edit. **Do not use ASCII diagrams in vault
 Markdown.**
 
-## Contracts (`Contracts/contracts.md` — not `registry.md`)
+## Decision atoms (`atoms.json` + `Vocabulary/registry.json` — not a hand-maintained Contracts file)
 
-`Contracts/contracts.md` holds only **confirmed, live values** — durations, budgets, limits, enum
-values — that another feature depends on, or that isn't obviously scoped to one feature alone.
+What used to be a hand-maintained `Contracts/contracts.md` is now compiled data. Every locked
+decision is a small JSON object (an **atom**) living in its own feature's `atoms.json`, matched
+against a project-wide shared vocabulary at write time. No `CONTRACT-00N` ids, no separate
+confirmed/dismissed files to hand-maintain.
 
-**Rules:**
-- Feature and Plan docs reference contract values **by id, never by literal** — `CONTRACT-001`,
-  sequential, never reused even once an entry is removed.
-- A literal number appearing in two different feature docs is a documentation bug — Review's
-  deterministic pre-pass catches it directly; it means a value should have been registered here
-  instead of copy-pasted.
-- **Unconfirmed candidates never enter `contracts.md` directly.** A value drafted by Discovery
-  (inferred from existing code, not yet confirmed by the user) lives inside `_architecture.md`,
-  tagged `needs-review`, until it is ratified in conversation — only then does it get a
-  `CONTRACT-00N` id and move into `contracts.md`.
+**Atom schema** — one JSON object per decision:
 
-Schema per entry:
+| Field | Meaning |
+|---|---|
+| `id` | Stable identifier for this atom, never reused. |
+| `axis` | The question this atom answers, written as a full question (e.g. `"what database engine does this feature use?"`), never a bare noun — a noun-style axis invites two different questions to collide under the same label. |
+| `choice` | The value actually decided (e.g. `"jwt"`). |
+| `rejected` | Alternatives genuinely considered and set aside, with a short reason each. Required non-empty for a one-way decision. |
+| `facts` | Secondary properties derived from the choice, useful to later checks. |
+| `rationale` | Short, always present — also the "why" for any audit/report logging, no separate field needed. |
+| `reversibility` | `one-way` or `two-way`. Governs eligibility for the constraints digest and whether a non-empty `rejected` is required. |
+| `depends_on` | Pointer(s) to other atom ids this one presumes — watched by the orphan-check for dangling references. |
+| `status` | `ratified` (confirmed live), `locked` (a management-info Rule, same weight as `ratified`), `agent-approved` (fast-path, a guess not a confirmation), `inferito` (Discovery's inferred guess), `ereditato-ignoto` (inherited, no discoverable reasoning). Every consumer branches on one derived signal — "counts as decided" (`ratified`/`locked`) vs. everything else. |
 
-```markdown
-### CONTRACT-001 — [name]
-- **Value:** ...
-- **Owning feature:** [[FEATURE-NAME]]
-- **Consuming features:** [[FEATURE-A]], [[FEATURE-B]]
-- **Rationale:** one line
-```
+**Storage — one `atoms.json` per feature folder.** Fixed filename inside each
+`features/FEATURE-NAME/` folder, holding only that feature's atoms. Small per-feature files, not
+a shared per-domain file — two people touching different features never collide.
 
-`Contracts/dismissed.md` logs findings from a cross-review pass that were raised and explicitly
-dismissed by the user, with the reason — so they don't resurface in future review runs.
+**`Vocabulary/registry.json`** — a flat, project-wide list of `{ id, question }` entries, no
+taxonomy above it. A small starter seed ships with the plugin; it grows feature by feature, at
+each lock.
+
+**The write flow**, every time `vault-architect` is about to lock a new atom:
+1. Read the full `registry.json` (cheap regardless of vault size) and judge whether this decision
+   matches an existing axis or needs a new one.
+2. Do a scoped lookup into `_index/decisions.json` for just the axes this write touches, across
+   other features — catches an obvious conflict before the atom is even shown to the user.
+3. Show the proposed atom(s) to the user before locking — which axes are reused vs. new, and why.
+   The user confirms before the lock proceeds.
+
+**The lock sequence:** lock → Review's three deterministic checks run against the compiled index
+→ pass promotes any genuinely new axis into `registry.json` → fail interrupts the lock, reports
+the finding, the user decides, then it's re-reported.
+
+**Review's three deterministic checks**, all against `_index/decisions.json`, zero inference:
+- **Vocabulary check** — does any axis fail to exist in `registry.json`? (a spell-checker)
+- **Conflict check** — same axis, different choice, across two features? (a fact-checker)
+- **Value-inversion check** — same literal value showing up under two different axes?
+
+**Management-info's Rules vs. Preferences** compile differently: Rules become real
+`status: locked` atoms (same path as any other atom). Preferences never become atoms — they stay
+plain reference text, read during discussion, never entering the compiled decision index.
+
+**The JSON file matrix:**
+
+| File | Committed? | Role |
+|---|---|---|
+| `features/FEATURE-NAME/atoms.json` | yes | Original, per feature — small files avoid merge collisions. |
+| `Vocabulary/registry.json` | yes | Original, shared, append-mostly. |
+| `_index/decisions.json` | no (gitignored) | Pure aggregation of every `atoms.json`, rebuilt automatically whenever any of them changes — committing it would only produce meaningless full-file-rewrite conflicts. |
+
+**Supporting mechanisms**, all part of the merged `PostToolUse` file-watcher (see the file's
+dispatch table below): the **sync-check** (a feature's `.md` changed without its `atoms.json`, or
+vice versa — one-line reminder, no LLM call), the **orphan-check** (a dangling `depends_on`, or a
+`registry.json` entry still referenced after removal), and the **constraints digest** (axis +
+choice only, no prose, every `locked`/one-way atom, injected at `SessionStart` — so Claude already
+knows what it can't silently override before it writes anything).
+
+**`PostToolUse` file-watcher — dispatch by filename:**
+
+| File changed | Job |
+|---|---|
+| `*.md` / `atoms.json` | sync-check, then recompile `_index/decisions.json` |
+| `Vocabulary/registry.json` | orphan-check |
+| `management-info.md` | trigger the Rules/Preferences conversion pass |
+| `_current-task.md` | mirror any newly-locked entries into `_full-context.md`, append-only |
+| any other source file | refresh that file's module-map node |
+
+First action on every fire is a cheap "is this in the vault at all, or a tracked source file?"
+path check with an immediate exit — the common case during normal coding.
 
 ## Explicitly not part of this schema
 
@@ -226,9 +299,9 @@ participates.
 - [[FEATURE-A]] — one-line role in the system
 - [[FEATURE-B]] — one-line role in the system
 
-## Unconfirmed Contracts candidates
-Values inferred (not yet confirmed) — tagged `needs-review`, promoted to `Contracts/contracts.md`
-only once ratified.
+## Unconfirmed decisions
+Values inferred (not yet confirmed) — tagged `needs-review`, locked into the relevant feature's
+`atoms.json` (`status: locked`/`ratified`) only once ratified in conversation.
 ```
 
 ### `features/FEATURE-NAME/FEATURE-NAME.md`
@@ -280,9 +353,9 @@ tags: [subfeature]
 Why this specific approach was chosen.
 
 ## Details
-Specific decisions, constraints, or requirements for this subfeature. Reference Contracts values
-by id (`CONTRACT-00N`), never by literal, if the value is externally observable — see Contracts
-above.
+Specific decisions, constraints, or requirements for this subfeature. Record each locked decision
+as an atom in this feature's `atoms.json` — see Decision atoms above — rather than a literal
+value copy-pasted into prose if it's externally observable or another feature might depend on it.
 
 ## Illustrative snippet
 Short code reference — not source of truth. Source lives in the repo.
@@ -348,18 +421,22 @@ def relevant_function():
 - Before implementing a feature: read the relevant `FEATURE-NAME.md` and any sub-feature files.
 - Before starting a phase: read the relevant `PHASE-N-NAME.md` and any substep files.
 - Architecturally ambiguous: check `_architecture.md`, or `features/` for a specific feature.
-- Before writing a value that might be externally observable: check `Contracts/contracts.md` for
-  an existing id before inventing a new literal.
+- Before locking a new decision: read `Vocabulary/registry.json` to check whether an axis for this
+  question already exists before coining a new one — see Decision atoms above.
+- **Only when strictly necessary** (a hallucination, a big or repeating mistake, a clear
+  misunderstanding with the user): read `_full-context.md`. This is the one exception to every
+  rule above — never open it in normal flow.
 
 ## When to write
 
-Only after a full discussion is complete — never during, never incrementally. The one exception:
-if a significant change (including one discovered during implementation) invalidates a prior
-decision, update the affected vault files immediately and note what changed and why.
+Only after a sub-feature's discussion is complete — never during, never incrementally. The one
+exception: if a significant change (including one discovered during implementation) invalidates a
+prior decision, update the affected vault files immediately and note what changed and why.
 
 **Who writes them.** Dispatch the `vault-architect` agent to perform the actual vault writes and
-edits. The main conductor's job is discussing and deciding with the user and logging the outcome
-in `_current-task.md`; once a decision is locked, hand it to `vault-architect` (pointing at the
-relevant `_current-task.md` section and any vault files it touches) to author or update the files
-— and to remove the now-settled entry from `_current-task.md` in that same pass. Don't write or
-edit vault files directly in the main conversation.
+edits. The main conductor's job is discussing and deciding with the user and logging every locked
+decision into `_current-task.md` as it happens (`_full-context.md` is mirrored automatically by
+the file-watcher hook — never written directly). Once a sub-feature's discussion concludes, hand
+it to `vault-architect` to author or update that sub-feature's file. `_current-task.md` itself is
+only cleared once every sub-feature of the *current feature* is discussed and written — not after
+each individual sub-feature. Don't write or edit vault files directly in the main conversation.
