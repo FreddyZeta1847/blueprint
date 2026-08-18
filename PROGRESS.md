@@ -33,3 +33,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-09 — BLUEPRINT: decision-indexing candidate promoted to its own top-level feature file (DECISION-ATOMS), reciprocal links added to Review and Documentation
 - 2026-08-09 — BLUEPRINT: user-agent's outstanding enforcement mechanism resolved and technically verified (partially); hook inventory corrected
 - 2026-08-09 — BLUEPRINT: total-flow/entry-point item rewritten from scratch — a retired mechanism's residual references removed project-wide (Discovery, Brainstorming, Feature-Detection); Ratification-at-Contact simplified
+- 2026-08-18 — BLUEPRINT: documentation-methodology decision settled — current-task.md lifecycle discipline revised, a new machine-only fallback reference file added
