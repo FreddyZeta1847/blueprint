@@ -38,3 +38,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-18 — BLUEPRINT: shipped docs-management skill fully rewritten to match the current decision-index system and vault-commit default; a new fallback-file mechanism folded into the same schema
 - 2026-08-20 — BLUEPRINT: user-agent candidate addition completed — a missing what/why summary and an update-ownership/timing mechanism added; one plugin-vs-global-storage technical question verified, with a permission-setup mitigation for a friction point it surfaced
 - 2026-08-20 — BLUEPRINT: recap cross-check against every feature file found several gaps and one hook-delivery technical requirement, now verified and locked into the atoms/sync-check mechanism
+- 2026-08-20 — BLUEPRINT: user-agent selection-granularity gap settled — a batch upfront assignment mechanism, with a live per-feature override, replacing an unspecified session-wide toggle
