@@ -37,3 +37,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-18 — BLUEPRINT: all three outstanding technical assumptions from the hook architecture verified against official docs; one hook-merge citation corrected, one identity-source fallback simplified
 - 2026-08-18 — BLUEPRINT: shipped docs-management skill fully rewritten to match the current decision-index system and vault-commit default; a new fallback-file mechanism folded into the same schema
 - 2026-08-20 — BLUEPRINT: user-agent candidate addition completed — a missing what/why summary and an update-ownership/timing mechanism added; one plugin-vs-global-storage technical question verified, with a permission-setup mitigation for a friction point it surfaced
+- 2026-08-20 — BLUEPRINT: recap cross-check against every feature file found several gaps and one hook-delivery technical requirement, now verified and locked into the atoms/sync-check mechanism

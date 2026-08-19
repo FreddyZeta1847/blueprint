@@ -235,6 +235,13 @@ knows what it can't silently override before it writes anything).
 First action on every fire is a cheap "is this in the vault at all, or a tracked source file?"
 path check with an immediate exit — the common case during normal coding.
 
+**Build requirement: reminders must use `additionalContext`, not plain stdout.** `PostToolUse`
+can't block anything — the write already happened by the time it runs — and plain stdout text on
+a normal exit never reaches Claude, only the human's transcript. The only way a sync-check or
+orphan-check finding actually reaches Claude is a JSON response with a
+`hookSpecificOutput.additionalContext` (or `systemMessage`) field. Skipping this makes every
+finding above silently invisible to Claude.
+
 ## Explicitly not part of this schema
 
 - **No mandatory HTML recap.** A generic version of this convention builds a
