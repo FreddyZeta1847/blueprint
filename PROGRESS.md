@@ -40,3 +40,4 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-20 — BLUEPRINT: recap cross-check against every feature file found several gaps and one hook-delivery technical requirement, now verified and locked into the atoms/sync-check mechanism
 - 2026-08-20 — BLUEPRINT: user-agent selection-granularity gap settled — a batch upfront assignment mechanism, with a live per-feature override, replacing an unspecified session-wide toggle
 - 2026-08-21 — BLUEPRINT: a shared discussion-quality mechanism promoted out of a single feature's file into the shared-concept space, after the recap cross-check found it silently missing from two other consumers
+- 2026-08-21 — BLUEPRINT: review-mechanism simplified — a manual sweep mode removed as redundant, the deterministic checks confirmed to run as real code rather than model comparison, and a stale coverage claim corrected across six feature files

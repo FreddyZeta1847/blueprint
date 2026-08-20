@@ -198,10 +198,18 @@ each lock.
 → pass promotes any genuinely new axis into `registry.json` → fail interrupts the lock, reports
 the finding, the user decides, then it's re-reported.
 
-**Review's three deterministic checks**, all against `_index/decisions.json`, zero inference:
+**Review's three deterministic checks**, all against `_index/decisions.json`, zero inference —
+executed as a real script folded into the merged `PostToolUse` file-watcher, never performed by
+Claude reading and comparing JSON itself (an LLM "eyeballing" a comparison is still inference and
+can drift between runs; a script can't). Claude's role is presenting the script's findings, never
+running the comparison:
 - **Vocabulary check** — does any axis fail to exist in `registry.json`? (a spell-checker)
 - **Conflict check** — same axis, different choice, across two features? (a fact-checker)
 - **Value-inversion check** — same literal value showing up under two different axes?
+
+No separate manual "check everything" command exists — the hook fires on every `atoms.json`
+write regardless of source (a normal lock, a management-info conversion, Discovery's bootstrap
+dump), so there's no gap for a manual sweep to fill.
 
 **Management-info's Rules vs. Preferences** compile differently: Rules become real
 `status: locked` atoms (same path as any other atom). Preferences never become atoms — they stay
@@ -222,18 +230,21 @@ vice versa — one-line reminder, no LLM call), the **orphan-check** (a dangling
 choice only, no prose, every `locked`/one-way atom, injected at `SessionStart` — so Claude already
 knows what it can't silently override before it writes anything).
 
-**`PostToolUse` file-watcher — dispatch by filename:**
+**`PostToolUse` file-watcher — dispatch by filename, precise (not every row does the same thing):**
 
-| File changed | Job |
-|---|---|
-| `*.md` / `atoms.json` | sync-check, then recompile `_index/decisions.json` |
-| `Vocabulary/registry.json` | orphan-check |
-| `management-info.md` | trigger the Rules/Preferences conversion pass |
-| `_current-task.md` | mirror any newly-locked entries into `_full-context.md`, append-only |
-| any other source file | refresh that file's module-map node |
+| File changed | What fires | Cost |
+|---|---|---|
+| `FEATURE-NAME.md` / `--subfeature.md` | Sync-check only, against this feature's `atoms.json` | Free |
+| `features/FEATURE-NAME/atoms.json` | Sync-check + recompile `_index/decisions.json` + all three Review checks (vocabulary/conflict/value-inversion, real script, never Claude comparing by reading) + orphan-check's `depends_on` direction | Free |
+| `Vocabulary/registry.json` | Orphan-check's registry direction only | Free |
+| `management-info.md` | Trigger only, hands off to the Rules/Preferences conversion pass | Trigger is free; the conversion pass itself is a real reasoning step, not free |
+| `_current-task.md` | Mirror newly-locked entries into `_full-context.md`, append-only | Free — pure copying, no interpretation |
+| any other source file | Refresh that file's module-map node | Free |
 
-First action on every fire is a cheap "is this in the vault at all, or a tracked source file?"
-path check with an immediate exit — the common case during normal coding.
+`atoms.json` is the one row that cascades into everything — it's the only file the deterministic
+checks actually compare, so a pure `.md` or `registry.json` edit alone never triggers Review's
+three checks. First action on every fire is a cheap "is this in the vault at all, or a tracked
+source file?" path check with an immediate exit — the common case during normal coding.
 
 **Build requirement: reminders must use `additionalContext`, not plain stdout.** `PostToolUse`
 can't block anything — the write already happened by the time it runs — and plain stdout text on
