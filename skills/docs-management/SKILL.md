@@ -28,7 +28,7 @@ vault-<project-name>/
 ├── _features.md
 ├── _plans.md
 ├── _current-task.md
-├── _queue.md                   (pending features/notes/promotions, see below)
+├── _queue.json                 (pending topics: features/subfeatures/notes, see below)
 ├── _full-context.md            (gitignored — machine-read only, mirrored from _current-task.md, see below)
 ├── Vocabulary/
 │   ├── registry.json           (committed — shared axis vocabulary)
@@ -81,16 +81,20 @@ history. Each sub-feature's real vault file is still written the moment that sub
 discussion concludes (see `vault-architect`'s job description below) — but `_current-task.md`
 itself is only cleared once every sub-feature of the *whole* feature is discussed and written.
 
-`_queue.md` — every feature/note/promotion identified but not yet individually taken through its
-own full cycle. Populated the moment a single request turns out to describe more than one item
-(the feature-definition test applies to single-addition scope too, not only whole-project scope —
-see `using-blueprint`'s feature-definition test), each entry carrying its provisional
-classification (Note/Promotion/New Feature — Feature-Detection's checks are mechanical enough to
-run on the whole list up front). `SessionStart` injects this file every session alongside
-`_current-task.md` and `_index.md`, so a pending item is never something Claude has to remember on
-its own. `vault-architect` writes new entries and checks one off — removes it — the moment that
-item's own cycle is fully written to its permanent home. Stays small by the same discipline as
-`_current-task.md`: nothing lingers once it's done.
+`_queue.json` — every topic identified but not yet individually taken through `topic-discussion`'s
+full cycle. JSON, not Markdown — this is structured data for machine comparison, not prose, same
+reasoning that already put atoms and the registry in JSON. Schema: `{ entries: [{ id, description,
+category, target, status }] }`, where `category` is `feature` / `subfeature` / `note`, and `target`
+names the parent feature a subfeature or note belongs to (absent for a top-level feature). Populated
+at three moments, all using the same file: Feature-Detection splitting a request that describes more
+than one item (the feature-definition test applies here, not only at whole-project scale — "today we
+make frontend and backend" is two entries, not one); a feature's own intro stage deciding its
+sub-feature split (same mechanism, one level deeper — a feature's sub-features are queued exactly
+like top-level topics are); and Brainstorming's whole-project feature list. `SessionStart` injects
+this file every session alongside `_current-task.md` and `_index.md`, so a pending item is never
+something Claude has to remember on its own. `vault-architect` writes new entries and checks one
+off — removes it — the moment that item's own cycle is fully written to its permanent home. Stays
+small by the same discipline as `_current-task.md`: nothing lingers once it's done.
 
 `_full-context.md` — a machine-read-only fallback file, plain Markdown, never HTML (HTML recaps
 stay human-facing; this one is read by Claude, never shown to the user as a deliverable). A hook
@@ -143,7 +147,7 @@ leave a vault Markdown file untagged.
 
 | File | Frontmatter |
 |---|---|
-| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`, `_queue`, `_full-context`) | `tags: [index]` |
+| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`, `_full-context`) | `tags: [index]` |
 | `FEATURE-NAME.md` | `tags: [feature]` |
 | `FEATURE-NAME--subfeature.md` | `tags: [subfeature]` |
 | `PHASE-N-NAME.md` | `tags: [phase]` |
@@ -151,8 +155,9 @@ leave a vault Markdown file untagged.
 | any unconfirmed / drafted-without-live-confirmation file | add `needs-review` → e.g. `tags: [feature, needs-review]` |
 | any parked / future file | add `parked` → e.g. `tags: [subfeature, parked]` |
 
-`atoms.json`, `Vocabulary/registry.json`, and `_index/decisions.json` are plain JSON data files,
-not frontmatter-tagged Markdown — the frontmatter/tags system above only applies to `.md` files.
+`atoms.json`, `Vocabulary/registry.json`, `_index/decisions.json`, `_queue.json`, and
+`PHASE-N-NAME.json` are plain JSON data files, not frontmatter-tagged Markdown — the
+frontmatter/tags system above only applies to `.md` files.
 
 **No `perché` field.** Superseded by the Ratification-at-Contact mechanism (owned by
 `using-blueprint`): an item's open questions live as prose (or as the `needs-review` tag) and get
@@ -252,6 +257,7 @@ knows what it can't silently override before it writes anything).
 | `Vocabulary/registry.json` | Orphan-check's registry direction only | Free |
 | `management-info.md` | Trigger only, hands off to the Rules/Preferences conversion pass | Trigger is free; the conversion pass itself is a real reasoning step, not free |
 | `_current-task.md` | Mirror newly-locked entries into `_full-context.md`, append-only | Free — pure copying, no interpretation |
+| `_queue.json` | None — plain read/write, no derived recompilation | Free |
 | any other source file | Refresh that file's module-map node | Free |
 
 `atoms.json` is the one row that cascades into everything — it's the only file the deterministic
@@ -458,7 +464,7 @@ unlike features which get folders). Fields mirror an atom: `id`, `description`, 
 
 ## When to read
 
-- Session start: read `vault-<project-name>/_index.md`, `_current-task.md`, and `_queue.md`.
+- Session start: read `vault-<project-name>/_index.md`, `_current-task.md`, and `_queue.json`.
 - Before implementing a feature: read the relevant `FEATURE-NAME.md` and any sub-feature files.
 - Before starting a phase: read the relevant `PHASE-N-NAME.md` and any substep files.
 - Architecturally ambiguous: check `_architecture.md`, or `features/` for a specific feature.
