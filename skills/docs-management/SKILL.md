@@ -28,6 +28,7 @@ vault-<project-name>/
 ├── _features.md
 ├── _plans.md
 ├── _current-task.md
+├── _queue.md                   (pending features/notes/promotions, see below)
 ├── _full-context.md            (gitignored — machine-read only, mirrored from _current-task.md, see below)
 ├── Vocabulary/
 │   ├── registry.json           (committed — shared axis vocabulary)
@@ -43,7 +44,8 @@ vault-<project-name>/
 │                                                test justifies a split within this feature
 └── plans/
     ├── PHASE-1-NAME.md
-    └── PHASE-1-NAME--substep-name.md         ← optional, same rule as sub-features
+    ├── PHASE-1-NAME--substep-name.md         ← optional, same rule as sub-features
+    └── PHASE-1-NAME.json                     ← Plan-Discussion's tasks, see below
 ```
 
 The vault folder is named after the project itself (`vault-<project-name>/`), never a generic
@@ -78,6 +80,17 @@ its entry is updated to show the current answer only — this file is a live sna
 history. Each sub-feature's real vault file is still written the moment that sub-feature's own
 discussion concludes (see `vault-architect`'s job description below) — but `_current-task.md`
 itself is only cleared once every sub-feature of the *whole* feature is discussed and written.
+
+`_queue.md` — every feature/note/promotion identified but not yet individually taken through its
+own full cycle. Populated the moment a single request turns out to describe more than one item
+(the feature-definition test applies to single-addition scope too, not only whole-project scope —
+see `using-blueprint`'s feature-definition test), each entry carrying its provisional
+classification (Note/Promotion/New Feature — Feature-Detection's checks are mechanical enough to
+run on the whole list up front). `SessionStart` injects this file every session alongside
+`_current-task.md` and `_index.md`, so a pending item is never something Claude has to remember on
+its own. `vault-architect` writes new entries and checks one off — removes it — the moment that
+item's own cycle is fully written to its permanent home. Stays small by the same discipline as
+`_current-task.md`: nothing lingers once it's done.
 
 `_full-context.md` — a machine-read-only fallback file, plain Markdown, never HTML (HTML recaps
 stay human-facing; this one is read by Claude, never shown to the user as a deliverable). A hook
@@ -130,7 +143,7 @@ leave a vault Markdown file untagged.
 
 | File | Frontmatter |
 |---|---|
-| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`, `_full-context`) | `tags: [index]` |
+| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`, `_queue`, `_full-context`) | `tags: [index]` |
 | `FEATURE-NAME.md` | `tags: [feature]` |
 | `FEATURE-NAME--subfeature.md` | `tags: [subfeature]` |
 | `PHASE-N-NAME.md` | `tags: [phase]` |
@@ -437,9 +450,15 @@ def relevant_function():
 - [[FEATURE-NAME--subfeature-name]] ← related sub-feature, if any
 ```
 
+### `plans/PHASE-N-NAME.json`
+Plan-Discussion's task storage — one flat file per phase (matching `plans/`'s own flat layout,
+unlike features which get folders). Fields mirror an atom: `id`, `description`, `exit_criterion`
+(the machine-verifiable check a task is done), `depends_on`, `status`. Same writer
+(`vault-architect`), same principle as `atoms.json`.
+
 ## When to read
 
-- Session start: read `vault-<project-name>/_index.md` and `_current-task.md`.
+- Session start: read `vault-<project-name>/_index.md`, `_current-task.md`, and `_queue.md`.
 - Before implementing a feature: read the relevant `FEATURE-NAME.md` and any sub-feature files.
 - Before starting a phase: read the relevant `PHASE-N-NAME.md` and any substep files.
 - Architecturally ambiguous: check `_architecture.md`, or `features/` for a specific feature.
