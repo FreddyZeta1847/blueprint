@@ -85,7 +85,10 @@ itself is only cleared once every sub-feature of the *whole* feature is discusse
 full cycle. JSON, not Markdown — this is structured data for machine comparison, not prose, same
 reasoning that already put atoms and the registry in JSON. Schema: `{ entries: [{ id, description,
 category, target, status }] }`, where `category` is `feature` / `subfeature` / `note`, and `target`
-names the parent feature a subfeature or note belongs to (absent for a top-level feature). Populated
+names the parent feature a subfeature or note belongs to (absent for a top-level feature). The array
+order **is** the processing order — no separate ordering field. Claude proposes it once, when the
+queue is first populated; items added later (a feature's own sub-feature split) get inserted into
+the existing order, never trigger a full re-proposal. Populated
 at three moments, all using the same file: Feature-Detection splitting a request that describes more
 than one item (the feature-definition test applies here, not only at whole-project scale — "today we
 make frontend and backend" is two entries, not one); a feature's own intro stage deciding its
