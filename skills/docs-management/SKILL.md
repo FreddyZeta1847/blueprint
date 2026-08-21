@@ -277,9 +277,13 @@ tags: [index]
 
 # Features Overview
 
-- **FEATURE-NAME** — one-line description
-- **FEATURE-NAME** — one-line description
+- **FEATURE-NAME** — one-line description (agent-assist)
+- **FEATURE-NAME** — one-line description (manual)
 ```
+The `(agent-assist)` / `(manual)` tag is the user-agent's batch assignment
+— see `skills/user-agent/SKILL.md`. Absent until the batch question first
+locks (e.g. a brand-new, not-yet-scoped project); `vault-architect` adds
+and updates it, never the user by hand.
 
 ### `_plans.md`
 ```markdown
