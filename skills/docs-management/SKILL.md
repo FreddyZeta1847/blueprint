@@ -84,8 +84,11 @@ itself is only cleared once every sub-feature of the *whole* feature is discusse
 `_queue.json` — every topic identified but not yet individually taken through `topic-discussion`'s
 full cycle. JSON, not Markdown — this is structured data for machine comparison, not prose, same
 reasoning that already put atoms and the registry in JSON. Schema: `{ entries: [{ id, description,
-category, target, status }] }`, where `category` is `feature` / `subfeature` / `note`, and `target`
-names the parent feature a subfeature or note belongs to (absent for a top-level feature). The array
+shape_hint, target, status }] }`, where `shape_hint` is `feature` / `subfeature` / `note` — Claude's
+best grounded guess at classification time, **explicitly non-binding** — and `target` names a likely
+related feature, if one was identified, same non-binding caveat. `topic-discussion`'s Recheck step is
+what actually confirms or revises the hint, once real discussion has happened; only the "does this
+need documentation at all" call is firm, decided before anything is queued. The array
 order **is** the processing order — no separate ordering field. Claude proposes it once, when the
 queue is first populated; items added later (a feature's own sub-feature split) get inserted into
 the existing order, never trigger a full re-proposal. Populated
