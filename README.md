@@ -109,7 +109,7 @@ code. Here's the walkthrough, feature by feature:
    draft (triggering a quick "confirm, correct, or decide fresh?" check), or does it anchor
    to nothing that exists yet, making it a **New Feature**?
 
-5. **Feature-Discussion** converges a new feature into a locked design, one sub-feature at a
+5. **Topic-Discussion** converges a new feature into a locked design, one sub-feature at a
    time. Each sub-feature goes through two structurally separated phases: **diverge** first
    (real alternatives get weighed — say, JWT vs. sessions vs. OAuth-only for an auth
    sub-feature), *then* **converge** (pick one, record why the others lost). This is a real

@@ -35,6 +35,8 @@ vault-<project-name>/
 │   └── dismissed.json          (committed — Review findings dismissed, with reason)
 ├── _index/
 │   └── decisions.json          (gitignored — compiled from every feature's atoms.json)
+├── Sheets/
+│   └── engineering-sheets.html (optional — see 'Engineering sheets' below)
 ├── management-info.md          (optional, per-project — manager-authored rules/preferences)
 ├── features/
 │   └── FEATURE-NAME/                         ← one folder per feature, named after it
@@ -84,10 +86,11 @@ itself is only cleared once every sub-feature of the *whole* feature is discusse
 `_queue.json` — every topic identified but not yet individually taken through `topic-discussion`'s
 full cycle. JSON, not Markdown — this is structured data for machine comparison, not prose, same
 reasoning that already put atoms and the registry in JSON. Schema: `{ entries: [{ id, description,
-shape_hint, target, status }] }`, where `shape_hint` is `feature` / `subfeature` / `note` — Claude's
-best grounded guess at classification time, **explicitly non-binding** — and `target` names a likely
-related feature, if one was identified, same non-binding caveat. `topic-discussion`'s Recheck step is
-what actually confirms or revises the hint, once real discussion has happened; only the "does this
+shape_hint, target, status }] }`, where `shape_hint` is `feature` / `topic` — `topic` meaning "needs
+documentation, not a feature," internal data only, never shown to the user as the word "topic" — and
+is Claude's best grounded guess at classification time, **explicitly non-binding**. `target` names a
+likely related feature, if one was identified, same non-binding caveat. `topic-discussion`'s Recheck
+step is what actually confirms or revises both, once real discussion has happened; only the "does this
 need documentation at all" call is firm, decided before anything is queued. The array
 order **is** the processing order — no separate ordering field. Claude proposes it once, when the
 queue is first populated; items added later (a feature's own sub-feature split) get inserted into
@@ -277,6 +280,47 @@ a normal exit never reaches Claude, only the human's transcript. The only way a 
 orphan-check finding actually reaches Claude is a JSON response with a
 `hookSpecificOutput.additionalContext` (or `systemMessage`) field. Skipping this makes every
 finding above silently invisible to Claude.
+
+## Engineering sheets (`Sheets/engineering-sheets.html` — opt-in, not a new writer)
+
+Each sheet is a complete engineering reference for one piece, not a contract diagram: one
+project-wide **Sheet 0** (every component as a subgraph, real steps as short 2-4-word nodes, real
+cross-component arrows, already-locked tech decisions called out in a keynote box) plus one sheet
+**per top-level feature**, drawn "as if for the engineer who owns only that piece" — that feature's
+own complete internal mechanism in full detail (state management, caching, concurrency/locking,
+security/sanitization, retry and backoff policies, every locked axis relevant to it, not only its
+contracts), while every *neighboring* feature appears only as an opaque contract box (what goes in,
+what comes out, never its internals). Every failure point is woven inline as a small numbered
+badge at the exact spot it can occur, and one consolidated **Error Legend** at the end of the
+document (grouped by which sheet owns each badge) states, per entry, what breaks, when, and how
+it's already handled. All sheets live together in one single self-contained HTML file, navigable
+via a sticky sidebar TOC — not scattered one-per-feature-folder.
+
+A second agent, `sheet-designer`, reads every feature's already-committed atoms and prose and
+renders this file. Nothing here is a new capture mechanism: state-management, caching,
+concurrency, security, and failure-recovery choices are already exactly the shape of an ordinary
+decision atom (see Decision atoms above, and `topic-discussion/SKILL.md`'s diverge-scope note) — a
+sheet's keynote callouts of already-locked tech are literally just its `ratified`/`locked` atoms
+read back in prose. `sheet-designer` never writes or edits vault Markdown or `atoms.json` —
+`vault-architect` remains the single writer of every *authoritative* vault file; `sheet-designer`
+only ever produces a derived, non-authoritative artifact from what's already locked.
+
+Ships as a **skill, not a command — notices, never builds without asking.** Real token cost (a
+real agent dispatch synthesizing an entire feature's worth of atoms into one engineering
+narrative), so it follows `deep-review`/`pre-publish-check`'s rule: asked, never silent, never
+forced. The skill notices its trigger (a feature reaching its last sub-feature; a relevant atom
+changing after a sheet already exists) and *offers* to build or refresh — it never generates on
+its own. Refreshing one feature's sheet also flags Sheet 0, and any feature whose contract with it
+might have changed, as possibly stale, and offers to refresh those too — same ask-first
+discipline, never automatic. No staleness-detection hook in v1 — build/refresh on demand only.
+
+**Feature-placement note, kept honest about its own uncertainty.** `engineering-sheets` folds into
+Documentation rather than earning its own top-level feature, because it fails the
+feature-definition test's second half: nothing else in the pipeline reads a sheet back in, so it
+has no external dependent — the same reason a generic `feature-recap` convention (see below) never
+becomes a required vault feature either. That call could flip if a real dependent ever shows up (a
+future check reading Sheet 0's data back in, say) — recorded here as open and revisitable, not
+permanently settled.
 
 ## Explicitly not part of this schema
 
