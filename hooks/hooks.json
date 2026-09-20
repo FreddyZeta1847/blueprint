@@ -1,0 +1,16 @@
+{
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "script": "orientation.js"
+    },
+    {
+      "event": "PostToolUse",
+      "script": "file-watcher.js"
+    },
+    {
+      "event": "PreToolUse",
+      "script": "one-way-guard.js"
+    }
+  ]
+}

@@ -23,7 +23,7 @@ features**, each fully written up in an internal vault, checked against each oth
 What actually *runs* today is much smaller. **Phase 1** of implementation is complete: the
 vault's file schema (`skills/docs-management/SKILL.md`) and its one writer agent
 (`agents/vault-architect.md`) both exist in this repo. Everything else described below —
-all 3 hooks, 8 of the 9 skills, both commands, and the `profile-updater` agent — is design
+all 3 hooks, 9 of the 10 skills, both commands, and 2 of the 3 agents — is design
 only. It is written down in detail (see `vault-blueprint/` if you have access to it), but
 none of it is running code yet. **You cannot install and use Blueprint today.** This README
 describes the finished design so you can evaluate it, and states plainly, later on, what
@@ -104,17 +104,33 @@ code. Here's the walkthrough, feature by feature:
    scoped idea (for one addition to an existing project). It never locks fine-grained
    decisions itself; that's the next feature's job.
 
-4. **Feature-Detection** classifies each decision Brainstorming produces: does it attach as
-   a **Note** to something already confirmed, does it **Promote** an existing but unratified
-   draft (triggering a quick "confirm, correct, or decide fresh?" check), or does it anchor
-   to nothing that exists yet, making it a **New Feature**?
+4. **Feature-Detection** looks at everything the user just described — one item or several
+   — and, in a single pass, makes exactly one firm call per item: does this need
+   documentation at all, or is it routine work under an already-decided pattern (in which
+   case it's just code, nothing recorded)? For anything that does need documentation, it
+   adds one soft, non-binding hint — a whole new **feature**, or something smaller
+   (internally called a **topic**; that word never surfaces to the user). "Feature" is only
+   ever proposed when the grounding is genuinely strong, because guessing wrong there is
+   expensive — it commits to a different starting structure — where guessing wrong on a
+   topic's exact shape isn't; that gets sorted out cheaply, later, once real discussion
+   happens. The whole list, plus a suggested processing order, is shown once for the user to
+   correct and confirm — never a separate interruption per item.
 
-5. **Topic-Discussion** converges a new feature into a locked design, one sub-feature at a
-   time. Each sub-feature goes through two structurally separated phases: **diverge** first
-   (real alternatives get weighed — say, JWT vs. sessions vs. OAuth-only for an auth
-   sub-feature), *then* **converge** (pick one, record why the others lost). This is a real
-   structural gate, not just a tone instruction — phase 2 cannot start until phase 1 has
-   actually produced alternatives, so the discussion can't skip straight to a conclusion.
+5. **Topic-Discussion** converges each queued item into a locked design. A feature gets a
+   short scoping pass first (deciding its own sub-feature split); each sub-feature — or a
+   smaller topic, directly — then goes through two structurally separated phases: **diverge**
+   first (real alternatives get weighed — say, JWT vs. sessions vs. OAuth-only for an auth
+   sub-feature, and just as naturally how it caches, recovers from a dropped connection, or
+   behaves if two of it run at once, not only its headline choice), *then* **converge** (pick
+   one, record why the others lost). This is a real structural gate, not just a tone
+   instruction — phase 2 cannot start until phase 1 has actually produced alternatives, so
+   the discussion can't skip straight to a conclusion. At a real fork — especially a
+   converge-time choice with genuine alternatives, like "what type of database should we
+   use?" — Claude may put the options in front of the user directly with Claude Code's own
+   multiple-choice tool, its own recommendation included as one option, instead of only
+   prose. Only once discussion has actually happened does a final **Recheck** step decide
+   the shape (its own file, or a paragraph on an existing one) and which feature it belongs
+   to — never guessed upfront.
 
 6. **Every lock writes two things at once**: the sub-feature's own Markdown file, and its
    **decision atom** (see below) into that feature's `atoms.json`. That single write
@@ -234,14 +250,37 @@ keeps exactly two checks that are expensive and optional, both off by default:
   just wrote still matches what was decided?" Never silent, never forced — a yes dispatches
   a real check; a no just makes the push safer without blocking it.
 
+A third mechanism, `engineering-sheets`, shares that same real-cost, ask-first discipline —
+see below.
+
+## Engineering sheets — a second, opt-in view of the same vault
+
+Everything above produces prose and JSON. Engineering sheets are a different lens on the
+exact same data: one self-contained HTML file, built only when asked, with a project-wide
+**Sheet 0** — every component, every connection between them, drawn as if for the engineer
+who has to hold the whole system in their head — plus one sheet per feature, written as if
+for the engineer who owns only that one piece: that feature's own internal mechanism in full
+(state management, caching, how it recovers when a connection drops, what happens if two of
+it run at once), with every neighboring feature reduced to a black box — just the contract,
+what goes in and what comes out, never its internals. Every failure point gets a small
+numbered badge exactly where it can happen, and one legend at the end explains every badge in
+plain language: what breaks, when, and how it's already handled.
+
+None of this needs a new way of capturing information. A choice about caching or failure
+recovery is already an ordinary decision atom, exactly like a choice of framework —
+Topic-Discussion's diverge phase already weighs it that way (see above). Engineering sheets
+are a pure rendering step over decisions that were already locked; building or refreshing one
+is always offered, never automatic — the same "asked, never silent, never forced" rule that
+governs `deep-review` and the pre-publish check.
+
 ## Token-safe by design
 
 This is a deliberate, named principle, not a side effect: **nearly everything in the hot
 path costs nothing.** Every hook, the three deterministic checks, the sync-check, and the
 staleness check are all real, deterministic code — zero LLM calls, every time. The only
 real token costs anywhere in the system are opt-in and deliberate: `deep-review`, the
-pre-publish check, and two reasoning passes (turning a manager's prose into atoms, and
-updating the user-agent's Profile).
+pre-publish check, `engineering-sheets`, and two reasoning passes (turning a manager's prose
+into atoms, and updating the user-agent's Profile).
 
 The same discipline applies to conversation cost, not just hook cost. The live discussion
 log (`_current-task.md`) is deliberately kept lean: scoped to one feature at a time, and
@@ -276,14 +315,14 @@ None of this is installable yet — see **Status**, above.
 | Piece | Count (design) | Built |
 |---|---|---|
 | Hooks (`SessionStart`, `PostToolUse`, `PreToolUse`) | 3 | 0 |
-| Skills | 9 | 1 — `skills/docs-management/SKILL.md` |
+| Skills | 10 | 1 — `skills/docs-management/SKILL.md` |
 | Commands (`/blueprint`, `/deep-review`) | 2 | 0 |
-| Agents (`vault-architect`, `profile-updater`) | 2 | 1 — `agents/vault-architect.md` |
+| Agents (`vault-architect`, `profile-updater`, `sheet-designer`) | 3 | 1 — `agents/vault-architect.md` |
 
 `docs-management` and `vault-architect` together are Phase 1: the vault's file schema and
-its one writer. Everything else in the table — every hook, the remaining 8 skills, both
-commands, and the `profile-updater` agent — exists only as design, written up in full detail
-in the project's internal vault, not yet implemented.
+its one writer. Everything else in the table — every hook, the remaining 9 skills, both
+commands, and the `profile-updater`/`sheet-designer` agents — exists only as design, written
+up in full detail in the project's internal vault, not yet implemented.
 
 ## Repository layout
 
@@ -298,6 +337,6 @@ blueprint/
 └── README.md
 ```
 
-Everything else described in this README — `commands/`, `hooks/`, the other 8 `skills/`
-folders, and `agents/profile-updater.md` — will land here as later implementation phases
-complete.
+Everything else described in this README — `commands/`, `hooks/`, the other 9 `skills/`
+folders, and `agents/profile-updater.md`/`agents/sheet-designer.md` — will land here as later
+implementation phases complete.

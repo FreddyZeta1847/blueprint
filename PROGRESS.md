@@ -53,5 +53,6 @@ resolution itself. Full rationale lives in the (gitignored) vault.
 - 2026-08-24 — BLUEPRINT: hint-confidence asymmetry fixed — one part of the classification hint now needs a higher confidence bar than the rest, and the mechanism now states its own posture out loud before proceeding
 - 2026-08-24 — BLUEPRINT: cross-reference sweep after the classification redesign — 6 stale mentions found and fixed across the overview file, three feature files, and the diagram, plus an unrelated leftover from an earlier rename
 - 2026-08-29 — BLUEPRINT: two new mechanisms designed and locked — a judgment-based convention for a native question-asking tool, and a new opt-in rendering feature for a richer engineering-reference artifact; plugin now ships 3 agents and 10 skills
+- 2026-09-05 — BLUEPRINT: README and diagram artifact refreshed to match the current locked design — one section had gone stale describing a fully-retired mechanism
 - 2026-08-24 — BLUEPRINT: a mechanism's trigger timing corrected — it now fires only where its own name says it should — and a redundant confirmation step removed, since the same thing was already confirmed earlier in the pipeline
 - 2026-08-24 — BLUEPRINT: classification hint simplified from three values to two, and the open question of when a related-feature assignment gets decided is now resolved
