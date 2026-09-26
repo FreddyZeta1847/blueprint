@@ -1,0 +1,12 @@
+{
+  "name": "blueprint",
+  "description": "Blueprint — documentation-driven development for Claude Code: a decision vault that survives between sessions.",
+  "owner": { "name": "FreddyZeta1847" },
+  "plugins": [
+    {
+      "name": "blueprint",
+      "source": ".",
+      "description": "A documentation-driven development methodology for Claude Code."
+    }
+  ]
+}

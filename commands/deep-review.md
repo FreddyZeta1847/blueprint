@@ -1,3 +1,7 @@
+---
+description: Opt-in, expensive semantic review across a feature's atoms and prose — catches paraphrase-level contradictions the free deterministic checks cannot see
+---
+
 # /deep-review
 
 Run an expensive, semantic review across a feature's atoms and prose for real certainty before major milestones.

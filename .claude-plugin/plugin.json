@@ -1,0 +1,6 @@
+{
+  "name": "blueprint",
+  "description": "A documentation-driven development methodology: waterfall docs, agile implementation, a vault as the only memory for a stateless implementer.",
+  "author": { "name": "FreddyZeta1847" },
+  "hooks": "./hooks/hooks.json"
+}

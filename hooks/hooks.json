@@ -1,16 +1,37 @@
 {
-  "hooks": [
-    {
-      "event": "SessionStart",
-      "script": "orientation.js"
-    },
-    {
-      "event": "PostToolUse",
-      "script": "file-watcher.js"
-    },
-    {
-      "event": "PreToolUse",
-      "script": "one-way-guard.js"
-    }
-  ]
+  "description": "Blueprint: session orientation, the merged file-watcher, and the one-way decision guard.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/orientation.js\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/file-watcher.js\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/one-way-guard.js\""
+          }
+        ]
+      }
+    ]
+  }
 }
