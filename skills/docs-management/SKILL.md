@@ -29,12 +29,15 @@ vault-<project-name>/
 ├── _plans.md
 ├── _current-task.md
 ├── _queue.json                 (pending topics: features/subfeatures/notes, see below)
+├── _audit.md                   (committed — auto-generated who/when/what/why changelog, see below)
 ├── _full-context.md            (gitignored — machine-read only, mirrored from _current-task.md, see below)
 ├── Vocabulary/
-│   ├── registry.json           (committed — shared axis vocabulary)
-│   └── dismissed.json          (committed — Review findings dismissed, with reason)
+│   ├── registry.json           (committed — shared axis vocabulary: { id, question } pairs)
+│   ├── dismissed.json          (committed — Review findings dismissed, with reason)
+│   └── ignored-values.json     (committed — absent-answer values the value-inversion check skips)
 ├── _index/
-│   └── decisions.json          (gitignored — compiled from every feature's atoms.json)
+│   ├── decisions.json          (gitignored — compiled from every feature's atoms.json)
+│   └── unassigned.json         (gitignored — source files owned by no feature yet)
 ├── Sheets/
 │   └── engineering-sheets.html (optional — see 'Engineering sheets' below)
 ├── management-info.md          (optional, per-project — manager-authored rules/preferences)
@@ -42,6 +45,7 @@ vault-<project-name>/
 │   └── FEATURE-NAME/                         ← one folder per feature, named after it
 │       ├── FEATURE-NAME.md                   ← the lean parent, always present
 │       ├── atoms.json                         ← this feature's decisions
+│       ├── modules.json                       ← gitignored: the source files this feature owns
 │       └── FEATURE-NAME--subfeature-name.md  ← optional, only where the feature-definition
 │                                                test justifies a split within this feature
 └── plans/
@@ -75,13 +79,22 @@ feature is added.
 `_plans.md` — overview of all implementation phases with a short description of each. Updated
 whenever a new phase is added.
 
-`_current-task.md` — the live discussion log, scoped to **one feature at a time** — not one
-sub-feature, not one single decision. Every decision locked during that feature's discussion is
-written in as it happens (reasoning, tradeoffs, candidate splits); if a decision is later revised,
-its entry is updated to show the current answer only — this file is a live snapshot, never a
-history. Each sub-feature's real vault file is still written the moment that sub-feature's own
-discussion concludes (see `vault-architect`'s job description below) — but `_current-task.md`
-itself is only cleared once every sub-feature of the *whole* feature is discussed and written.
+`_current-task.md` — the live discussion log, scoped to **one feature or topic at a time**. The
+unit written into it is **"a decision was made"**, never "a sub-feature was locked" — finer-grained
+than a lock, written the moment the decision is reached, never batched to the end.
+
+**What one decision block holds:** the **chosen** option and nothing about the ones that lost — the
+alternatives already live in the atom's `rejected` field. Concretely: the decision, **why** it was
+chosen, its **pros**, its **cons**, known **problems** or risks it carries, and anything else needed
+to understand it later. That content is the whole reason `_full-context.md` is worth keeping: the
+atom holds `choice` + `rejected` + a short rationale, the feature prose holds the settled
+description, and **neither holds the weighing**.
+
+If a decision is later revised, its entry is updated to show the current answer only — this file is
+a live snapshot, never a history (the history lives in `_full-context.md`). Each sub-feature's real
+vault file is still written the moment that sub-feature's own discussion concludes (see
+`vault-architect`'s job description below) — but `_current-task.md` itself is only cleared once the
+*whole* feature or topic is discussed and written.
 
 `_queue.json` — every topic identified but not yet individually taken through `topic-discussion`'s
 full cycle. JSON, not Markdown — this is structured data for machine comparison, not prose, same
@@ -106,10 +119,18 @@ off — removes it — the moment that item's own cycle is fully written to its 
 small by the same discipline as `_current-task.md`: nothing lingers once it's done.
 
 `_full-context.md` — a machine-read-only fallback file, plain Markdown, never HTML (HTML recaps
-stay human-facing; this one is read by Claude, never shown to the user as a deliverable). A hook
-mirrors every lock event out of `_current-task.md` into this file, **append-only** — never
-overwritten, so a later reversal (a decision changed, then changed back) leaves the full trail
-standing even after `_current-task.md` has already moved on to showing only the current answer.
+stay human-facing; this one is read by Claude, never shown to the user as a deliverable). The
+`PostToolUse` hook appends **the exact same string** that was just written to `_current-task.md` —
+not a filtered subset, not a re-summary, the identical block. There is no marker convention and no
+id, because the hook has nothing to tell apart: everything in the scratchpad is worth preserving.
+**Append-only** — never overwritten, so a later reversal (a decision changed, then changed back)
+leaves the full trail standing even after `_current-task.md` has been cleared.
+
+Mechanically the hook branches on the tool: an **`Edit`** carries `new_string`, which *is* the newly
+added text, so it is appended directly. A **`Write`** carries the whole file, so appending it would
+duplicate everything already mirrored — and a `Write` here happens exactly twice in the file's life,
+at first creation and at the clear. So a `Write` is appended only when the mirror is still empty;
+otherwise it is skipped, because a clear adds no new reasoning.
 Read only when strictly necessary — a hallucination, a big or repeating mistake, or a clear
 misunderstanding with the user — never in normal flow, or it defeats its own token-saving purpose.
 Distinct from any team-facing audit/report file some installations layer on top: this file has no
@@ -196,7 +217,7 @@ confirmed/dismissed files to hand-maintain.
 | Field | Meaning |
 |---|---|
 | `id` | Stable identifier for this atom, never reused. |
-| `axis` | The question this atom answers, written as a full question (e.g. `"what database engine does this feature use?"`), never a bare noun — a noun-style axis invites two different questions to collide under the same label. |
+| `axis` | The **registry id** of the question this atom answers — e.g. `"db-engine"`. The question text itself lives once, in `Vocabulary/registry.json`, and is never copied into the atom, so rewording a question never rewrites an atom. The *registered question* must still be written in full (`"what database engine does this feature use?"`), never a bare noun: a noun-style axis like `db` invites two different questions (engine choice vs. table count) to collide under one label. Register the full question; store the id. |
 | `choice` | The value actually decided (e.g. `"jwt"`). |
 | `rejected` | Alternatives genuinely considered and set aside, with a short reason each. Required non-empty for a one-way decision. |
 | `facts` | Secondary properties derived from the choice, useful to later checks. |
@@ -230,9 +251,15 @@ executed as a real script folded into the merged `PostToolUse` file-watcher, nev
 Claude reading and comparing JSON itself (an LLM "eyeballing" a comparison is still inference and
 can drift between runs; a script can't). Claude's role is presenting the script's findings, never
 running the comparison:
-- **Vocabulary check** — does any axis fail to exist in `registry.json`? (a spell-checker)
+- **Vocabulary check** — does any atom's `axis` id fail to exist as an `id` in `registry.json`?
+  Exact id membership, never a comparison of question text. (a spell-checker)
 - **Conflict check** — same axis, different choice, across two features? (a fact-checker)
-- **Value-inversion check** — same literal value showing up under two different axes?
+- **Value-inversion check** — the same literal `choice` showing up under two different axes.
+  Skips the absent-answer values listed in `Vocabulary/ignored-values.json`, because a headline
+  choice is a specific named thing (`jwt`) while non-headline axes (caching, retry, rate limiting)
+  legitimately land on "nothing here" over and over — three correct `none` atoms would otherwise
+  flag every pair and bury the one real collision. `yes`/`no` are deliberately **not** ignorable:
+  a yes/no choice means the axis itself was authored wrong, which is a finding worth surfacing.
 
 No separate manual "check everything" command exists — the hook fires on every `atoms.json`
 write regardless of source (a normal lock, a management-info conversion, Discovery's bootstrap
@@ -247,8 +274,30 @@ plain reference text, read during discussion, never entering the compiled decisi
 | File | Committed? | Role |
 |---|---|---|
 | `features/FEATURE-NAME/atoms.json` | yes | Original, per feature — small files avoid merge collisions. |
-| `Vocabulary/registry.json` | yes | Original, shared, append-mostly. |
+| `Vocabulary/registry.json` | yes | Original, shared, append-mostly. `{ id, question }` pairs. |
+| `Vocabulary/dismissed.json` | yes | Original — findings the user ruled not real, with the reason, so they don't resurface. Written by `vault-architect` only, never a direct user edit. |
+| `Vocabulary/ignored-values.json` | yes | Original — absent-answer values the value-inversion check skips. Shipped as a starter seed, extended per project. |
 | `_index/decisions.json` | no (gitignored) | Pure aggregation of every `atoms.json`, rebuilt automatically whenever any of them changes — committing it would only produce meaningless full-file-rewrite conflicts. |
+| `_index/unassigned.json` | no (gitignored) | Source files the module map doesn't own yet. Appended by the hook, which never guesses an owner. |
+| `features/FEATURE-NAME/modules.json` | no (gitignored) | Pure derivation — the source files this feature owns. Rebuilt by the hook. |
+| `_audit.md` | yes | Original and **not re-derivable** — the who/when/what/why changelog. See below. |
+
+**The rule behind that column is "re-derivable", not "auto-generated".** `_index/decisions.json`
+and `modules.json` are machine-written *and* rebuildable in a second from files that are themselves
+committed, so tracking them buys nothing and costs conflicts. `_audit.md` is equally
+machine-written but **cannot** be rebuilt — delete it and the authorship and timing history is gone
+permanently — so it is committed. `_full-context.md` is the one deliberate exception on the other
+side: also not re-derivable, but machine-only, with no human audience, and it grows without bound.
+
+**`_audit.md` — the decision changelog.** Plain Markdown at the vault root, auto-generated,
+append-only, **never hand-edited** (the hook appends it in the same pass as the sync-check, so it
+costs nothing extra). Markdown rather than JSON on purpose: its entire job is being read by a
+person who wasn't there, and a format that is easy for the script but unreadable to that person
+fails its own requirement. It logs every atom change (added / changed / removed), pre-publish check
+findings, and one-way-guard blocked-write events — **not** ordinary code edits, which are already
+git history. The "why" reuses the atom's `rationale`, so no new field is needed. The "who" is
+`git config user.name`, falling back to the OS username; reading the Claude account identity from a
+hook was checked and is impossible. Entries carry a session id and are grouped at read time.
 
 **Supporting mechanisms**, all part of the merged `PostToolUse` file-watcher (see the file's
 dispatch table below): the **sync-check** (a feature's `.md` changed without its `atoms.json`, or
@@ -262,12 +311,24 @@ knows what it can't silently override before it writes anything).
 | File changed | What fires | Cost |
 |---|---|---|
 | `FEATURE-NAME.md` / `--subfeature.md` | Sync-check only, against this feature's `atoms.json` | Free |
-| `features/FEATURE-NAME/atoms.json` | Sync-check + recompile `_index/decisions.json` + all three Review checks (vocabulary/conflict/value-inversion, real script, never Claude comparing by reading) + orphan-check's `depends_on` direction | Free |
+| `features/FEATURE-NAME/atoms.json` | Sync-check + recompile `_index/decisions.json` + all three Review checks (vocabulary/conflict/value-inversion, real script, never Claude comparing by reading) + orphan-check's `depends_on` direction + append the `_audit.md` entry + flag a new `ratified` atom for `profile-updater` | Checks free; the profile pass is a real reasoning step |
 | `Vocabulary/registry.json` | Orphan-check's registry direction only | Free |
 | `management-info.md` | Trigger only, hands off to the Rules/Preferences conversion pass | Trigger is free; the conversion pass itself is a real reasoning step, not free |
-| `_current-task.md` | Mirror newly-locked entries into `_full-context.md`, append-only | Free — pure copying, no interpretation |
+| `_current-task.md` | Append the written text **verbatim** into `_full-context.md` (`Edit` → append `new_string`; `Write` → only if the mirror is empty, since a `Write` here is the clear) | Free — pure copying, no interpretation |
 | `_queue.json` | None — plain read/write, no derived recompilation | Free |
-| any other source file | Refresh that file's module-map node | Free |
+| any other source file | Refresh that file's node in `features/*/modules.json`. A file owned by no feature yet is appended to `_index/unassigned.json` and its count surfaced — the hook never guesses an owner | Free |
+
+**Delivery is load-bearing, not a detail.** `PostToolUse` cannot block anything — by the time it
+runs, the write already happened. So its findings only reach Claude if the script returns JSON
+carrying `hookSpecificOutput.additionalContext` (or `systemMessage`). Plain text printed on a normal
+exit lands in a transcript a human may never open, and Claude never sees it. Every reminder in the
+table above depends on that.
+
+**Findings are presented, never resolved unilaterally** — all of them in one message, grouped by
+check type, **conflicts first** (a same-axis conflict is the most likely to actually break
+something). Never ordered by "confidence": these are pure yes/no comparisons with nothing to rank.
+A dismissal goes through `vault-architect` into `Vocabulary/dismissed.json` with its reason, so it
+never resurfaces — Review never writes that file itself.
 
 `atoms.json` is the one row that cascades into everything — it's the only file the deterministic
 checks actually compare, so a pure `.md` or `registry.json` edit alone never triggers Review's
@@ -349,10 +410,15 @@ tags: [index]
 - **FEATURE-NAME** — one-line description (agent-assist)
 - **FEATURE-NAME** — one-line description (manual)
 ```
-The `(agent-assist)` / `(manual)` tag is the user-agent's batch assignment
-— see `skills/user-agent/SKILL.md`. Absent until the batch question first
-locks (e.g. a brand-new, not-yet-scoped project); `vault-architect` adds
-and updates it, never the user by hand.
+The `(agent-assist)` / `(manual)` tag records that topic's answer to the mode
+question — see `skills/user-agent/SKILL.md`. It is asked **once per top-level
+topic**, at the moment that topic's own discussion begins, for any queue entry
+with no `target`. There is no upfront batch question (that was tried and
+removed: it asked the user to judge "boring vs. sensitive" from a bare name,
+before anyone knew what the topic involved). So the tag is absent until that
+feature's own discussion actually starts, and a sub-feature or note queued
+underneath it inherits the parent's mode rather than getting its own tag.
+`vault-architect` adds and updates it, never the user by hand.
 
 ### `_plans.md`
 ```markdown

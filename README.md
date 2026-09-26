@@ -13,21 +13,31 @@
 
 ---
 
-## Status: designed, not yet built
+## Status: built, not yet proven
 
-Be clear-eyed about what this repo currently is. Blueprint's full design is done: **12
-features**, each fully written up in an internal vault, checked against each other across
-**4 separate audit passes** (each one found and fixed real contradictions — see
-[`PROGRESS.md`](PROGRESS.md) for the sanitized log).
+Blueprint's full design is done: **12 features**, each written up in an internal vault and
+checked against each other across several audit passes (each one found and fixed real
+contradictions — see [`PROGRESS.md`](PROGRESS.md) for the sanitized log).
 
-What actually *runs* today is much smaller. **Phase 1** of implementation is complete: the
-vault's file schema (`skills/docs-management/SKILL.md`) and its one writer agent
-(`agents/vault-architect.md`) both exist in this repo. Everything else described below —
-all 3 hooks, 9 of the 10 skills, both commands, and 2 of the 3 agents — is design
-only. It is written down in detail (see `vault-blueprint/` if you have access to it), but
-none of it is running code yet. **You cannot install and use Blueprint today.** This README
-describes the finished design so you can evaluate it, and states plainly, later on, what
-already exists versus what's still on paper.
+Every piece the design calls for now exists as real code and real files:
+
+| | |
+|---|---|
+| **3 agents** | `vault-architect`, `profile-updater`, `sheet-designer` |
+| **10 skills** | `using-blueprint`, `docs-management`, `discovery`, `brainstorming`, `feature-detection`, `topic-discussion`, `management-info`, `user-agent`, `pre-publish-check`, `engineering-sheets` |
+| **3 hooks** | `SessionStart` orientation, the merged `PostToolUse` file-watcher, the `PreToolUse` one-way guard |
+| **2 commands** | `/blueprint`, `/deep-review` |
+| **Packaging** | `.claude-plugin/plugin.json` + `marketplace.json` — installable |
+
+**What "not yet proven" means, precisely.** The plugin manifest validates and every file is
+written, but Blueprint has not yet been run end-to-end on a real project. The hook wiring in
+particular is built to the documented schema and has **not** been confirmed firing in a live
+session — `claude plugin validate` checks manifests and commands, and does not inspect hook
+configuration at all. So treat the current state as: complete, coherent, and awaiting its
+first real test rather than battle-tested.
+
+Deferred to v2 on purpose, not missing: a markdown-reflow hook, and a graph-index
+acceleration for Review. Ship the minimal complete thing first.
 
 ---
 
