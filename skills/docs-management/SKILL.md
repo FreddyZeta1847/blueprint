@@ -420,6 +420,79 @@ feature's own discussion actually starts, and a sub-feature or note queued
 underneath it inherits the parent's mode rather than getting its own tag.
 `vault-architect` adds and updates it, never the user by hand.
 
+### `_index.md`
+```markdown
+---
+tags: [index]
+---
+
+# Vault Index
+
+Map of every file in the vault. Update on every file add or remove.
+
+## Overview files
+- [[_features]]
+- [[_plans]]
+- [[_architecture]]
+- [[_current-task]]
+- `_queue.json` — pending topics
+- `_audit.md` — decision changelog (hook-maintained)
+- `Vocabulary/registry.json`, `Vocabulary/dismissed.json`, `Vocabulary/ignored-values.json`
+
+## Features
+- [[FEATURE-NAME]]
+
+## Plans
+- [[PHASE-N-NAME]]
+```
+`SessionStart` injects this file every session, so keep it a map and nothing else — no
+descriptions, no status prose. It is the cheapest thing in the vault and must stay that way.
+
+### `_current-task.md`
+```markdown
+---
+tags: [index]
+---
+
+# Current Task — Live Discussion Log
+
+**Holds ONLY the currently-open feature or topic — cleared once it is fully written.**
+
+## Now discussing — <FEATURE or TOPIC name> (<date>)
+
+### <the decision that was just made>
+- **Chosen:** <the option>
+- **Why:** <the reasoning>
+- **Pros:** <...>
+- **Cons:** <...>
+- **Problems / risks:** <... or "none identified">
+```
+One block per decision, appended the moment it is reached. Empty when nothing is open.
+
+### The `Vocabulary/` files — exact shapes
+
+These are read by real hook code, so the shape is not a matter of taste. Getting one wrong fails
+**silently**: a `dismissed.json` in the wrong shape means dismissals never suppress anything, and
+the user re-sees a finding they already ruled out, forever.
+
+```json
+// Vocabulary/registry.json
+{ "entries": [ { "id": "db-engine", "question": "what database engine does this feature use?" } ] }
+```
+```json
+// Vocabulary/dismissed.json
+{ "entries": [ { "id": "d-001", "title": "<the finding text, verbatim>", "features": ["AUTH", "API"],
+                 "date": "2026-09-26", "reason": "<why it is not real>" } ] }
+```
+```json
+// Vocabulary/ignored-values.json  — the starter seed, verbatim
+{ "values": ["none", "n/a", "not-applicable", "default", "standard", "disabled", "tbd"] }
+```
+Empty files use the same wrapper with an empty array (`{ "entries": [] }`), **never a bare `[]`**.
+The seed list above is the literal set to ship — extend per project, but do not drop entries, and
+never add `yes` or `no` (a yes/no `choice` means the axis was authored wrong, which is a finding
+worth surfacing).
+
 ### `_plans.md`
 ```markdown
 ---

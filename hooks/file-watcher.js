@@ -275,18 +275,34 @@ function syncCheck(vaultRoot, feature) {
 
 // ---------------------------------------------------------------- _audit.md
 
+/**
+ * Three tiers, in order. The middle one exists because the first is NOT as reliable as the
+ * design assumed: on a real machine `git config user.name` came back empty at every scope
+ * while commits still carried a proper author name, because the tooling supplies identity
+ * per-commit rather than through config. Reading HEAD's author catches that case; without it
+ * the audit trail silently records an OS account name instead of a person.
+ */
 function auditWho(projectDir) {
-  try {
-    const name = execFileSync('git', ['config', 'user.name'], { cwd: projectDir, encoding: 'utf8' }).trim();
-    if (name) return name;
-  } catch {
-    /* fall through */
-  }
-  try {
-    return require('os').userInfo().username;
-  } catch {
-    return 'unknown';
-  }
+  const tryGit = (args) => {
+    try {
+      const out = execFileSync('git', args, { cwd: projectDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      return out || null;
+    } catch {
+      return null;
+    }
+  };
+
+  return (
+    tryGit(['config', 'user.name']) ||
+    tryGit(['log', '-1', '--format=%an']) ||
+    (() => {
+      try {
+        return require('os').userInfo().username;
+      } catch {
+        return 'unknown';
+      }
+    })()
+  );
 }
 
 /** Diff the previous compiled index against the new one — that's where added/changed/removed comes from. */
@@ -416,8 +432,13 @@ function handleAtomsWrite(vaultRoot, projectDir, sessionId, feature) {
       .map((v) => String(v).trim().toLowerCase())
   );
 
-  const dismissed = readJson(path.join(vaultRoot, 'Vocabulary', 'dismissed.json'), { entries: [] });
-  const dismissedTitles = new Set(((dismissed && dismissed.entries) || []).map((e) => e && e.title));
+  // Accept both the documented wrapper and a bare array. A wrong-shaped file must never
+  // silently disable dismissal — that would resurface a finding the user already ruled out.
+  const dismissedRaw = readJson(path.join(vaultRoot, 'Vocabulary', 'dismissed.json'), null);
+  const dismissedList = Array.isArray(dismissedRaw)
+    ? dismissedRaw
+    : (dismissedRaw && Array.isArray(dismissedRaw.entries) ? dismissedRaw.entries : []);
+  const dismissedTitles = new Set(dismissedList.map((e) => e && e.title).filter(Boolean));
   const keep = (list) => list.filter((f) => !dismissedTitles.has(f));
 
   // Grouped by check type, conflicts first — the most likely to actually break something.

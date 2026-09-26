@@ -40,7 +40,9 @@ Propose feature candidates based on:
 
 Apply the feature-definition test recursively — don't manufacture sub-features; only split when both criteria hold.
 
-**Use specialist-dispatch** if exploring specific domains (e.g., data modeling, API design, infrastructure) — dispatch relevant agents to propose alternatives with pros/cons, synthesize their input, let the user pick a direction.
+**Do NOT dispatch specialist agents here.** This is a conversation with the user, and you do not yet know what the project is — there is nothing specific enough for a domain specialist to weigh in on. Handing one a half-formed brief makes it design instead of scope: on a real run, three specialists returned 13 feature candidates for a five-file app, including "routing" and "API client" as separate top-level features. Domain agents come later, per sub-feature, in `topic-discussion`.
+
+**Your job here is to REDUCE, not to collect.** Produce the *smallest* feature division that still passes the feature-definition test — not every candidate that could pass it. The test deliberately refuses to consider size, so this step is the only place that weighs it, and you must do that out loud: if the division is heading toward one feature per file, say so and merge. A small household app is three or four features, not thirteen.
 
 ### 3. Propose a processing order
 
@@ -76,12 +78,15 @@ Or invoke `topic-discussion` directly to keep momentum.
 - Don't write vault files — vault-architect owns writing (after your decisions lock, it writes `_features.md` and updates `_index.md`)
 - Don't pre-approve sub-features — apply the feature-definition test, let the test decide
 - Don't re-propose the queue order on every item — propose once, then maintain (insert new items, don't restart)
-- Don't assume a fixed roster of specialist agents — dispatch what exists, create just-in-time if needed
+- Don't dispatch specialist agents at all — they belong to `topic-discussion`, per sub-feature
+- Don't arrive assuming you know what the project is — ask, and let the user tell you
+- Don't hand back every candidate that passes the feature-definition test — hand back the smallest division that does
 
 ## Key constraints
 
 - **Feature-definition test applies** — read `skills/using-blueprint/SKILL.md` first; recursive, not just top-level
-- **Specialist-dispatch is available** — use it for domain-specific divergence (data modeling, API design, etc.)
+- **No specialist-dispatch here** — it is scoped to `topic-discussion`'s per-sub-feature divergence and the user-agent's agent-assist mode, nowhere else
+- **You start without knowing the project** — discovering it by asking the user IS this step's job, not a preliminary to it
 - **Queue gets proposed once** — "here's the order" → user accepts/adjusts → locked. No re-proposal loop.
 - **Live logging to `_current-task.md`** — decisions written as they happen, not batched at the end
 - **No vault writes** — vault-architect does that, atomically with cleanup

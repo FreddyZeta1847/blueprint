@@ -69,9 +69,13 @@ This is the same pattern used elsewhere in Review's design (the conflict check, 
 
 ### 3. Specialist-Dispatch Pattern
 
-Used by: Brainstorming (whole-project divergence), Topic-Discussion (sub-feature divergence), User-Agent (agent-assist mode).
+Used by: **Topic-Discussion** (one sub-feature's divergence) and **User-Agent** (agent-assist mode). That is the complete list.
+
+**NOT used by Brainstorming.** Brainstorming is a plain conversation in which you do not yet know what the project is — you find out by asking. With no specific decision on the table there is nothing to dispatch *about*, and a specialist handed a half-formed brief starts designing instead of scoping. Observed on a real run: three specialists returned 13 feature candidates for a five-file app. Domain agents get chosen — or generated just-in-time — later, once a sub-feature exists that needs them.
 
 **When a decision is actually being weighed**, dispatch relevant persistent specialist agents (global or project-local) to propose alternatives and inform the user.
+
+**Pick only what is relevant to THIS sub-feature** — two or three, not ten in parallel. "We're discussing caching in the frontend" calls for a frontend specialist and a caching specialist, not the whole roster.
 
 **How it works:**
 

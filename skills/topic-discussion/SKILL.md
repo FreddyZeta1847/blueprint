@@ -68,6 +68,8 @@ Enumerate real alternatives per axis using specialist-dispatch (not generic agen
 1. Identify relevant specialist agents — agents in `~/.claude/agents/` or `.claude/agents/` that address this specific axis/domain
    - Example: "auth method" → dispatch backend-security-expert, compliance-officer
    - Create just-in-time if no existing specialist fits
+   - **Two or three, not the whole roster.** Only what is relevant to THIS axis. Ten agents in parallel is a sign you are dispatching before you know what you are deciding.
+   - **Brief them on the axis, not on the project.** A specialist given a whole project description starts designing it and proposes a feature per file. Give it the one question being weighed and the current state around it.
    
 2. **Call agents with context:** "We're discussing [sub-feature]. For the axis '[full question]', what options and trade-offs do you see?"
    - Agents respond with alternatives + pros/cons each
