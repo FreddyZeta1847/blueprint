@@ -104,10 +104,9 @@ Evaluate alternatives, make the call, record why others lost.
    - Claude explains to user
 4. **Record the atom:** axis, choice, rejected (with reasons), rationale (including agent feedback), reversibility, depends_on
 
-**Real forks deserve `AskUserQuestion`**, not every decision. A real fork is:
-- A converge-time choice with genuine alternatives ("which DB?")
-- A drafting moment where Claude has a recommendation but user might want something else
-- A spot mid-discussion where multiple valid interpretations exist
+**Real forks deserve `AskUserQuestion`**, not every decision. The convention itself lives in `using-blueprint` (Core Concept 4), injected every session — read it there, it is not restated here.
+
+What matters at *this* step: converge is the convention's clearest case, because the shape already exists for free. The axis is already a full question, so it is the prompt; diverge's alternatives are the options; your recommendation is one of them.
 
 **Anti-sycophancy rule:** If you see a real problem with the user's chosen direction, push back **once**: name what's being traded away, explain why it matters, then defer to their call. No endless re-litigating — that blocks convergence.
 
@@ -166,7 +165,8 @@ Once Recheck decides shape and target:
 - Don't call agents for every option-level question (specialist per-axis is enough)
 - Don't assume a fixed topic starting shape (Feature-Detection guesses, Recheck decides)
 - Don't run Ratification-at-Contact as a pre-discussion scan (only if discussion makes genuine contact)
-- Don't use `AskUserQuestion` for every decision (only real forks, judgment-based)
+- Don't use `AskUserQuestion` for every decision (only real forks, judgment-based — see `using-blueprint` Core Concept 4)
+- Don't treat the mode question or converge as an approved "list" of call sites — the rule is judgment, not enumeration
 - Don't silence the anti-sycophancy rule (push back once when you see a problem)
 
 ## Technical notes

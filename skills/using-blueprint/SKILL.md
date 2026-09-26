@@ -33,7 +33,7 @@ The pipeline has two phases:
 
 **Note:** Review's three deterministic checks (vocabulary/conflict/value-inversion) run automatically as hook code the instant `atoms.json` changes. They have no invocation step — they fire by themselves.
 
-## Three Core Concepts (Shared Across Multiple Skills)
+## Four Core Concepts (Shared Across Multiple Skills)
 
 ### 1. The Feature-Definition Test
 
@@ -99,6 +99,26 @@ Used by: Brainstorming (whole-project divergence), Topic-Discussion (sub-feature
 **Key insight:** Agents are called *multiple times* (propose → user picks → validate). Divergence/convergence is automatic, not a hard gate — just the natural rhythm of discussion.
 
 **Why specialists matter:** A decision made autonomously (in agent-assist mode) gets the same specialized input a manual discussion would, not a lower-quality substitute. Used everywhere a decision is weighed so quality stays consistent.
+
+---
+
+### 4. When to use `AskUserQuestion`
+
+Judgment, **never a fixed list of approved call sites**. The same way judgment decides when a targeted lookup is worth the tokens, or when pushback is worth voicing.
+
+**A real fork** is any point where more than one live path genuinely exists, and naming the options gets to an answer faster than more prose would:
+
+- a converge-time choice with genuine alternatives ("what database engine?")
+- a drafting moment where you have a recommendation but the user might reasonably want something else
+- a spot mid-discussion where continuing in free text would just be guessing which of two readings the user meant
+
+**Converge is the clearest case, because the shape already exists for free.** The axis is already phrased as a full question — that same question is the prompt. Diverge's specialist-weighed alternatives are already the options. Your own recommended choice is one of them, not an opinion stated first and a separate ask afterwards.
+
+**The mode question is the other clear case.** "Manual or agent-assist, for this topic?" is one question with two fixed options and real consequences either way, and the Profile's suggestion is naturally the pre-recommended option. (See the `user-agent` skill.)
+
+**Not every fork earns it.** Small, low-stakes, or already-obvious choices stay in ordinary prose. Reaching for it on every decision is the failure mode — it turns a discussion into a form to fill in, and it trains the user to stop reading the options.
+
+**These two examples are illustrations, not an enumeration.** Do not ask "is this on the list?" — ask "is this a real fork?"
 
 ---
 
