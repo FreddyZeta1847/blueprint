@@ -82,11 +82,15 @@ The user confirms. Internally the lock is written as `status: ratified`, which t
 sees.
 
 ### Agent-assist mode
-- **Two-way (easy to change later):** locks without stopping, internally as
-  `status: agent-approved`. Mention it briefly afterwards ("✓ I locked the easy-to-change ones:
+- **Two-way decisions you make without asking:** they lock without stopping, internally as
+  `status: agent-approved`. Mention them briefly afterwards ("✓ I locked the easy-to-change ones:
   …").
 - **One-way (hard to undo):** never takes the fast path. It is shown to the user in plain words
   and waits for a real confirmation, exactly as in manual mode.
+- **Anything the user explicitly confirmed is `ratified`, even in agent-assist mode.** The status
+  follows *each decision* (did the user confirm it?), never the topic's mode. When you hand
+  decisions to `blueprint:vault-architect`, mark each one `confirmed` or `agent-decided` (see
+  `blueprint:topic-discussion`, step 5).
 
 Either way, the user only ever sees plain decisions, never atoms or statuses.
 
@@ -98,8 +102,14 @@ different value from `ratified`, and that difference is load-bearing (see §4).
 `status: agent-approved` appear together. It fires before any permission-mode check — including
 `acceptEdits` and `bypassPermissions` — so no mode setting can outrun it.
 
-**If the guard blocks you:** tell the user in plain words that this decision is hard to undo,
-so you need their confirmation. Get a real answer, and write it as `ratified`.
+**If the guard blocks a write:** this usually happens inside `vault-architect`, which reports it
+as `BLOCKED` in its final report.
+1. Tell the user in plain words that this decision is hard to undo, so you need their
+   confirmation.
+2. Get a real answer.
+3. Re-dispatch the save with that decision marked `confirmed`, so it is written as `ratified`.
+   The whole file write was blocked, so re-send *all* of that feature's decisions, not just the
+   one.
 Do **not** relabel `reversibility` to get past the hook. If the reversibility really was wrong,
 correct it as its own decision and say why.
 
@@ -180,8 +190,12 @@ unaddressed, that means a permission prompt after every ratified decision — wh
 the one thing agent-assist mode promises.
 
 **Fix:** `/blueprint` requests durable read/write permission on `~/.claude/blueprint/` once, as a
-`settings.json` permission rule. Granted once, never asked again per lock. If you notice repeated
-prompts on the Profile path, that rule is missing — fix the rule, don't work around it.
+permission rule in the **user-level** settings file `~/.claude/settings.json`, not the project's
+`.claude/settings.json`. The Profile is global, so its permission must be global too.
+- Granted once, it covers every Blueprint project.
+- If the rule is already there, `/blueprint` doesn't ask again.
+- If you notice repeated prompts on the Profile path, the rule is missing. Fix the rule; don't
+  work around it.
 
 ---
 

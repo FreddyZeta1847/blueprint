@@ -244,9 +244,19 @@ each lock.
    are **never shown to the user**. The user must never see the words atom, axis, status, or any
    field name.
 
-**The lock sequence:** lock → Review's three deterministic checks run against the compiled index
-→ pass promotes any genuinely new axis into `registry.json` → fail interrupts the lock, reports
-the finding, the user decides, then it's re-reported.
+**The lock sequence:**
+1. Register every genuinely new question in `registry.json` first.
+2. Write `atoms.json`, with each decision's status taken from its per-decision mark
+   (`confirmed` → `ratified`, `agent-decided` → `agent-approved`).
+3. Review's three deterministic checks run against the compiled index.
+4. `vault-architect` returns every result in its final report.
+5. The main conversation explains any finding to the user in plain words, and the user decides.
+6. Only then is the item told to the user as locked.
+
+Registering first matters. If a question were registered only *after* the checks, the
+vocabulary check would flag every new question as unknown, a guaranteed false alarm. With
+registration first, the check still catches the real error it exists for: a decision pointing
+to a misspelled or unregistered id.
 
 **Review's three deterministic checks**, all against `_index/decisions.json`, zero inference —
 executed as a real script folded into the merged `PostToolUse` file-watcher, never performed by
@@ -326,8 +336,14 @@ carrying `hookSpecificOutput.additionalContext` (or `systemMessage`). Plain text
 exit lands in a transcript a human may never open, and Claude never sees it. Every reminder in the
 table above depends on that.
 
-**Findings are presented, never resolved unilaterally.** Put them all in one message, in plain
-words (for example "the id scheme we chose for CAPTURE clashes with STORAGE's"), never as raw
+**Findings are presented, never resolved unilaterally.**
+- The hook's messages reach whoever made the write, and that is normally the `vault-architect`
+  subagent. It must **not** act on them. It copies them verbatim into its final report.
+- The main conversation then presents them to the user.
+- Nothing is dismissed, ignored, or rewritten until the user has decided. That includes
+  extending `Vocabulary/ignored-values.json`.
+
+Put all the findings in one message, in plain words (for example "the id scheme we chose for CAPTURE clashes with STORAGE's"), never as raw
 axis or atom output. Group them by check type, with **conflicts first** (a same-axis conflict is the most likely to actually break
 something). Never ordered by "confidence": these are pure yes/no comparisons with nothing to rank.
 A dismissal goes through `vault-architect` into `Vocabulary/dismissed.json` with its reason, so it

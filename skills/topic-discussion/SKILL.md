@@ -27,8 +27,13 @@ A new top-level feature. It has two stages.
      - the feature's role;
      - its key decisions;
      - whether it naturally splits into sub-features (apply the feature-definition test).
-   - Discuss their view with the user in plain words: what the feature is, what it does, and
-     whether it needs sub-features.
+   - Discuss their view with the user in plain words: what the feature is and what it does.
+   - **Always say whether it splits, and why**, in one or two sentences. Examples: "APP stays
+     one part: …" or "APP has two sub-features, SCREENS and LOOK, because …".
+   - **Keep it digestible.** If the specialists come back with many decisions (more than about
+     8–10), don't dump them all at once. Present the few that matter most first (the one-way
+     ones and the real choices). Group the small, easy-to-change details and handle them
+     afterwards, or leave them to Claude under agent-assist.
    - **If it has sub-features:** `blueprint:vault-architect` writes the lean `FEATURE-NAME.md`
      (only *what it is and what it does*). Queue each sub-feature right after the parent. Then
      discuss them one by one.
@@ -59,11 +64,14 @@ An ordered, verifiable task list for a feature that is already decided.
 
 When a queue item starts:
 
-1. **Mode question**, only for a fresh top-level topic (no `target` on the queue entry). See
-   `blueprint:user-agent`. Sub-features inherit the mode of their parent feature.
+1. **Mode question first**, only for a fresh top-level topic (no `target` on the queue entry).
+   Ask it and **wait for the answer** before anything else. See `blueprint:user-agent`.
+   Sub-features inherit the mode of their parent feature.
 2. **Start immediately.** Don't re-confirm the shape hint.
-3. **Dispatch the specialists. This is your first real action.** Don't open the discussion with
-   the user before the specialists have reported.
+3. **Dispatch the specialists. This is your first real action after the mode answer.** Don't
+   open the discussion with the user before the specialists have reported.
+   - While they work, stay quiet. Don't post "still waiting…" messages. Speak once, when you
+     have their combined view.
 
 ## The discussion loop (the core)
 
@@ -126,6 +134,9 @@ When the discussion has settled, give **one plain summary**. Use this format:
 > Shall I lock these?
 
 - No internal words: never "atom", "axis", "status", "rejected" or "reversibility".
+- No surprises: the summary contains only decisions that were already raised in the
+  discussion. If a specialist's report holds an extra decision, bring it up in the discussion
+  first; never slip it in for the first time in the summary.
 - No JSON, and no full data-model dump.
 - **Manual mode:** wait for the user's confirmation.
 - **Agent-assist mode:** see `blueprint:user-agent`. The two-way decisions lock without
@@ -138,18 +149,38 @@ When the discussion has settled, give **one plain summary**. Use this format:
 - If it anchors to no feature at all, it may be a new feature. Tell the user in plain words
   ("this looks like its own feature — should I add it to the list?").
 
-### 5. Lock (silent)
+### 5. Lock: save, check, report, *then* speak
 
-After confirmation, **`blueprint:vault-architect`** writes everything in one pass:
-- the prose file;
-- this feature's `atoms.json`, which holds one internal record per decision, with its
-  alternatives and why they lost;
-- the `_current-task.md` cleanup;
-- the `_queue.json` check-off.
+Never say "✓ Locked" before the save is confirmed. The order is fixed:
 
-Tell the user only "✓ Locked." plus what comes next ("Next: the CAPTURE feature."). The
-PostToolUse hook then runs its checks by itself. If it reports a problem, explain it in plain
-words and let the user decide.
+1. **Brief `blueprint:vault-architect` with one line per decision**, and mark each line:
+   - **`confirmed`**: the user explicitly agreed to it. This covers every decision in a summary
+     the user confirmed, and in agent-assist mode every one-way decision the user OK'd.
+   - **`agent-decided`**: agent-assist mode only; a two-way decision you made without asking.
+
+   The agent sets each decision's internal status from this mark (`confirmed` → `ratified`,
+   `agent-decided` → `agent-approved`). It never derives the status from the topic's mode.
+2. **Dispatch it with a fresh `Agent` call and wait for its result.**
+   - Do not send the job with `SendMessage` to an earlier agent.
+   - Do not run it in the background, and do not end your turn while it runs.
+   It writes, in one pass:
+   - the prose file;
+   - this feature's `atoms.json`;
+   - the `_current-task.md` cleanup;
+   - the `_queue.json` check-off.
+   The hooks fire during those writes: the one-way guard and Review's checks.
+3. **Read its report.** It lists:
+   - every write: saved, or blocked;
+   - every `[Blueprint]` hook message, verbatim.
+4. **Only then speak:**
+   - **All saved, no findings:** "✓ Locked." plus what comes next ("Next: the APP feature.").
+   - **A write was blocked by the one-way guard:** a hard-to-undo decision was marked
+     `agent-decided`. Ask the user about that decision in plain words ("This one is hard to change
+     later, so I need your clear OK: …"). Then dispatch the save again with it marked `confirmed`.
+   - **Review found something** (a clash with another feature, the same answer used for two
+     questions, a dangling link): explain it in plain words, with the options, and let the user
+     decide *before* anything is changed. Then re-dispatch the save with the decision.
+   - Never tell the user something is locked while any part of it is still unsaved or unresolved.
 
 ## Termination
 
@@ -177,6 +208,11 @@ implementing.
 - Don't show the user atoms, axes, field names, JSON, or a full architecture dump
 - Don't write code, scaffolding or starter files. Planning produces decisions and vault files only
 - Don't write vault files yourself. `blueprint:vault-architect` is the only writer
+- Don't say "✓ Locked" before vault-architect's report confirms every write succeeded
+- Don't let vault-architect resolve a Review finding or a guard block on its own. The user
+  decides, through you
+- Don't answer a real objection yourself when it touches the specialists' reasoning. Relay it.
+  (Trimming scope the user doesn't want is fine to handle directly.)
 - Don't pre-decide Recheck's shape or target. Let the discussion reveal it
 - Don't use `AskUserQuestion` for every small choice. Keep it for real forks
 

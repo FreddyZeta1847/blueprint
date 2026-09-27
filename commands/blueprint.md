@@ -43,6 +43,19 @@ vault-<project-name>/
 
 It also creates `_index/` and `Sheets/` as empty folders (populated later as features are written and optional engineering-sheets are rendered). `_audit.md` and `_full-context.md` are **not** created here — the `PostToolUse` hook creates each one the first time it has something to write.
 
+**Exact starting content of the JSON files.** Every list file uses the `{ "entries": [...] }`
+wrapper, **never a bare `[]`**:
+
+| File | Starting content |
+|---|---|
+| `_queue.json` | `{ "entries": [] }` |
+| `Vocabulary/registry.json` | `{ "entries": [] }` |
+| `Vocabulary/dismissed.json` | `{ "entries": [] }` |
+| `Vocabulary/ignored-values.json` | the seed below |
+
+For the Markdown files (`_index.md`, `_features.md`, `_plans.md`, `_architecture.md`,
+`_current-task.md`), load the `blueprint:docs-management` skill and use its templates.
+
 **Seed `Vocabulary/ignored-values.json`** with the absent-answer values the value-inversion check must skip. Without it, every feature that correctly answers "nothing here" on caching, retries or rate limiting flags against every other one, and the check becomes noise the user stops reading:
 
 ```json
@@ -51,7 +64,13 @@ It also creates `_index/` and `Sheets/` as empty folders (populated later as fea
 
 A starter seed, not a closed set — a project extends it. Note `yes` and `no` are deliberately absent: a yes/no `choice` means the *axis* was authored wrong, which is a finding worth surfacing rather than silencing.
 
-**Request durable permission on `~/.claude/blueprint/`.** Ask once, here, for read/write access to that folder as a `settings.json` permission rule. This is not optional polish. `Read`/`Grep`/`Glob` outside the project directory prompt every single time, and the user-agent's Profile pass must *read* the Profile before updating it — so without this rule, every ratified decision triggers a permission prompt, which silently breaks agent-assist mode's one promise (that two-way decisions don't stop). Granted once, never asked again per lock.
+**Request durable permission on `~/.claude/blueprint/`.** Ask once, here, for read/write access
+to that folder, as a permission rule in the **user-level** `~/.claude/settings.json`, never the
+project's `.claude/settings.json`. The Profile is global, so one rule covers every Blueprint
+project.
+- First check whether the rule is already there. If it is, don't ask again.
+- If the edit is refused, give the user the exact snippet to add themselves, and carry on. Its
+  absence never blocks planning. This is not optional polish. `Read`/`Grep`/`Glob` outside the project directory prompt every single time, and the user-agent's Profile pass must *read* the Profile before updating it — so without this rule, every ratified decision triggers a permission prompt, which silently breaks agent-assist mode's one promise (that two-way decisions don't stop). Granted once, never asked again per lock.
 
 If the vault already exists, the command skips file creation (idempotent) but still evaluates the empty-vs-existing branch.
 
