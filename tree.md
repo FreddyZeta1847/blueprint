@@ -2,8 +2,6 @@
 ├── .claude-plugin/
 │   ├── marketplace.json
 │   └── plugin.json
-├── .impeccable/
-│   └── hook.cache.json
 ├── agents/
 │   ├── profile-updater.md
 │   ├── sheet-designer.md
@@ -40,4 +38,5 @@
 ├── .gitignore
 ├── PROGRESS.md
 ├── README.md
+├── TEST-FINDINGS.md
 └── tree.md
