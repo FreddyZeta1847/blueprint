@@ -23,6 +23,10 @@ decision and can quietly build a second, contradicting login flow.
 Blueprint fixes this by making decisions **permanent and checked**. Every decision gets
 discussed, locked, written to a vault, and verified against every other decision — automatically.
 
+> Writing code is becoming cheap; **deciding well** is not. I believe engineers are becoming
+> architects and decision-makers, with AI agents as specialists and builders. So the source of
+> truth should be the written decisions: **waterfall for the thinking, agile for the building.**
+
 ## How it works
 
 ```mermaid
