@@ -238,9 +238,11 @@ each lock.
 1. Read the full `registry.json` (cheap regardless of vault size) and judge whether this decision
    matches an existing axis or needs a new one.
 2. Do a scoped lookup into `_index/decisions.json` for just the axes this write touches, across
-   other features — catches an obvious conflict before the atom is even shown to the user.
-3. Show the proposed atom(s) to the user before locking — which axes are reused vs. new, and why.
-   The user confirms before the lock proceeds.
+   other features. It catches an obvious conflict before writing.
+3. The user has already confirmed the **plain-language decision summary** (every decision, with
+   the one-way and two-way ones marked; see `blueprint:topic-discussion`). Atoms are internal and
+   are **never shown to the user**. The user must never see the words atom, axis, status, or any
+   field name.
 
 **The lock sequence:** lock → Review's three deterministic checks run against the compiled index
 → pass promotes any genuinely new axis into `registry.json` → fail interrupts the lock, reports
@@ -324,8 +326,9 @@ carrying `hookSpecificOutput.additionalContext` (or `systemMessage`). Plain text
 exit lands in a transcript a human may never open, and Claude never sees it. Every reminder in the
 table above depends on that.
 
-**Findings are presented, never resolved unilaterally** — all of them in one message, grouped by
-check type, **conflicts first** (a same-axis conflict is the most likely to actually break
+**Findings are presented, never resolved unilaterally.** Put them all in one message, in plain
+words (for example "the id scheme we chose for CAPTURE clashes with STORAGE's"), never as raw
+axis or atom output. Group them by check type, with **conflicts first** (a same-axis conflict is the most likely to actually break
 something). Never ordered by "confidence": these are pure yes/no comparisons with nothing to rank.
 A dismissal goes through `vault-architect` into `Vocabulary/dismissed.json` with its reason, so it
 never resurfaces — Review never writes that file itself.

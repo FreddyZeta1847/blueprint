@@ -27,7 +27,9 @@ Apply the feature-definition test from `skills/using-blueprint/SKILL.md`: indepe
 
 ### 2. For each item: Make the firm call
 
-**Question:** Does this need documentation (discussion + locked atoms + vault entries)?
+**Question:** Does this need documentation (a discussion, locked decisions, vault entries)? Never
+dispatch specialist agents here. They start only when `blueprint:topic-discussion` opens the
+item.
 
 **Ground it in:**
 - The item's existing atoms and prose (if it touches an existing feature)
@@ -37,7 +39,10 @@ Apply the feature-definition test from `skills/using-blueprint/SKILL.md`: indepe
 
 **Answer:** Yes or No. That's it. No hedging here.
 
-**What counts as "routine execution"?** Adding a page to frontend, following frontend's established pattern for pages, with nothing new to decide → no queue entry, no discussion. Just normal coding.
+**What counts as "routine execution"?** An example: adding a page to the frontend by following
+its established pattern, with nothing new to decide. That gets no queue entry and no discussion.
+It is normal coding, but only if the user actually asked for that work to be done now. Never
+start coding on your own from a planning conversation.
 
 **What counts as "needs documentation"?** Anything that brings a real choice, an unestablished pattern, or a decision not yet locked in atoms → queue it, discuss it, lock atoms.
 
@@ -124,7 +129,8 @@ If the user downgrades something you still think matters (wants to skip document
 
 ## After Feature-Detection
 
-Items are queued in `_queue.json`. Next: invoke `topic-discussion` to start processing them one at a time.
+Items are queued in `_queue.json`. Next: invoke `blueprint:topic-discussion` to start processing
+them one at a time.
 
 ---
 

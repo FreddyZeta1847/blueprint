@@ -1,180 +1,191 @@
 ---
 name: topic-discussion
-description: "Converge an open discussion into a locked decision — the core engine for features, sub-features, notes, and plans"
+description: "Blueprint's core discussion engine — takes a queued feature, sub-feature, note or plan, dispatches the right specialist agents first, discusses their options with the user in plain words, closes with a plain one-way/two-way decision summary, then locks. Use for every queued item after brainstorming/feature-detection."
 ---
 
 # Topic-Discussion
 
-This is the core discussion engine. Use it when processing any queued topic (feature, sub-feature, note, or plan) — the one shared mechanism that converges open discussions into locked decisions or ordered task lists.
+The core engine. Every queued item (feature, sub-feature, note or plan) goes through it. First
+read the hard rules in `blueprint:using-blueprint`. The three that matter most here:
+- **Specialists first.** Every feature and every sub-feature starts by dispatching its
+  specialists.
+- **Plain words only.** Never show atoms, axes or field names. End with a plain decision summary
+  that marks the one-way and two-way decisions.
+- **No code.** Planning never writes source files.
 
-Topic-Discussion is invoked automatically by the queue-processing loop, but you should understand its full mechanics to run effective discussions.
-
-## Four terminal shapes, one engine
-
-Topic-Discussion handles four distinct output shapes. All share the same diverge-then-converge cycle; only the output and termination criterion differ:
+## Four shapes, one engine
 
 ### Feature
-A new top-level feature. **Two-stage process:**
-1. **Intro stage:** Short feature-scoped introduction (like a mini-Brainstorming for just this feature)
-   - Understand the feature's role and scope
-   - Decide whether it needs sub-features (apply feature-definition test)
-   - If yes: identify sub-features, write the lean `FEATURE-NAME.md`, queue each sub-feature
-   - If no: write the single-file `FEATURE-NAME.md`, proceed to converge
-2. **Sub-feature stage:** Process each queued sub-feature through diverge-then-converge below, one at a time
+A new top-level feature. It has two stages.
+
+1. **Intro stage**
+   - Ask the mode question if this is a fresh top-level topic (see Entry, below).
+   - **Dispatch the feature's specialists first.** Pick the 1–3 agent types that fit this
+     feature's domain (a FRONTEND feature → a frontend/UI design agent; a STORAGE feature → a
+     database/storage agent).
+   - Brief them on the project summary and this feature's scope. Ask them for:
+     - the feature's role;
+     - its key decisions;
+     - whether it naturally splits into sub-features (apply the feature-definition test).
+   - Discuss their view with the user in plain words: what the feature is, what it does, and
+     whether it needs sub-features.
+   - **If it has sub-features:** `blueprint:vault-architect` writes the lean `FEATURE-NAME.md`
+     (only *what it is and what it does*). Queue each sub-feature right after the parent. Then
+     discuss them one by one.
+   - **If it doesn't:** run the discussion loop (below) on the feature itself, with its
+     specialists. A single-file feature still gets specialists and still gets a decision
+     summary.
+2. **Sub-feature stage**
+   - Each queued sub-feature goes through the discussion loop, one at a time.
+   - Each one gets its own specialists: the feature's specialists can stay, and others can join
+     for that sub-feature.
 
 ### Sub-feature
-Part of an existing feature. **Single cycle:**
-- Diverge: weigh alternatives for this sub-feature's axes using specialist-dispatch
-- Converge: pick one per axis, record why others lost
-- Lock: write the sub-feature file AND its atoms into the parent feature's `atoms.json`
-- PostToolUse hook fires immediately (deterministic checks before next queued item starts)
+Part of a feature. **Dispatch this sub-feature's specialists first**, then run the discussion
+loop, then the decision summary, then lock.
 
 ### Note
-A smaller decision, not worthy of its own file. **Single cycle, identical to sub-feature:**
-- Diverge: weigh alternatives for this decision
-- Converge: pick one, record rationale
-- Lock: atoms written to an existing sub-feature's `atoms.json`
-- Prose appended as a paragraph (not a new file)
+A smaller decision that belongs as a paragraph in an existing file. It runs the same loop, with
+the specialists of the feature it belongs to.
 
-**Decision rule:** Applied during discussion itself. Is this a question that deserves its own documentation file, or does it fit as a paragraph in an existing one? Recheck decides (see below).
+### Plan
+An ordered, verifiable task list for a feature that is already decided.
+- It runs the same loop, with the specialists that know how such work is usually built.
+- The output is `PHASE-N-NAME.json`, where every task has a machine-verifiable exit criterion.
+- **A plan is a list of tasks, not code.** Writing the code is implementation. That starts only
+  when the user explicitly asks.
 
-### Plan (Plan-Discussion)
-An ordered, verifiable task list for an already-decided feature. **Same cycle, different output:**
-- Diverge: weigh alternatives for task ordering and implementation approach
-- Converge: lock an ordered task list with verifiable exit criteria
-- Output: `PHASE-N-NAME.json` with task entries (not atoms)
-- Termination: every task has a machine-verifiable exit criterion
+## Entry
 
-## Entry: Mode question, then start
+When a queue item starts:
 
-When a fresh top-level topic enters (a feature, or a topic with no existing `target`):
+1. **Mode question**, only for a fresh top-level topic (no `target` on the queue entry). See
+   `blueprint:user-agent`. Sub-features inherit the mode of their parent feature.
+2. **Start immediately.** Don't re-confirm the shape hint.
+3. **Dispatch the specialists. This is your first real action.** Don't open the discussion with
+   the user before the specialists have reported.
 
-1. **Ask the mode question** (User-Agent feature owns this): Manual or agent-assist?
-   - Manual: you decide convergence points
-   - Agent-assist: USER-AGENT's learned Profile decides (with PreToolUse hook blocking one-way + agent-approved combos)
-   
-2. **Start immediately** — don't re-confirm the shape hint (Feature-Detection already settled it via batch review). Proceed according to the hint, or ask only if genuinely ambiguous.
+## The discussion loop (the core)
 
-3. **For a feature:** Enter intro stage
-   **For a sub-feature/note:** Enter diverge (skip intro)
+### 1. Specialists propose (diverge)
 
-## The diverge-then-converge cycle (the core)
+**Pick the specialists.**
+- Choose from the agent types actually available to you in this session (the Agent tool's
+  list), matching this item's domain.
+- 1–3 agents, never the whole roster.
+- If none fits, dispatch `general-purpose` and brief it as that specialist.
 
-### Phase 1: Diverge
-Enumerate real alternatives per axis using specialist-dispatch (not generic agents).
+**Brief them.**
+- Include the project summary, this item's scope, what is already locked (read `_features.md`
+  and the related feature files), and the open questions.
+- Ask for real options per question, trade-offs for each, and a recommendation.
+- They may read relevant vault files and code. That is how they scan and reason.
 
-**For each axis this topic needs to weigh:**
+**Cover all of it.** Their answer should cover the headline choices (framework? storage?) *and*
+the operational ones: failure recovery, caching, security, and state management where relevant.
 
-1. Identify relevant specialist agents — agents in `~/.claude/agents/` or `.claude/agents/` that address this specific axis/domain
-   - Example: "auth method" → dispatch backend-security-expert, compliance-officer
-   - Create just-in-time if no existing specialist fits
-   - **Two or three, not the whole roster.** Only what is relevant to THIS axis. Ten agents in parallel is a sign you are dispatching before you know what you are deciding.
-   - **Brief them on the axis, not on the project.** A specialist given a whole project description starts designing it and proposes a feature per file. Give it the one question being weighed and the current state around it.
-   
-2. **Call agents with context:** "We're discussing [sub-feature]. For the axis '[full question]', what options and trade-offs do you see?"
-   - Agents respond with alternatives + pros/cons each
-   - Agents flag where they agree/disagree, uncertainties
-   
-3. **Present unified list to user:**
-   - All options with pros/cons
-   - Where agents align/conflict
-   - Uncertainties flagged
-   - Specialist-dispatch called ONCE per axis (propose alternatives)
+**Gate:** you may not move on to picking an answer until the specialists have produced real
+alternatives. Never skip this step.
 
-4. **User investigates naturally** — no hard gate, just the rhythm of discussion:
-   - Asks questions
-   - Explores trade-offs
-   - Gradually gravitates toward a choice
+**Ratification at contact:** if the specialists or the discussion touch a `needs-review` draft
+(from Discovery), raise it naturally inside the discussion: confirm, correct, or decide fresh.
 
-**Diverge's scope is broad:** Headline choice (framework? database?) AND operational axes (failure recovery, caching, concurrency, security, state management). These aren't separate concerns; they're all axes the same specialist weighs.
+### 2. Talk it through with the user
 
-**Cheap, targeted lookups during diverge are normal reasoning** — if the discussion implies a gap worth checking ("add a statistics page" when nothing currently produces stats), check it via a targeted grep/read, not a full project scan. Token-safe, not a dedicated scanning system.
+- Explain the options in plain words:
+  - what each option means in practice;
+  - what the specialists recommend, and why;
+  - where they disagree.
+  Use a short example when it helps.
+- The user asks questions, pushes back, or leans toward an option.
+- **Relay back.** Take each real question or objection back to the same specialists: use
+  `SendMessage` if the agent is still addressable, otherwise re-dispatch with the previous
+  context. Bring their answer back to the user.
+- **Repeat until you and the user agree.** There is no limit on rounds. Don't call the
+  specialists for trivial wording questions you can answer yourself.
+- At a real fork, `AskUserQuestion` is a good tool (see `blueprint:using-blueprint`, Core
+  Concept 4). Its options are always written in plain words.
+- **Anti-sycophancy:** if you see a real problem with the user's direction, push back **once**.
+  Say what is being traded away, then defer to the user.
 
-**Ratification-at-Contact fires here, if touched:** If diverge's own grounding makes genuine contact with a relevant `needs-review` draft (e.g., Discovery inferred a caching strategy that this discussion is now deciding whether to adopt), surface the draft, get confirm/correct/decide-fresh, remove the `needs-review` tag. This happens naturally inside discussion, not as a pre-discussion scan.
+### 3. Decision summary (converge)
 
-### Gate: Diverge must produce alternatives before converge starts
-This is a structural gate, not a tone instruction. The model cannot jump to conclusion-picking without first exhausting alternatives. Phase 1's only job is alternatives; phase 2 cannot begin until phase 1 has actually produced them.
+When the discussion has settled, give **one plain summary**. Use this format:
 
-### Phase 2: Converge & Recheck
-Evaluate alternatives, make the call, record why others lost.
+> **Here's what we decided for STORAGE:**
+> - We store everything in the browser (localStorage) for now.
+> - Every item gets a random unique id, so syncing between devices later stays possible.
+> - …
+>
+> **One-way — hard to change later:**
+> - The unique-id scheme: changing it later means migrating every stored item.
+>
+> **Two-way — easy to change later:**
+> - localStorage now; moving to SQLite later doesn't change the rest of the app.
+>
+> Shall I lock these?
 
-**For each axis:**
-1. Weigh the alternatives (specialist feedback already captured)
-2. User picks an option (or agents pick in agent-assist mode)
-3. **Call agents again for validation:** "User chose [option] — what problems foresee? Any conflicts with other locked atoms?"
-   - Agents flag concerns/issues
-   - Claude explains to user
-4. **Record the atom:** axis, choice, rejected (with reasons), rationale (including agent feedback), reversibility, depends_on
+- No internal words: never "atom", "axis", "status", "rejected" or "reversibility".
+- No JSON, and no full data-model dump.
+- **Manual mode:** wait for the user's confirmation.
+- **Agent-assist mode:** see `blueprint:user-agent`. The two-way decisions lock without
+  stopping. The one-way ones still need the user's confirmation.
 
-**Real forks deserve `AskUserQuestion`**, not every decision. The convention itself lives in `using-blueprint` (Core Concept 4), injected every session — read it there, it is not restated here.
+### 4. Recheck (internal, before writing)
 
-What matters at *this* step: converge is the convention's clearest case, because the shape already exists for free. The axis is already a full question, so it is the prompt; diverge's alternatives are the options; your recommendation is one of them.
+- **Shape:** is this its own file (sub-feature) or a paragraph on an existing file (note)?
+- **Target:** which feature does it belong to?
+- If it anchors to no feature at all, it may be a new feature. Tell the user in plain words
+  ("this looks like its own feature — should I add it to the list?").
 
-**Anti-sycophancy rule:** If you see a real problem with the user's chosen direction, push back **once**: name what's being traded away, explain why it matters, then defer to their call. No endless re-litigating — that blocks convergence.
+### 5. Lock (silent)
 
-**Recheck (the decision point for shape & target):**
-Immediately after converge, before writing anything:
-- **Shape:** Is this worthy of its own file (sub-feature), or a paragraph on an existing one (note)?
-- **Target:** Which feature/file does this belong to? (Feature-Detection's guess is a starting point; discussion might have revealed a better one)
+After confirmation, **`blueprint:vault-architect`** writes everything in one pass:
+- the prose file;
+- this feature's `atoms.json`, which holds one internal record per decision, with its
+  alternatives and why they lost;
+- the `_current-task.md` cleanup;
+- the `_queue.json` check-off.
 
-A topic that never anchors to any existing feature (not by FD's guess, not by discussion) is the signal to spin it off as its own feature instead.
+Tell the user only "✓ Locked." plus what comes next ("Next: the CAPTURE feature."). The
+PostToolUse hook then runs its checks by itself. If it reports a problem, explain it in plain
+words and let the user decide.
 
-State the decision plainly: "Attach this to AUTH as a paragraph" or "New sub-feature file under BACKEND-API" or "This is actually a whole new feature — let's create it."
+## Termination
 
-## Writing (after Recheck)
+**For a feature, sub-feature or note:**
+- the specialists produced alternatives;
+- the user agreed;
+- the decision summary was confirmed (or auto-locked under agent-assist, for two-way decisions
+  only);
+- `blueprint:vault-architect` has written the files and cleaned `_current-task.md`.
 
-Once Recheck decides shape and target:
+Internally, every one-way decision must record the alternatives it beat. That is proof they were
+really weighed.
 
-1. **Use vault-architect** to write:
-   - Feature: `FEATURE-NAME.md` + update `atoms.json` + update `_index.md`
-   - Sub-feature: `FEATURE-NAME--subfeature.md` + update parent's `atoms.json`
-   - Note: append to existing sub-feature's file + update parent's `atoms.json`
-   - Plan: `PHASE-N-NAME.json`
+**For a plan:** every task has a machine-verifiable exit criterion, the order is locked, and
+`PHASE-N-NAME.json` is written.
 
-2. **Update `_current-task.md`:** Log this topic's lock (entry updated or added)
-3. **Update `_queue.json`:** Check off this item (remove it)
-4. Both happen in the vault-architect pass — write and cleanup are atomic
-
-**PostToolUse hook fires immediately:** deterministic checks run before the next queued item starts.
-
-## Termination criteria
-
-**For feature/sub-feature/note:**
-- Every touched axis has a decision recorded (axis, choice, rejected, rationale)
-- Every `reversibility: one-way` axis has a non-empty `rejected` (proof the alternative was weighed, not defaulted)
-- Recheck decision made (shape, target)
-- vault-architect has written the files and cleared `_current-task.md`
-
-**For plan:**
-- Every task has a machine-verifiable exit criterion
-- Task order is locked
-- vault-architect has written `PHASE-N-NAME.json`
-
-## Key constraints
-
-- **Specialist-dispatch for diverge:** Not generic subagents, only specialists relevant to THIS axis
-- **Diverge is structural:** A passage gate, not a tone instruction; alternatives must be produced before converge starts
-- **One validation call per axis:** Agents called twice (propose alternatives, then validate user's choice), not per-option
-- **Ratification-at-Contact fires inside diverge:** Only if discussion makes genuine contact with a needs-review draft
-- **Live logging to `_current-task.md`:** Decisions written as they happen (diverge → converge → lock), visible if session resumes
-- **Anti-sycophancy is bounded:** One pushback, then defer. No endless re-litigating.
-- **vault-architect is the sole writer:** Never write vault files directly
+**When the queue is empty:** tell the user planning is complete and **stop**. Don't start
+implementing.
 
 ## What NOT to do
 
-- Don't skip diverge to jump straight to converge
-- Don't pre-decide Recheck's shape/target (let discussion reveal it)
-- Don't call agents for every option-level question (specialist per-axis is enough)
-- Don't assume a fixed topic starting shape (Feature-Detection guesses, Recheck decides)
-- Don't run Ratification-at-Contact as a pre-discussion scan (only if discussion makes genuine contact)
-- Don't use `AskUserQuestion` for every decision (only real forks, judgment-based — see `using-blueprint` Core Concept 4)
-- Don't treat the mode question or converge as an approved "list" of call sites — the rule is judgment, not enumeration
-- Don't silence the anti-sycophancy rule (push back once when you see a problem)
+- Don't open a feature or sub-feature discussion without dispatching its specialists first
+- Don't dispatch specialists anywhere outside feature and sub-feature discussions
+- Don't cap the specialists at "propose once, validate once". Relay until you and the user agree
+- Don't show the user atoms, axes, field names, JSON, or a full architecture dump
+- Don't write code, scaffolding or starter files. Planning produces decisions and vault files only
+- Don't write vault files yourself. `blueprint:vault-architect` is the only writer
+- Don't pre-decide Recheck's shape or target. Let the discussion reveal it
+- Don't use `AskUserQuestion` for every small choice. Keep it for real forks
 
 ## Technical notes
 
-**The Blueprint/Super Powers boundary:** Blueprint decides WHAT and WHY (converges on decisions). Super Powers decides HOW and IN WHAT ORDER (converges on tasks). If Super Powers finds itself making an irreversible architectural choice, that's a signal the decision escaped Blueprint's layer and must come back here.
+**Queue insertion:** sub-features queued by a feature's intro stage go into `_queue.json` right
+after the parent. The order is not re-proposed.
 
-**Feature-to-sub-feature queue insertion:** When a feature's intro stage queues its sub-features, they're inserted into `_queue.json` right after the parent — not a fresh re-proposal of the whole queue order. Same mechanism as any other queued item; same processing.
+**Mode:** asked once per fresh top-level topic. Sub-features inherit it.
 
-**Mode is asked once per fresh top-level topic:** Sub-features inherit the top-level topic's mode (manual/agent-assist). Only fresh entries (no existing target) get the question.
+**Live logging:** decisions go into `_current-task.md` as they are reached, so a resumed session
+can continue.

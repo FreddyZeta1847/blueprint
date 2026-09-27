@@ -1,135 +1,169 @@
 ---
 name: using-blueprint
-description: Understand Blueprint's routing and core concepts (feature-definition test, Ratification-at-Contact, specialist-dispatch pattern) — injected at session start to orient on pipeline steps and shared decision frameworks
+description: Blueprint's hard rules, routing table and shared concepts (feature-definition test, specialists per feature/sub-feature, plain-language decision summaries). Read at the start of every session in a Blueprint project, and before any Blueprint pipeline step.
 ---
 
 # Using Blueprint
 
-This skill is injected at the start of every Blueprint-managed session by the `SessionStart` hook. It explains what Blueprint is, routes to the right skill/command for each pipeline step, and documents three shared core concepts used across multiple features.
+Blueprint is a documentation-driven planning method. The project's decisions are discussed with
+the user, locked, and written to an Obsidian vault (`vault-<project>/`), which is the single source
+of truth. Code is written later, only when the user asks for it.
 
-## What is Blueprint?
+## Hard rules — these override everything else in this project
 
-Blueprint is a documentation-driven development methodology — design and code move together, decisions are locked as atoms before implementation, and the Obsidian vault is the single source of truth. Every change — whether a design choice, a new feature, or a code fix — is recorded and ratified, so the vault reflects the exact state of the project.
+1. **Specialists belong to features and sub-features, and nowhere else.**
+   - **Brainstorming: no specialist agents.** At that point you don't even know what the project
+     is (a website? a compiler? an agent?), so no specialist has anything real to work on.
+   - **Opening a feature discussion:** your *first action* is to pick the specialist agents that
+     fit that feature and dispatch them. Example: a FRONTEND feature gets a frontend/UI design
+     agent. They study the feature and come back with options.
+   - **Opening a sub-feature discussion:** the same. Dispatch the specialists that fit this
+     sub-feature. The feature's specialists can stay, and other agents can join for this
+     sub-feature only.
+   - Specialists advise **you**. The user talks with **you**, in plain words. You explain what the
+     specialists suggest and why, then take the user's questions and objections back to them.
+     Repeat until you and the user agree. There is no limit on rounds.
+   - Never dispatch specialists in brainstorming, feature-detection, `/blueprint`, or anywhere
+     else.
+2. **The user never sees Blueprint's internal machinery.**
+   - Never say "atom", "axis", "atoms.json", "registry", "status", "ratified", "agent-approved",
+     or any field name to the user. Those are internal bookkeeping only.
+   - During a discussion, talk about choices in normal words.
+   - **At the end of every feature or sub-feature discussion**, give one plain summary, then ask
+     the user to confirm it (see Core Concept 3):
+     - every technology and decision you made together;
+     - which ones are **one-way**: very important, hard or expensive to change later;
+     - which ones are **two-way**: they can change later without any real effect.
+   - After the user confirms, say it is locked (for example "✓ Locked."). Writing the vault
+     files happens silently in the background.
+   - Never present a full data model or a complex architecture document for the user to review.
+     Keep it at the level of decisions.
+3. **Planning never writes code.** Brainstorming, feature-detection and topic-discussion produce
+   decisions and vault files only.
+   - Do not create source files, scaffolding or "starter code" during planning.
+   - When the queue is empty, say that planning is complete and **stop**.
+   - Implementation starts only when the user explicitly asks for it.
+4. **In a Blueprint project, Blueprint's workflow wins.**
+   - If another skill or instruction describes a different planning flow, use Blueprint's skills
+     (`blueprint:*`) and this plugin's agents (`blueprint:vault-architect`, etc.) instead.
+   - Examples: a brainstorming skill from another plugin, a `docs-management` skill outside this
+     plugin, "always five default sub-features", `.claude/current-task.md`.
 
-The pipeline has two phases:
+## The pipeline
 
-1. **Orientation & Planning** — Understand the project, divide it into features, define features into sub-features, discuss each one, lock decisions as atoms, and write the vault.
-2. **Implementation** — Build code against the locked vault, run deterministic checks before every commit, and sync code changes back into the vault.
+1. `/blueprint` creates the vault. If the repo is empty, go to `blueprint:brainstorming`. If code
+   exists, go to `blueprint:discovery`.
+2. `blueprint:brainstorming` is a plain conversation: what is the project, and what are its
+   features? It ends with a short feature list and an order, written to `_queue.json`.
+3. `blueprint:topic-discussion` takes queued features one at a time:
+   - specialists first;
+   - a discussion with the user;
+   - a plain decision summary;
+   - lock;
+   - then the next sub-feature.
+4. When the queue is empty, planning is complete. Stop and wait for the user.
 
-## Routing — What to invoke when
+## Routing — what to invoke when
 
 | Use | Name | Kind | When |
 |---|---|---|---|
-| **Bootstrap** | `/blueprint` | command | Starting a new Blueprint-managed project — explicit only, never auto-triggers |
-| **Semantic review** | `/deep-review` | command | Opt-in, expensive, agent-driven semantic check across atoms and prose — explicit only |
-| **Understand existing code** | discovery | skill | Reverse-engineer existing code into draft features/atoms (`inferito` status) |
-| **Whole-project scoping** | brainstorming | skill | No feature division exists — mandatory when starting or when a new addition touches the whole project |
-| **Split & classify** | feature-detection | skill | Classify multi-item input: one firm needs-docs call + non-binding shape hint per item, queued for discussion |
-| **Discuss & lock** | topic-discussion | skill | Converge a queued topic (feature/sub-feature/note/plan) into locked atoms or an ordered task list |
-| **Manage vault** | docs-management | skill | Any vault file being written or updated (naming, frontmatter, templates, the vault-architect agent) |
-| **Company rules** | management-info | skill | `management-info.md` changed — convert Rules/Preferences into locked atoms |
-| **Manual vs. autonomous** | user-agent | skill | Choose manual or agent-assist mode for a topic; profile-based default applied |
-| **Pre-commit check** | pre-publish-check | skill | About to push — offers to verify changed code against atoms |
+| **Bootstrap** | `/blueprint` | command | Starting a new Blueprint-managed project. Explicit only. |
+| **Semantic review** | `/deep-review` | command | Opt-in, expensive semantic check across the vault. Explicit only. |
+| **Understand existing code** | `blueprint:discovery` | skill | Reverse-engineer existing code into draft features (tagged `needs-review`). |
+| **Whole-project scoping** | `blueprint:brainstorming` | skill | No feature division exists yet. No specialists here. |
+| **Split & classify** | `blueprint:feature-detection` | skill | New work on an established project. Classify it and queue it. |
+| **Discuss & lock** | `blueprint:topic-discussion` | skill | Discuss a queued feature, sub-feature, note or plan with specialists, then lock it. |
+| **Manage vault** | `blueprint:docs-management` | skill | Any vault file being written or updated. Always through `blueprint:vault-architect`. |
+| **Company rules** | `blueprint:management-info` | skill | `management-info.md` changed. |
+| **Manual vs. autonomous** | `blueprint:user-agent` | skill | The mode question at the start of each top-level topic. |
+| **Pre-commit check** | `blueprint:pre-publish-check` | skill | About to push. Offers to verify changed code against the locked decisions. |
 
-**Note:** Review's three deterministic checks (vocabulary/conflict/value-inversion) run automatically as hook code the instant `atoms.json` changes. They have no invocation step — they fire by themselves.
+Review's three deterministic checks run by themselves, as hook code, every time a feature's
+decisions are written. There is nothing to invoke. If they report a problem, explain it to the
+user in plain words (for example "this clashes with what we chose for STORAGE: …"), never as a
+raw finding.
 
-## Four Core Concepts (Shared Across Multiple Skills)
+## Core concepts
 
-### 1. The Feature-Definition Test
+### 1. The feature-definition test
 
-Used by: Discovery, Feature-Detection, Brainstorming, Topic-Discussion, User-Agent.
+Used by Discovery, Feature-Detection, Brainstorming and Topic-Discussion.
 
-**What makes something a "feature"?** Core test — both must hold:
+Something is a **feature** only if both of these hold:
+1. **Independent why:** its purpose can be stated without referring to another feature's
+   internals.
+2. **External dependents:** something else depends on its behavior or interface, not just on one
+   output of it.
 
-1. **Independent why** — purpose statable without referencing another feature's internals
-2. **External dependents** — something else depends on its behavior/interface, not just consuming an output
+Signals, where the more of them coincide, the clearer the case:
+- different **technology**;
+- a **contract** others rely on (API, schema, permission model);
+- a distinct user-facing or system **functionality**;
+- a separate system or organisational **placement**.
 
-**Delimiting signals** (OR'd, not AND'd — the more that coincide, the more obviously it's a feature):
-- **Technology** — chosen tech stack differs from another part of the system
-- **Contracts** — defines or enforces a contract others depend on (API, schema, permission model)
-- **Functionality** — encapsulates a distinct user-facing or system behavior
-- **Placement** — lives in a separate system or organizational boundary
+The test is **recursive**: the same test decides whether a feature splits into sub-features. Size
+is not the test. Most features stay single-file. Never create a sub-feature just to fill a
+template.
 
-**Recursive.** The same test applies at any granularity — not a special top-level-only rule. A sub-feature inside a feature is tested the same way. Size is explicitly not the test.
+### 2. Ratification at contact
 
-**How to decide if something needs a sub-feature split:** Apply the feature-definition test at the sub-level. Most features stay single-file. Split only when the test actually justifies it — don't manufacture a sub-feature to fit a template.
+Used by Feature-Detection, Topic-Discussion, vault-architect and Review.
 
-### 2. Ratification at Contact
+- A draft item tagged `needs-review` (for example, inferred from existing code) is not fixed in
+  bulk.
+- It is not re-asked on every touch either.
+- It becomes a real "confirm, correct, or decide fresh?" question only when the current
+  discussion touches it **and** it conflicts with something already locked.
+- The user's answer removes the tag.
 
-Used by: Feature-Detection, Topic-Discussion, vault-architect, Review.
+### 3. Specialists and the discussion loop
 
-An inherited or drafted item tagged `needs-review` (e.g., inferred from code, proposed during discovery, or unconfirmed in a first draft) is not something to fix in bulk, and not something re-litigated on every touch either.
+Used by **Topic-Discussion**, for every feature and every sub-feature, including in agent-assist
+mode. Nowhere else.
 
-**The pattern:**
-- A touch (a reference to the item during discussion, an update to a file containing it, a new atom depending on it) is only a real "confirm, correct, or decide fresh?" conversation IF the coherence check actually finds a conflict with existing locked atoms.
-- Never as a default ritual run on every contact.
-- When a conflict is found, the open question goes on the table and the answer removes the `needs-review` tag.
+1. **Pick the specialists.**
+   - Choose 1–3 agent types from the agent types actually available to you in this session
+     (the Agent tool's list), matching this feature or sub-feature's domain.
+   - If none fits, dispatch a `general-purpose` agent and brief it as that specialist
+     ("You are a senior frontend/UI designer…").
+   - Never the whole roster.
+2. **Dispatch first**, before discussing the feature or sub-feature with the user.
+   - Brief: the project summary, this feature or sub-feature's scope, what is already locked,
+     and the open questions.
+   - Ask for real options, with trade-offs and a recommendation.
+   - They may read the relevant vault files and code. That is how they scan and reason.
+3. **Explain to the user in plain words:**
+   - the options;
+   - what the specialists recommend and why;
+   - where they disagree.
+   Use a short example when it helps.
+4. **Relay back.** When the user asks something, pushes back or is unsure, take it back to the
+   same specialists and continue the conversation with them (use `SendMessage` to the agent if
+   it is still addressable, otherwise re-dispatch with the previous context). Bring the answer
+   back.
+5. **Repeat 3–4 until you and the user agree.** There is no fixed number of rounds.
+6. **Close with the plain decision summary** (Hard rule 2): all decisions, with the one-way and
+   two-way ones marked. The user confirms, then lock.
 
-This is the same pattern used elsewhere in Review's design (the conflict check, the sync-check, the orphan-check): no false positives, no redundant work.
-
-### 3. Specialist-Dispatch Pattern
-
-Used by: **Topic-Discussion** (one sub-feature's divergence) and **User-Agent** (agent-assist mode). That is the complete list.
-
-**NOT used by Brainstorming.** Brainstorming is a plain conversation in which you do not yet know what the project is — you find out by asking. With no specific decision on the table there is nothing to dispatch *about*, and a specialist handed a half-formed brief starts designing instead of scoping. Observed on a real run: three specialists returned 13 feature candidates for a five-file app. Domain agents get chosen — or generated just-in-time — later, once a sub-feature exists that needs them.
-
-**When a decision is actually being weighed**, dispatch relevant persistent specialist agents (global or project-local) to propose alternatives and inform the user.
-
-**Pick only what is relevant to THIS sub-feature** — two or three, not ten in parallel. "We're discussing caching in the frontend" calls for a frontend specialist and a caching specialist, not the whole roster.
-
-**How it works:**
-
-1. **Identify relevant specialists** — which agents in the repo's `~/.claude/agents/` or `.claude/agents/` address this specific question?
-   - Example: for frontend + caching, dispatch `frontend-architect` + `cache-expert` + `data-analyst` (relevant trio), NOT 10 agents in parallel
-   - If no existing specialist fits, create one just-in-time (standard agent frontmatter + focused prompt)
-
-2. **Call agents for proposals** — prompt: "We're discussing [specific sub-feature/axis]. Here's our state. What options and trade-offs do you see?"
-   - Agents respond with alternatives + pros/cons each
-   - Agents flag where they agree/disagree, uncertainties
-
-3. **Present unified list to the user** — Claude synthesizes:
-   - All options with pros/cons
-   - Where agents align/conflict
-   - Uncertainties flagged
-
-4. **User picks an option** — "I'm choosing B"
-
-5. **Validate with agents** — call relevant agents again: "User chose B — what problems foresee? Any conflicts with other decisions?"
-   - Agents flag concerns/issues
-   - Claude explains to user
-
-6. **Lock** — record choice with rationale including agent feedback
-
-**Key insight:** Agents are called *multiple times* (propose → user picks → validate). Divergence/convergence is automatic, not a hard gate — just the natural rhythm of discussion.
-
-**Why specialists matter:** A decision made autonomously (in agent-assist mode) gets the same specialized input a manual discussion would, not a lower-quality substitute. Used everywhere a decision is weighed so quality stays consistent.
-
----
+**Why:** a decision gets real expert input, while the user only ever has a simple conversation.
+In agent-assist mode, the same specialists inform decisions the user does not review, so quality
+never drops.
 
 ### 4. When to use `AskUserQuestion`
 
-Judgment, **never a fixed list of approved call sites**. The same way judgment decides when a targeted lookup is worth the tokens, or when pushback is worth voicing.
+- **Use judgment**, not a fixed list: use it at a **real fork**, where several live options
+  exist and naming them is faster than more prose.
+  - Example: "SQLite or IndexedDB?" after the specialists have weighed both.
+- **The mode question** at the start of a top-level topic is a clear case (see
+  `blueprint:user-agent`).
+- **Small or obvious choices** stay in normal prose.
+- **Options** are written in plain words, never in internal field names.
+- **If `AskUserQuestion` is not available** (for example, a non-interactive session), ask the
+  same question as plain text with the options listed.
 
-**A real fork** is any point where more than one live path genuinely exists, and naming the options gets to an answer faster than more prose would:
+## Where to pick up
 
-- a converge-time choice with genuine alternatives ("what database engine?")
-- a drafting moment where you have a recommendation but the user might reasonably want something else
-- a spot mid-discussion where continuing in free text would just be guessing which of two readings the user meant
-
-**Converge is the clearest case, because the shape already exists for free.** The axis is already phrased as a full question — that same question is the prompt. Diverge's specialist-weighed alternatives are already the options. Your own recommended choice is one of them, not an opinion stated first and a separate ask afterwards.
-
-**The mode question is the other clear case.** "Manual or agent-assist, for this topic?" is one question with two fixed options and real consequences either way, and the Profile's suggestion is naturally the pre-recommended option. (See the `user-agent` skill.)
-
-**Not every fork earns it.** Small, low-stakes, or already-obvious choices stay in ordinary prose. Reaching for it on every decision is the failure mode — it turns a discussion into a form to fill in, and it trains the user to stop reading the options.
-
-**These two examples are illustrations, not an enumeration.** Do not ask "is this on the list?" — ask "is this a real fork?"
-
----
-
-## Next Steps
-
-- **If `_current-task.md` is non-empty:** You're resuming a feature from last session. Continue locking its remaining sub-features.
-- **If `_current-task.md` is empty and `_queue.json` has entries:** Pick the next queued topic and start discussing it.
-- **If both are empty:** The vault is fully caught up. You can either start a new feature (create a new `_queue.json` entry and discuss it), run Discovery to reverse-engineer existing code, or take a moment to verify everything is in order.
-
-Read the routing table above to find the right skill for your next step.
+- **`_current-task.md` is non-empty:** you're resuming a discussion. Continue it.
+- **`_current-task.md` is empty and `_queue.json` has entries:** start the next queued item with
+  `blueprint:topic-discussion`.
+- **Both are empty:** planning is complete. Wait for the user. Don't start coding on your own.

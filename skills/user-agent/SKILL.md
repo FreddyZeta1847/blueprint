@@ -53,13 +53,15 @@ real consequences either way. The Profile's suggestion is the **pre-recommended 
 sentence of advice followed by a separate ask.
 
 ```
-Manual or agent-assist for <topic>?
-  - Agent-assist (Recommended — your profile leans this way for infra topics)
-      Two-way decisions lock automatically, no stopping. One-way decisions
-      still always stop and come back to you.
-  - Manual
-      Every decision is shown to you before it locks.
+How do you want to handle the decisions for <topic>?
+  - Let Claude decide the easy ones (Recommended — you usually prefer this for setup work)
+      Decisions that are easy to change later get saved without stopping.
+      Anything hard to undo still comes back to you first.
+  - Review everything myself
+      At the end, you see a short summary of every decision and confirm it.
 ```
+
+Plain words only. Never mention atoms, statuses, or the guard hook in this question.
 
 **Per-feature assignment IS the targeting mechanism.** There is nothing extra to build for
 "agent-assist on easy features only" — assigning per topic already does exactly that.
@@ -74,15 +76,19 @@ keeps current on every change. **No new file.** Written the moment the question 
 ## 2. What each mode actually does
 
 ### Manual mode
-Every decision stops and shows the proposed atom(s) before locking — including which axes are
-being reused and which are newly proposed, and why a new axis doesn't fit an existing one when
-that's the case. Waits for confirmation. Locks as `status: ratified`.
+At the end of the discussion, the user gets the plain decision summary (see
+`blueprint:topic-discussion`, step 3): every decision, with the one-way and two-way ones marked.
+The user confirms. Internally the lock is written as `status: ratified`, which the user never
+sees.
 
 ### Agent-assist mode
-- **Two-way (reversible) decision** → locks immediately, no stopping, `status: agent-approved`.
-  That is the entire point of the mode.
-- **One-way (irreversible) decision** → never takes the fast path. Stops, and comes back to the
-  user for a real confirmation, exactly as manual mode would.
+- **Two-way (easy to change later):** locks without stopping, internally as
+  `status: agent-approved`. Mention it briefly afterwards ("✓ I locked the easy-to-change ones:
+  …").
+- **One-way (hard to undo):** never takes the fast path. It is shown to the user in plain words
+  and waits for a real confirmation, exactly as in manual mode.
+
+Either way, the user only ever sees plain decisions, never atoms or statuses.
 
 `agent-approved` means *remembered as a guess*, not a human confirmation. It is deliberately a
 different value from `ratified`, and that difference is load-bearing (see §4).
@@ -92,13 +98,14 @@ different value from `ratified`, and that difference is load-bearing (see §4).
 `status: agent-approved` appear together. It fires before any permission-mode check — including
 `acceptEdits` and `bypassPermissions` — so no mode setting can outrun it.
 
-**If the guard blocks you:** present the decision, get a real answer, and write it as `ratified`.
+**If the guard blocks you:** tell the user in plain words that this decision is hard to undo,
+so you need their confirmation. Get a real answer, and write it as `ratified`.
 Do **not** relabel `reversibility` to get past the hook. If the reversibility really was wrong,
 correct it as its own decision and say why.
 
 ### Autonomous still means well-informed
-Agent-assist decisions use the **same specialist-dispatch pattern** as a manual discussion (see
-`using-blueprint`, Core Concept 3). A decision made for the user gets the same specialist input it
+Agent-assist decisions use the **same specialists** as a manual discussion (see
+`blueprint:using-blueprint`, Core Concept 3). A decision made for the user gets the same specialist input it
 would have gotten with the user present — never a faster, thinner substitute.
 
 ---
@@ -152,7 +159,8 @@ prevent, one level up from the decision itself.
 - *Mechanical* — `hooks/file-watcher.js` already reads `atoms.json` on every write, so it notices
   the new `ratified` atom for free and flags that a dispatch is due.
 - *Reasoning* — the `profile-updater` agent decides whether this actually reveals a new or updated
-  tendency, and **shows the user what it is about to write before saving.** A misread tendency
+  tendency, and **shows the user what it is about to write before saving**, as a plain sentence
+  about their preferences ("I noticed you prefer simple, boring tools — should I remember that?"). A misread tendency
   would silently colour every future suggestion, which is the same anti-poisoning logic as
   management-info's conversion step.
 

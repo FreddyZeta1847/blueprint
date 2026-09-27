@@ -55,14 +55,17 @@ folder. Before writing one:
 2. An atom's `axis` field holds the registry **id** (`auth-token-format`). The question text lives
    only in the registry, never copied into the atom — so rewording a question never rewrites an atom.
 3. Do a **scoped** lookup into `_index/decisions.json` for just those axes, across other features.
-   An axis already answered differently elsewhere is an obvious conflict worth raising *before* the
-   atom is even shown to the user. Review still runs afterwards regardless — this only catches the
-   obvious cases sooner.
-4. Branch on mode (see the `user-agent` skill). **Manual:** show the proposed atom(s) first —
-   including which axes are reused and which are new, and why a new one doesn't fit an existing
-   question — and wait. **Agent-assist, two-way only:** lock immediately with
-   `status: agent-approved`. A one-way decision never takes that path; the `PreToolUse` guard hook
-   blocks it, and relabelling `reversibility` to get past the hook is never the answer.
+   An axis already answered differently elsewhere is an obvious conflict. Report it back to the
+   main conversation **in plain words** ("this clashes with STORAGE's choice of X"), before
+   writing. Review still runs afterwards regardless; this only catches the obvious cases sooner.
+4. Atoms are **internal bookkeeping**. You write them from a decision the user has *already
+   confirmed* in the plain-language decision summary (see `blueprint:topic-discussion`). Never ask
+   for atoms to be shown to the user, and never phrase anything for the user in terms of atoms,
+   axes or statuses.
+   - **Manual mode:** write as `status: ratified`.
+   - **Agent-assist mode, two-way decisions only:** write as `status: agent-approved`.
+   - A one-way decision never takes the agent-assist path. The `PreToolUse` guard hook blocks
+     it, and relabelling `reversibility` to get past the hook is never the answer.
 5. A new axis is promoted into the registry **only once the three deterministic checks pass** for
    that lock — never at the moment of writing. A failed lock leaves the registry untouched.
 

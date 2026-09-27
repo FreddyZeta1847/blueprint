@@ -55,19 +55,22 @@ A starter seed, not a closed set — a project extends it. Note `yes` and `no` a
 
 If the vault already exists, the command skips file creation (idempotent) but still evaluates the empty-vs-existing branch.
 
+**Create every file with the `Write` tool.** `Write` creates missing parent folders by itself. Do
+not use shell commands (`mkdir`, brace expansion, PowerShell script blocks) to build the
+structure. They fail or need extra approval, especially on Windows. For the empty folders
+(`features/`, `_index/`, `Sheets/`), write a `.gitkeep` inside each one.
+
+**Do not create anything outside the vault.** No `.claude/current-task.md`, no `tree.md`, no
+source files. The vault's `_current-task.md` is Blueprint's only scratchpad.
+
 ## Next: your choice, determined by what the command found
 
 **The command will tell you** whether existing code was found. Choose your next step:
 
-- **If existing code was found:** Run the `discovery` skill to reverse-engineer it into draft atoms.
-  ```
-  /discovery
-  ```
-
-- **If the repo is empty:** Run the `brainstorming` skill to scope the whole project.
-  ```
-  /brainstorming
-  ```
+- **If existing code was found:** invoke `blueprint:discovery` to reverse-engineer it into
+  draft features.
+- **If the repo is empty:** invoke `blueprint:brainstorming` (not any other brainstorming skill)
+  and start the conversation right away: ask the user what the project is.
 
 If unsure, re-run `/blueprint` — it will re-evaluate and tell you which branch to take.
 

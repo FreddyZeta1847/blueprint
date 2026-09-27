@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: Whole-project scoping discussion for empty/new projects — converge on feature list and initial architecture before any detailed design
+description: "Use this (not any other brainstorming skill) in a Blueprint project that has no feature list yet — right after /blueprint on an empty repo. A plain conversation with the user, with NO specialist agents, that finds out what the project is and ends with a short feature list and a processing order."
 ---
 
 # Brainstorming
@@ -61,9 +61,10 @@ As the conversation happens — features identified, order locked, project scope
 
 Once the whole-project scope is locked (project overview + feature list + initial order), write that explicitly:
 
-> "Project scope locked. The feature list has been queued. Now invoke the `topic-discussion` skill to start discussing the first feature in detail."
+> "The feature list is locked and queued. Next we'll go through the features one by one."
 
-Or invoke `topic-discussion` directly to keep momentum.
+Then invoke `blueprint:topic-discussion` for the first feature. That is where the specialists
+come in.
 
 ## What to produce
 
@@ -100,7 +101,9 @@ Once locked:
 4. vault-architect removes the now-redundant entries from `_current-task.md`
 5. All in one atomic pass (write + cleanup = one action)
 
-**Next:** Invoke `topic-discussion` to start discussing the first feature in detail.
+**Next:** Invoke `blueprint:topic-discussion` to start discussing the first feature in detail.
+
+**Never write code here.** Brainstorming produces a feature list, not files in the repo.
 
 ---
 
