@@ -79,8 +79,10 @@ not use shell commands (`mkdir`, brace expansion, PowerShell script blocks) to b
 structure. They fail or need extra approval, especially on Windows. For the empty folders
 (`features/`, `_index/`, `Sheets/`), write a `.gitkeep` inside each one.
 
-**Do not create anything outside the vault.** No `.claude/current-task.md`, no `tree.md`, no
-source files. The vault's `_current-task.md` is Blueprint's only scratchpad.
+**Blueprint creates nothing outside the vault.** No second scratchpad (such as
+`.claude/current-task.md`), no source files. The vault's `_current-task.md` is Blueprint's only
+scratchpad. The user's own global conventions (for example keeping a `tree.md` up to date) still
+apply as usual.
 
 ## Next: your choice, determined by what the command found
 

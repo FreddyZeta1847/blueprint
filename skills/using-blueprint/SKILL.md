@@ -46,8 +46,9 @@ of truth. Code is written later, only when the user asks for it.
 4. **In a Blueprint project, Blueprint's workflow wins.**
    - If another skill or instruction describes a different planning flow, use Blueprint's skills
      (`blueprint:*`) and this plugin's agents (`blueprint:vault-architect`, etc.) instead.
-   - Examples: a brainstorming skill from another plugin, a `docs-management` skill outside this
-     plugin, "always five default sub-features", `.claude/current-task.md`.
+   - Example: a brainstorming or planning skill from another plugin (such as
+     `superpowers:brainstorming`) never re-plans what Blueprint is discussing or has decided.
+     Such skills are for implementation, after planning, when the user asks for it.
 
 ## The pipeline
 
