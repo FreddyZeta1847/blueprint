@@ -63,6 +63,30 @@ How do you want to handle the decisions for <topic>?
 
 Plain words only. Never mention atoms, statuses, or the guard hook in this question.
 
+### Which option to pre-recommend
+
+Go down this list and stop at the first one that gives an answer:
+
+1. **`local-profile.md` (this project's focus).** The feature is in "Cares most about" →
+   recommend *Review everything myself*. It is in "Wants Claude to handle" → recommend *Let
+   Claude decide the easy ones*. If the focus is "all of them", it doesn't separate anything —
+   go to the next step.
+2. **The global Profile's tendencies** — e.g. "usually cares about the visual side".
+3. **Importance.** 4–5 → *Review everything myself*; 1–2 → *Let Claude decide the easy ones*;
+   3 → no recommendation.
+
+The recommendation text gives the reason in plain words: *"(Recommended — you said design is
+what you care about most)"* or *"(Recommended — this is a small, supporting part)"*. The user
+always chooses.
+
+**Focus is not importance.** Importance controls how deep the specialists go
+(`blueprint:topic-discussion`); focus controls who decides. A feature can be important for the
+project and still be handed to Claude.
+
+**If the answer contradicts the local profile** (the user picks *Review everything myself* for a
+feature listed under "Wants Claude to handle"), ask once whether to update `local-profile.md`.
+Never update it silently.
+
 **Per-feature assignment IS the targeting mechanism.** There is nothing extra to build for
 "agent-assist on easy features only" — assigning per topic already does exactly that.
 
@@ -134,6 +158,19 @@ Stores two shapes:
 **(2) is weighted as more valuable than (1).** A tendency transfers to new situations; a past
 choice usually doesn't.
 
+**Focus tendencies.** When the user answers the focus question in a project, dispatch
+`profile-updater` with the answer. It records it as a past choice, and once the same focus shows
+up in a second project it may propose a tendency like *"usually cares most about design and frontend, lets Claude handle
+infrastructure"*. It is shown to the user before saving, like any other tendency.
+
+### The local profile — `vault-<project>/local-profile.md`
+
+The global Profile is shared by all projects, but focus changes between projects: the same person
+can be the designer in one project and do everything alone in another. So each project keeps its
+own answer in `local-profile.md` (format in `blueprint:docs-management`). It is written by
+`vault-architect`, never an atom, never checked by Review. **For this project it beats the global
+Profile** — the global Profile only fills in when the local file says nothing about a feature.
+
 **Neither is ever stored as an atom.** An atom records a decision that was actually made and
 locked. A profile entry is a pattern noticed afterwards. Writing one as an atom would land it in
 the compiled decision index and have Review start comparing features against a "decision" nobody
@@ -204,7 +241,10 @@ permission rule in the **user-level** settings file `~/.claude/settings.json`, n
 - Don't ask the mode question per sub-feature — a `target` means it inherits
 - Don't branch the question on feature-vs-topic; branch on `target` / no `target`
 - Don't ask it upfront for the whole project in one batch (removed on purpose)
-- Don't write a Profile entry as an atom, ever
+- Don't write a Profile entry as an atom, ever — the same goes for `local-profile.md` and the
+  importance/effort scores
+- Don't use importance to lower the quality of a decision — it only changes depth, and only the
+  mode decides who decides
 - Don't let an `agent-approved` decision update the Profile
 - Don't relabel `reversibility` to get past the one-way guard
 - Don't let agent-assist mode use weaker reasoning than a manual discussion would

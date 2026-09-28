@@ -43,8 +43,10 @@ permission prompt or gets denied. Only use the `blueprint:` skill: a global skil
    everything, and don't drop it just because a file was written — only remove it once the content
    was actually confirmed with the user.
 5. **Keep the meta files current.** After adding or removing a file, update `_index.md` (the map
-   of every vault file). Update `_features.md` when a feature is added (including the
-   `(agent-assist)` / `(manual)` annotation once that topic's mode question is answered),
+   of every vault file). Update `_features.md` when a feature is added (including its
+   importance/effort scores, and the `(agent-assist)` / `(manual)` annotation once that topic's
+   mode question is answered). Keep the scores in `_queue.json` too, and write the user's focus
+   to `local-profile.md` when you are given it. Scores and focus are never atoms. Update
    `_plans.md` when a phase is added, and `_architecture.md` when cross-feature connections change
    or Discovery drafts an unconfirmed atom candidate.
 6. **Never invent a decision.** Record only what was actually settled in discussion; mark anything
@@ -106,6 +108,7 @@ folder. Before writing one:
 | `Vocabulary/ignored-values.json` | yes | absent-answer values the value-inversion check skips |
 | `_index.md`, `_features.md`, `_plans.md`, `_architecture.md` | yes | meta files you keep current |
 | `_queue.json` | yes | pending topics; check an item off only when fully written |
+| `local-profile.md` | yes | the user's focus for this project; never atoms |
 | `_current-task.md` | yes | live scratchpad — see below |
 | `_index/decisions.json` | **no** | re-derivable: the hook recompiles it from every `atoms.json` |
 | `features/*/modules.json` | **no** | re-derivable: the hook rebuilds it from the files themselves |

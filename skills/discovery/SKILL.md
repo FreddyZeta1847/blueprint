@@ -22,6 +22,7 @@ The skill will fan out exploration agents (one per module/major boundary), ident
 2. **Fan out exploration agents** — one agent per module/boundary, each reading their specific area and proposing feature candidates with brief rationale. Agents should flag technology choices, contracts, functional boundaries, and placement that indicate a feature split.
 
 3. **Synthesize feature list** — from agent proposals, build a consolidated list of identified features. Cross-check against the feature-definition test: does each have an independent why? Do other features depend on its behavior/interface?
+   - Give each feature a proposed **importance** and **effort** (1–5, see `blueprint:brainstorming`, step 3), marked as a guess from the code. Show them to the user with the list, and ask the same focus question ("which of these do you care about most?"). The answers go to `_features.md`, `_queue.json` and `local-profile.md` like in brainstorming.
 
 4. **For each feature: draft the vault files**
    - Read the feature-definition test from `skills/using-blueprint/SKILL.md` to remind yourself of the criteria

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-1.1.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-vault-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -48,7 +48,8 @@ flowchart LR
    **Brainstorming** conversation; an existing codebase goes through **Discovery** first,
    which reverse-engineers it into draft features marked `needs-review`.
 2. **Brainstorming** splits the project into the smallest sensible list of features, plus an
-   order to discuss them in.
+   order to discuss them in. Each feature gets an **importance** and an **effort** score
+   (1–5), and you say which parts you care about most — your **focus**.
 3. **Topic-Discussion** handles one feature at a time. It dispatches the **specialist
    agents** that fit that feature (a frontend agent for a UI feature, a database agent for
    storage, and so on). They bring back real options; you talk to Claude in plain words, and
@@ -74,6 +75,17 @@ Asked once per feature:
 | **Assisted** | Claude locks easy-to-change (two-way) decisions on its own. Anything one-way still comes back to you. |
 
 The one-way rule is enforced by a `PreToolUse` hook. No permission mode can bypass it.
+
+**Importance and focus shape each feature.** They are two separate signals:
+
+- **Importance** is about the project. It sets how deep the discussion goes: more specialists
+  and questions for the heart of the project, fewer for small supporting parts.
+- **Focus** is about you. It sets which mode Claude recommends: hands-on for the parts you
+  care about, assisted for the rest. It's saved per project in `local-profile.md`.
+
+A designer building a portfolio site might set DESIGN to importance 5 and keep it in their
+focus, while HOSTING (importance 3) goes to Claude. Hosting still gets a real specialist
+discussion. You just don't review every detail of it.
 
 ## The vault
 
@@ -172,6 +184,9 @@ PROGRESS.md       public, sanitized log of design milestones
 ```
 
 ## Status
+
+v1.1.0 — adds per-feature importance/effort scores and a per-project focus, which set
+discussion depth and the mode recommendation.
 
 v1.0.0 — the core pipeline (bootstrap, brainstorming, specialist discussions, locking and
 automatic checks) has been run end-to-end on a real test project.

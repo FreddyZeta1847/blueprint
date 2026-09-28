@@ -22,7 +22,7 @@ A new top-level feature. It has two stages.
    - Ask the mode question if this is a fresh top-level topic (see Entry, below).
    - **Dispatch the feature's specialists first.** Pick the 1–3 agent types that fit this
      feature's domain (a FRONTEND feature → a frontend/UI design agent; a STORAGE feature → a
-     database/storage agent).
+     database/storage agent). How many depends on its importance — see "Set the depth" below.
    - Brief them on the project summary and this feature's scope. Ask them for:
      - the feature's role;
      - its key decisions;
@@ -82,6 +82,20 @@ When a queue item starts:
   list), matching this item's domain.
 - 1–3 agents, never the whole roster.
 - If none fits, dispatch `general-purpose` and brief it as that specialist.
+
+**Set the depth from importance** (from `_queue.json`; sub-features and notes use their parent
+feature's):
+- **4–5, the heart of the project:** 2–3 specialists, and the full range of questions, including
+  the operational ones. Don't rush the user.
+- **3:** the normal treatment described here.
+- **1–2:** 1 specialist. Settle only the few decisions that really matter (the one-way ones and
+  the real choices). Small, easy-to-change details go straight into the summary with the
+  specialists' recommendation.
+- **No score** (an older vault): treat it as 3.
+
+Depth changes *how many* decisions get discussed, never how well each one is made. Every
+decision still gets real specialist input. Who decides — the user or Claude — is the mode's job
+(`blueprint:user-agent`), not importance's.
 
 **Brief them.**
 - Include the project summary, this item's scope, what is already locked (read `_features.md`
@@ -222,6 +236,10 @@ implementing.
 after the parent. The order is not re-proposed.
 
 **Mode:** asked once per fresh top-level topic. Sub-features inherit it.
+
+**Importance vs. focus:** importance sets the depth (how many specialists and questions); the
+user's focus, via the mode question, sets who decides. Neither ever lowers the quality of a
+single decision.
 
 **Live logging:** decisions go into `_current-task.md` as they are reached, so a resumed session
 can continue.

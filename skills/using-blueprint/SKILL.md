@@ -105,6 +105,19 @@ The test is **recursive**: the same test decides whether a feature splits into s
 is not the test. Most features stay single-file. Never create a sub-feature just to fill a
 template.
 
+Common feature kinds (design/UI, frontend, backend/API, storage, auth, scripts, integrations,
+distribution) are reminders of areas to consider, never one feature per kind.
+
+### 1b. Importance, effort and focus
+
+- Every feature gets **importance** (1–5, how much it matters for this project's goal) and
+  **effort** (1–5), proposed by Claude with a reason and adjusted by the user.
+- **Importance sets the depth** of the discussion: how many specialists and questions
+  (`blueprint:topic-discussion`).
+- The user's **focus** (`local-profile.md`: which features they want to decide personally) sets
+  the **mode recommendation**: who decides (`blueprint:user-agent`).
+- Neither lowers the quality of a decision, and neither is ever an atom.
+
 ### 2. Ratification at contact
 
 Used by Feature-Detection, Topic-Discussion, vault-architect and Review.

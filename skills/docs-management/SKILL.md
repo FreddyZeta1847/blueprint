@@ -41,6 +41,7 @@ vault-<project-name>/
 ├── Sheets/
 │   └── engineering-sheets.html (optional — see 'Engineering sheets' below)
 ├── management-info.md          (optional, per-project — manager-authored rules/preferences)
+├── local-profile.md            (the user's focus for this project — see below)
 ├── features/
 │   └── FEATURE-NAME/                         ← one folder per feature, named after it
 │       ├── FEATURE-NAME.md                   ← the lean parent, always present
@@ -73,8 +74,18 @@ feature's own file(s). Updated whenever a feature is added or the connections be
 change. Also holds any unconfirmed decision candidates (tagged `needs-review`) until ratified into
 a `status: locked` atom — see Decision atoms below.
 
-`_features.md` — overview of all features with a short description of each. Updated whenever a new
-feature is added.
+`_features.md` — overview of all features with a short description of each, plus its importance
+and effort scores. Updated whenever a new feature is added.
+
+`local-profile.md` — the user's **focus** for this project: which features they want to decide
+personally, and which they hand to Claude. Written by `vault-architect` after brainstorming's (or
+discovery's, or feature-detection's) focus question. Read by `blueprint:user-agent` to
+pre-recommend the mode. Kept separate from `management-info.md` on purpose: management-info is the
+manager's voice about the project, while focus is one person's choice about their own time — in a
+team, two people can have opposite focus on the same project.
+
+**Importance/effort scores and the local profile are never atoms.** They are not decisions — they
+never enter `atoms.json`, the compiled index, or Review's checks.
 
 `_plans.md` — overview of all implementation phases with a short description of each. Updated
 whenever a new phase is added.
@@ -99,7 +110,9 @@ vault file is still written the moment that sub-feature's own discussion conclud
 `_queue.json` — every topic identified but not yet individually taken through `topic-discussion`'s
 full cycle. JSON, not Markdown — this is structured data for machine comparison, not prose, same
 reasoning that already put atoms and the registry in JSON. Schema: `{ entries: [{ id, description,
-shape_hint, target, status }] }`, where `shape_hint` is `feature` / `topic` — `topic` meaning "needs
+shape_hint, target, importance?, effort?, status }] }` — `importance` and `effort` are optional 1–5
+integers, set on top-level features only; sub-features and notes inherit their target feature's
+scores (an entry with no score and no scored parent is treated as 3). `shape_hint` is `feature` / `topic` — `topic` meaning "needs
 documentation, not a feature," internal data only, never shown to the user as the word "topic" — and
 is Claude's best grounded guess at classification time, **explicitly non-binding**. `target` names a
 likely related feature, if one was identified, same non-binding caveat. `topic-discussion`'s Recheck
@@ -177,7 +190,7 @@ leave a vault Markdown file untagged.
 
 | File | Frontmatter |
 |---|---|
-| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`, `_full-context`) | `tags: [index]` |
+| `_*.md` (index/meta: `_index`, `_features`, `_plans`, `_architecture`, `_current-task`, `_full-context`), and `local-profile.md` | `tags: [index]` |
 | `FEATURE-NAME.md` | `tags: [feature]` |
 | `FEATURE-NAME--subfeature.md` | `tags: [subfeature]` |
 | `PHASE-N-NAME.md` | `tags: [phase]` |
@@ -327,7 +340,7 @@ knows what it can't silently override before it writes anything).
 | `Vocabulary/registry.json` | Orphan-check's registry direction only | Free |
 | `management-info.md` | Trigger only, hands off to the Rules/Preferences conversion pass | Trigger is free; the conversion pass itself is a real reasoning step, not free |
 | `_current-task.md` | Append the written text **verbatim** into `_full-context.md` (`Edit` → append `new_string`; `Write` → only if the mirror is empty, since a `Write` here is the clear) | Free — pure copying, no interpretation |
-| `_queue.json` | None — plain read/write, no derived recompilation | Free |
+| `_queue.json`, `local-profile.md` | None — plain read/write, no derived recompilation | Free |
 | any other source file | Refresh that file's node in `features/*/modules.json`. A file owned by no feature yet is appended to `_index/unassigned.json` and its count surfaced — the hook never guesses an owner | Free |
 
 **Delivery is load-bearing, not a detail.** `PostToolUse` cannot block anything — by the time it
@@ -426,9 +439,13 @@ tags: [index]
 
 # Features Overview
 
-- **FEATURE-NAME** — one-line description (agent-assist)
-- **FEATURE-NAME** — one-line description (manual)
+- **FEATURE-NAME** — one-line description · importance 5/5 · effort 4/5 (manual)
+- **FEATURE-NAME** — one-line description · importance 2/5 · effort 1/5 (agent-assist)
 ```
+The scores are proposed by Claude and confirmed by the user when the feature list is agreed (see
+`blueprint:brainstorming`, step 3). They stay here after the queue entry is checked off, so
+the scores survive the queue.
+
 The `(agent-assist)` / `(manual)` tag records that topic's answer to the mode
 question — see `skills/user-agent/SKILL.md`. It is asked **once per top-level
 topic**, at the moment that topic's own discussion begins, for any queue entry
@@ -438,6 +455,23 @@ before anyone knew what the topic involved). So the tag is absent until that
 feature's own discussion actually starts, and a sub-feature or note queued
 underneath it inherits the parent's mode rather than getting its own tag.
 `vault-architect` adds and updates it, never the user by hand.
+
+### `local-profile.md`
+```markdown
+---
+tags: [index]
+---
+
+# Local Profile
+
+## Focus
+- Cares most about: DESIGN, FRONTEND
+- Wants Claude to handle: HOSTING, CONTACT
+```
+"All of them" is a valid answer: write `- Cares most about: all features` and leave the second
+line out. A feature in neither list falls back to the global Profile, then to its importance (see
+`blueprint:user-agent`). `vault-architect` updates it whenever the user changes their mind ("I
+don't care about X"), never silently.
 
 ### `_index.md`
 ```markdown
@@ -454,6 +488,7 @@ Map of every file in the vault. Update on every file add or remove.
 - [[_plans]]
 - [[_architecture]]
 - [[_current-task]]
+- [[local-profile]]
 - `_queue.json` — pending topics
 - `_audit.md` — decision changelog (hook-maintained)
 - `Vocabulary/registry.json`, `Vocabulary/dismissed.json`, `Vocabulary/ignored-values.json`

@@ -64,6 +64,17 @@ If the item needs documentation, offer two **provisional** hints (not decisions 
 
 **Natural-language color is OK:** "probably just a paragraph on X," "might want its own file" — this is prose, not a tracked value, and never becomes a decision without real discussion.
 
+#### Scores and focus (new features only)
+
+An item hinted as `feature` gets the same two 1–5 scores as in `blueprint:brainstorming`, step 3
+— **importance** (for this project's goal) and **effort** — each with a one-line reason. Check
+`local-profile.md`: if the new feature isn't covered by the user's focus, ask in the same list
+whether they want to decide it personally ("Is this one you care about?"). An item hinted as
+`topic` gets no scores; it inherits its target feature's.
+
+The common feature kinds listed in brainstorming (design/UI, frontend, backend/API, storage…) are
+a useful reference here too — never a reason to split one item into several.
+
 ### 4. Propose processing order
 
 Once all items are classified, propose an order for discussion:
@@ -85,7 +96,8 @@ Present everything together in one organized list, grouped by outcome:
 - Item X (with brief reasoning)
 
 ## New Features (queued)
-- Item Y (with reasoning and processing order rationale)
+- Item Y · importance 4/5 · effort 2/5 (with reasoning and processing order rationale)
+  Is this one you want to decide yourself?
 
 ## Needs Documentation (shape undecided, queued)
 - Item Z — probably just an update to Feature-Name (reasoning)
@@ -103,7 +115,10 @@ Write confirmed items to `_queue.json` with:
 - `description` — what needs to be done
 - `shape_hint` — `feature` or `topic`
 - `target` — likely related feature (for topics; blank if unclear)
+- `importance`, `effort` — 1–5, features only (topics inherit their target's)
 - `status` — `pending`
+
+If the user answered the focus question, `vault-architect` also updates `local-profile.md`.
 
 **All hints are provisional.** Topic-Discussion will confirm or revise them during real discussion (Recheck step).
 
