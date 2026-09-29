@@ -6,6 +6,8 @@
 │   ├── profile-updater.md
 │   ├── sheet-designer.md
 │   └── vault-architect.md
+├── assets/
+│   └── logo.png
 ├── commands/
 │   ├── blueprint.md
 │   └── deep-review.md

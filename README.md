@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">Blueprint</h1>
+  <h1 align="center"><img src="assets/logo.png" alt="Blueprint logo" width="48" height="48" /> Blueprint</h1>
   <p align="center"><b>Think it through with Claude before you build.</b></p>
   <p align="center">Blueprint turns every design decision into a discussion with specialist agents, then locks it into an Obsidian vault that Claude reads every session — so nothing gets forgotten or silently contradicted.</p>
 </p>
