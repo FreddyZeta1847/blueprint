@@ -1,146 +1,82 @@
 ---
 name: user-agent
-description: "Ask manual-vs-agent-assist once per top-level topic, and apply the Profile's learned defaults — Blueprint's one global, cross-project mechanism. Use when a queued topic with no target is about to start its discussion, when the user asks to switch mode mid-project, or when a ratified decision may reveal a tendency worth remembering."
+description: "Who decides each foundation area — the user or Claude — and the global Profile of the user's learned tendencies. Use when areas are assigned at the end of brainstorming, when the user wants to switch an area, or when a user-confirmed decision may reveal a tendency."
 ---
 
 # User-Agent
 
-Blueprint's **one global** mechanism. Every other part of Blueprint lives inside a single
-project's vault. This one doesn't — because how a person reasons, and what they tend to choose,
-repeats across their whole body of work rather than one repo.
-
 Two jobs. **Never mix them.**
 
-| | Profile | Agent-assist mode |
+| | Area ownership | Profile |
 |---|---|---|
-| What it does | Remembers past choices and tendencies | Decides *for* the user |
-| Risk | None — advisory only, never acts | Real — it locks things |
-| Where it lives | `~/.claude/blueprint/profile.json` (global) | Per topic, inside one project |
+| What it does | Says who decides each area: the user, or Claude (the user agent) | Remembers the user's past choices and tendencies |
+| Risk | Real — Claude locks things | None — advisory only, never acts |
+| Where it lives | `vault-<project>/local-profile.md` (per project) | `~/.claude/blueprint/profile.json` (global) |
 
 ---
 
-## 1. The mode question
+## 1. Area ownership
 
-**Ask once, per top-level topic, right as that topic's own discussion is about to start.**
+### When it is set
 
-### When it fires
+**Once, at the end of brainstorming** (Phase 3 of `blueprint:brainstorming`), with one
+multiple-choice question covering all areas: *"Which of these areas do you want to decide
+yourself?"* It is set again only for a **new area** (feature-detection asks it in its list) or
+when the user asks to switch an area — at any time, in plain words ("let Claude handle CI/CD
+from now on").
 
-The test is **`target`**, not shape:
+Sections are not assigned: a section's foundation-level choices follow the areas they touch, and
+its own details are Claude's unless the user says otherwise.
 
-- **No `target`** on the queue entry → **ask.** This is a fresh top-level topic: a whole feature,
-  a standalone note, or a plan. All three get asked.
-- **Has a `target`** → **do not ask.** It was queued underneath a feature already in progress, so
-  it inherits that feature's already-decided mode.
+### Which answer to recommend
 
-A common mistake is branching on "is it a feature?" instead. That's wrong — it silently skips
-standalone notes and plans, which are exactly the items a user may want handled differently.
+1. The global Profile's tendencies (for example "usually decides infrastructure, leaves design to
+   Claude") — say so: *"(Recommended — last time you decided the infrastructure yourself)"*.
+2. Otherwise importance: areas at 4–5 are suggested as the user's, 1–2 as Claude's, 3 no
+   suggestion.
+The user always chooses.
 
-### Why not earlier, and why not once per session
+### Where it is stored
 
-- **Not a session-wide toggle.** One switch can't express "agent-assist for the boring features,
-  manual for anything sensitive" — which is the whole point of having the mode at all.
-- **Not an upfront batch question** (this was tried and removed). Asking at the top of the project
-  means judging "boring vs. sensitive" from a bare topic name, before anyone knows what the topic
-  actually involves. Worse information, and no less friction — Topic-Discussion already pauses at
-  the start of each topic anyway.
-- It also gets **better with experience inside one project**: by feature 3, the user has real
-  outcomes from features 1 and 2 to judge against, instead of a guess from a name.
-
-### How to ask
-
-Use `AskUserQuestion` — see `using-blueprint`, Core Concept 4. One question, two fixed options,
-real consequences either way. The Profile's suggestion is the **pre-recommended option**, not a
-sentence of advice followed by a separate ask.
-
-```
-How do you want to handle the decisions for <topic>?
-  - Let Claude decide the easy ones (Recommended — you usually prefer this for setup work)
-      Decisions that are easy to change later get saved without stopping.
-      Anything hard to undo still comes back to you first.
-  - Review everything myself
-      At the end, you see a short summary of every decision and confirm it.
-```
-
-Plain words only. Never mention atoms, statuses, or the guard hook in this question.
-
-### Which option to pre-recommend
-
-Go down this list and stop at the first one that gives an answer:
-
-1. **`local-profile.md` (this project's focus).** The feature is in "Cares most about" →
-   recommend *Review everything myself*. It is in "Wants Claude to handle" → recommend *Let
-   Claude decide the easy ones*. If the focus is "all of them", it doesn't separate anything —
-   go to the next step.
-2. **The global Profile's tendencies** — e.g. "usually cares about the visual side".
-3. **Importance.** 4–5 → *Review everything myself*; 1–2 → *Let Claude decide the easy ones*;
-   3 → no recommendation.
-
-The recommendation text gives the reason in plain words: *"(Recommended — you said design is
-what you care about most)"* or *"(Recommended — this is a small, supporting part)"*. The user
-always chooses.
-
-**Focus is not importance.** Importance controls how deep the specialists go
-(`blueprint:topic-discussion`); focus controls who decides. A feature can be important for the
-project and still be handed to Claude.
-
-**If the answer contradicts the local profile** (the user picks *Review everything myself* for a
-feature listed under "Wants Claude to handle"), ask once whether to update `local-profile.md`.
-Never update it silently.
-
-**Per-feature assignment IS the targeting mechanism.** There is nothing extra to build for
-"agent-assist on easy features only" — assigning per topic already does exactly that.
-
-### Where the answer is stored
-
-A small annotation on that feature's own entry in `_features.md`, which `vault-architect` already
-keeps current on every change. **No new file.** Written the moment the question is answered.
+`local-profile.md`, one line per area: `user` or `claude` (format in `blueprint:docs-management`).
+You write it yourself. It is never a decision block and the checks never read it. If the user
+switches an area, update the line in the same turn.
 
 ---
 
-## 2. What each mode actually does
+## 2. What each owner means
 
-### Manual mode
-At the end of the discussion, the user gets the plain decision summary (see
-`blueprint:topic-discussion`, step 3): every decision, with the one-way and two-way ones marked.
-The user confirms. Internally the lock is written as `status: ratified`, which the user never
-sees.
+### User-owned area
+Every decision that matters goes through the discussion and the plain summary, and the user
+confirms it. Written as `Decided by: user` in the main area file. Small two-way details Claude
+settles itself still appear in the summary under **"Details I settled myself"** (a notice, not a
+discussion) and are written as `Decided by: claude` in the area's `--details.md`.
 
-### Agent-assist mode
-- **Two-way decisions you make without asking:** they lock without stopping, internally as
-  `status: agent-approved`. Mention them briefly afterwards ("✓ I locked the easy-to-change ones:
-  …").
-- **One-way (hard to undo):** never takes the fast path. It is shown to the user in plain words
-  and waits for a real confirmation, exactly as in manual mode.
-- **Anything the user explicitly confirmed is `ratified`, even in agent-assist mode.** The status
-  follows *each decision* (did the user confirm it?), never the topic's mode. When you hand
-  decisions to `blueprint:vault-architect`, mark each one `confirmed` or `agent-decided` (see
-  `blueprint:topic-discussion`, step 5).
+### Claude-owned area
+- **Two-way decisions:** Claude settles them with the specialists' input and locks them without
+  stopping, as `Decided by: claude` in `--details.md`. Mention them briefly in the summary.
+- **One-way decisions:** never take the fast path. They are shown to the user in plain words and
+  wait for a real confirmation, exactly as in a user-owned area. Then `Decided by: user`.
+- **Anything the user explicitly confirmed is `Decided by: user`**, whoever owns the area.
+  `Decided by` follows *each decision*, never the area's owner.
 
-Either way, the user only ever sees plain decisions, never atoms or statuses.
-
-`agent-approved` means *remembered as a guess*, not a human confirmation. It is deliberately a
-different value from `ratified`, and that difference is load-bearing (see §4).
+Either way the user only sees plain decisions in chat, never field names.
 
 ### The floor cannot be switched off
-`hooks/one-way-guard.js` (PreToolUse) blocks any write where `reversibility: one-way` and
-`status: agent-approved` appear together. It fires before any permission-mode check — including
-`acceptEdits` and `bypassPermissions` — so no mode setting can outrun it.
+`hooks/one-way-guard.js` (PreToolUse) refuses any vault write where a block has
+`Reversibility: one-way` together with `Decided by: claude`. It fires before any permission-mode
+check, including `acceptEdits` and `bypassPermissions`.
 
-**If the guard blocks a write:** this usually happens inside `vault-architect`, which reports it
-as `BLOCKED` in its final report.
-1. Tell the user in plain words that this decision is hard to undo, so you need their
-   confirmation.
+**If the guard refuses a write:**
+1. Tell the user in plain words that this decision is hard to undo, so you need their OK.
 2. Get a real answer.
-3. Re-dispatch the save with that decision marked `confirmed`, so it is written as `ratified`.
-   The whole file write was blocked, so re-send *all* of that feature's decisions, not just the
-   one.
-Do **not** relabel `reversibility` to get past the hook. If the reversibility really was wrong,
-correct it as its own decision and say why.
+3. Write the block again as `Decided by: user` (and the rest of that write with it).
+Do **not** relabel the decision two-way to get past the hook. If the reversibility really was
+wrong, correct it as its own decision and say why.
 
 ### Autonomous still means well-informed
-Agent-assist decisions use the **same specialists** as a manual discussion (see
-`blueprint:using-blueprint`, Core Concept 3). A decision made for the user gets the same specialist input it
-would have gotten with the user present — never a faster, thinner substitute.
+Claude-owned decisions use the **same specialists** as a discussion with the user present
+(`blueprint:using-blueprint`, Core concept 5). Never a faster, thinner substitute.
 
 ---
 
@@ -148,103 +84,87 @@ would have gotten with the user present — never a faster, thinner substitute.
 
 Lives at `~/.claude/blueprint/profile.json` — **global, outside any project's vault.**
 
-Stores two shapes:
-
+It stores two shapes:
 1. **Concrete past choices** — "chose Postgres over Mongo for the analytics service".
-2. **General tendencies** — short plain-language style notes that colour how future options get
-   framed, not tied to one axis. For example: *"prefers boring, well-documented tools over new
-   ones"*, or *"wants the cheap option named first, even when recommending the expensive one"*.
+2. **General tendencies** — short plain-language notes that colour how future options are
+   framed. For example *"prefers boring, well-documented tools"* or *"wants the cheap option named
+   first"*. **(2) is worth more than (1)**: a tendency transfers to new situations.
 
-**(2) is weighted as more valuable than (1).** A tendency transfers to new situations; a past
-choice usually doesn't.
+**Ownership tendencies.** After the brainstorming ownership answer, dispatch `profile-updater`
+with it. Once the same pattern shows up in a second project it may propose a tendency like
+*"decides infrastructure, lets Claude handle design"* — shown to the user before saving.
 
-**Focus tendencies.** When the user answers the focus question in a project, dispatch
-`profile-updater` with the answer. It records it as a past choice, and once the same focus shows
-up in a second project it may propose a tendency like *"usually cares most about design and frontend, lets Claude handle
-infrastructure"*. It is shown to the user before saving, like any other tendency.
+**`local-profile.md` beats the global Profile for this project.** The global Profile only fills
+in what the local file doesn't say.
 
-### The local profile — `vault-<project>/local-profile.md`
-
-The global Profile is shared by all projects, but focus changes between projects: the same person
-can be the designer in one project and do everything alone in another. So each project keeps its
-own answer in `local-profile.md` (format in `blueprint:docs-management`). It is written by
-`vault-architect`, never an atom, never checked by Review. **For this project it beats the global
-Profile** — the global Profile only fills in when the local file says nothing about a feature.
-
-**Neither is ever stored as an atom.** An atom records a decision that was actually made and
-locked. A profile entry is a pattern noticed afterwards. Writing one as an atom would land it in
-the compiled decision index and have Review start comparing features against a "decision" nobody
-ever made.
+**Neither is ever a decision block.** A block records a decision actually made. A profile entry is
+a pattern noticed afterwards; writing it as a decision would put it in the compiled index and the
+checks would start comparing areas against a "decision" nobody made.
 
 ### Four authority layers
-
-Strongest first. Each layer only fills a gap the layer above left open — it never overrules it.
-
-1. **Locked company rule** (`management-info.md` → Rules) — binding, a real locked atom
+Strongest first; each fills only a gap left by the one above.
+1. **Project rule** (`management-info.md` → Rules, `Decided by: rule`) — binding
 2. **Company-seeded preferences** (`management-info.md` → Preferences) — a suggestion
-3. **Personal learned Profile** (this file) — a suggestion
+3. **Personal learned Profile** — a suggestion
 4. **Nothing set** — fully open discussion
 
-If layers 2 and 3 disagree, the company preference wins as the *starting suggestion*, because it
-sits higher. But neither is locked, so the user overrides freely in discussion. **Only layer 1 can
-block anything.**
+Only layer 1 can block anything.
 
 ---
 
 ## 4. Updating the Profile — closed-loop protection
 
-**Only `ratified` decisions ever update the Profile.**
+**Only decisions the user confirmed (`Decided by: user`) ever update the Profile.** Decisions
+Claude took (`Decided by: claude`) are recorded but **never feed learning**: otherwise Claude's
+own guesses would reinforce themselves into a "tendency".
 
-`agent-approved` decisions are logged for the record and **never feed learning**. This is not
-bureaucracy — without it, the agent's own guess would reinforce itself into a "tendency", and the
-next guess would be more confident for no reason. That is the failure mode this rule exists to
-prevent, one level up from the decision itself.
+- *Mechanical half:* the file-watcher hook reads every decision write and returns a
+  `[Blueprint]` line when a new user-confirmed decision appears, flagging that a Profile pass is
+  due.
+- *Reasoning half:* dispatch `profile-updater`. It decides whether the decision reveals a new or
+  changed tendency. A tendency needs at least two decisions or projects behind it.
 
-**Trigger:** the instant an atom locks as `ratified`. Never batched, never at session end.
-
-**Two halves:**
-- *Mechanical* — `hooks/file-watcher.js` already reads `atoms.json` on every write, so it notices
-  the new `ratified` atom for free and flags that a dispatch is due.
-- *Reasoning* — the `profile-updater` agent decides whether this actually reveals a new or updated
-  tendency, and **shows the user what it is about to write before saving**, as a plain sentence
-  about their preferences ("I noticed you prefer simple, boring tools — should I remember that?"). A misread tendency
-  would silently colour every future suggestion, which is the same anti-poisoning logic as
-  management-info's conversion step.
-
-**Not `vault-architect`.** That agent is explicitly project-scoped. The Profile lives outside any
-project, so it gets its own writer: `agents/profile-updater.md`.
+**The save always takes two dispatches**, because the agent cannot talk to the user:
+1. **Propose:** dispatch `profile-updater` normally. It returns the entry it would write and
+   writes nothing.
+2. Show the entry to the user as a plain sentence and wait for the answer.
+3. **Save:** only if the user agreed, dispatch a **fresh** `profile-updater` (a new Agent call, not
+   `SendMessage` to the first one) with `mode: save`, the exact approved entry, and the user's own
+   words quoted verbatim.
+- If the user declines or says "not now", write nothing and don't ask again in this session.
+- **You never write `profile.json` yourself** — not even when the agent's write fails. In that case
+  give the user the entry and the permission rule (§5), and move on: planning never depends on the
+  Profile.
 
 ---
 
-## 5. One friction point you must handle at setup
+## 5. One friction point at setup
 
-`Write` and `Edit` can target any absolute path, so writing the Profile is fine. But
-`Read`, `Grep` and `Glob` on a path **outside** the project directory prompt for permission
-**every single time**.
+`Read`, `Grep` and `Glob` on a path **outside** the project prompt for permission every time, and
+the Profile pass must read the Profile first. `/blueprint` therefore asks once for read/write
+permission on `~/.claude/blueprint/`, as a rule in the **user-level** `~/.claude/settings.json`
+(the Profile is global). If you notice repeated prompts on that path, the rule is missing: fix the
+rule, don't work around it.
 
-The update pass has to *read* the current Profile before deciding how to change it. Left
-unaddressed, that means a permission prompt after every ratified decision — which quietly breaks
-the one thing agent-assist mode promises.
+The rule is `Read` + `Edit` only — Claude Code matches every file-editing tool (Write included)
+with `Edit(...)` rules, and warns that a `Write(...)` rule is never matched:
 
-**Fix:** `/blueprint` requests durable read/write permission on `~/.claude/blueprint/` once, as a
-permission rule in the **user-level** settings file `~/.claude/settings.json`, not the project's
-`.claude/settings.json`. The Profile is global, so its permission must be global too.
-- Granted once, it covers every Blueprint project.
-- If the rule is already there, `/blueprint` doesn't ask again.
-- If you notice repeated prompts on the Profile path, the rule is missing. Fix the rule; don't
-  work around it.
+```json
+{ "permissions": { "allow": ["Read(~/.claude/blueprint/**)", "Edit(~/.claude/blueprint/**)"] } }
+```
+
+Files under `~/.claude/` may still ask for approval in some modes (a non-interactive session can't
+answer it). That is expected: report it, don't work around it.
 
 ---
 
 ## What NOT to do
 
-- Don't ask the mode question per sub-feature — a `target` means it inherits
-- Don't branch the question on feature-vs-topic; branch on `target` / no `target`
-- Don't ask it upfront for the whole project in one batch (removed on purpose)
-- Don't write a Profile entry as an atom, ever — the same goes for `local-profile.md` and the
-  importance/effort scores
-- Don't use importance to lower the quality of a decision — it only changes depth, and only the
-  mode decides who decides
-- Don't let an `agent-approved` decision update the Profile
-- Don't relabel `reversibility` to get past the one-way guard
-- Don't let agent-assist mode use weaker reasoning than a manual discussion would
+- Don't ask "who decides" at the start of every discussion — it was set at brainstorming
+- Don't ask it one area at a time — one multiple-choice question for all
+- Don't derive `Decided by` from the area's owner — it follows each decision
+- Don't write a one-way decision as `Decided by: claude`, and don't relabel reversibility to pass
+  the guard
+- Don't write a Profile entry, `local-profile.md` or importance as a decision block
+- Don't let a `Decided by: claude` decision update the Profile
+- Don't let a Claude-owned area use weaker reasoning than a discussion with the user would

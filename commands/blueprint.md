@@ -1,102 +1,96 @@
 ---
-description: Bootstrap a repository into Blueprint's documentation-driven workflow — scaffolds the vault, then branches on whether the repo already contains code
+description: Bootstrap a repository into Blueprint — scaffolds the versioned vault, then starts brainstorming (empty repo) or discovery (existing code)
 ---
 
 # /blueprint
 
-Bootstrap a repository into Blueprint's documentation-driven workflow.
+<!--
+Header comment: the bootstrap command of the Blueprint plugin (v2). It creates the vault layout
+defined in blueprint:docs-management (section 2) with exact starting contents, then routes to
+blueprint:brainstorming or blueprint:discovery. Idempotent on structure: it never overwrites an
+existing file.
+-->
 
-## What it does
+Bootstrap a repository into Blueprint's documentation-driven workflow. No arguments. Plugin
+commands are namespaced, so the user may type `/blueprint:blueprint`; `/blueprint` also reaches
+this command when nothing else has that name.
 
-Creates the vault scaffold (folder structure, index files, registry), evaluates whether the repo has existing code, and branches explicitly to the next step:
-- **If code exists:** Invoke the `discovery` skill to reverse-engineer it into draft features and atoms.
-- **If the repo is empty:** Invoke the `brainstorming` skill with scope "whole project" to define features from scratch.
+## 1. Create the vault
 
-## How to use
+Create `vault-<project-name>/` at the repo root. The project name comes from the repo folder name,
+or `package.json`'s `name`, falling back to `project`. Load `blueprint:docs-management` for the
+templates.
 
-From the repo root, type:
-```
-/blueprint
-```
-
-That's it. No arguments. The command creates the vault structure, checks for existing code, and tells you what to do next.
-
-## What gets created
-
-The command creates a `vault-<project-name>/` folder at the repo root with this structure:
-
-```
-vault-<project-name>/
-├── _index.md              (map of every vault file)
-├── _features.md           (list of features)
-├── _plans.md              (list of implementation phases)
-├── _architecture.md       (cross-feature connections, unconfirmed candidates)
-├── _current-task.md       (currently open discussion — empty at start)
-├── _queue.json            (pending topics to discuss)
-├── Vocabulary/
-│   ├── registry.json         (shared axis vocabulary: { id, question } pairs)
-│   ├── dismissed.json        (findings dismissed during review, with reason)
-│   └── ignored-values.json   (seeded — see below)
-└── features/              (folder for feature files)
-    └── .gitkeep           (ensures folder is tracked)
-```
-
-It also creates `_index/` and `Sheets/` as empty folders (populated later as features are written and optional engineering-sheets are rendered). `_audit.md` and `_full-context.md` are **not** created here — the `PostToolUse` hook creates each one the first time it has something to write.
-
-**Exact starting content of the JSON files.** Every list file uses the `{ "entries": [...] }`
-wrapper, **never a bare `[]`**:
+**Create every file with the `Write` tool.** `Write` creates missing parent folders by itself.
+Never use shell commands (`mkdir`, brace expansion, PowerShell blocks, `echo >`): they need extra
+approval and, on Windows, can write UTF-16 files. For an empty folder, write a `.gitkeep` inside it.
 
 | File | Starting content |
 |---|---|
-| `_queue.json` | `{ "entries": [] }` |
+| `.gitignore` | the four lines below |
+| `_index.md` | docs-management template, no entries yet |
+| `_architecture.md` | docs-management template, sections empty |
+| `_sections.md` | docs-management template, empty table |
+| `_current-task.md` | frontmatter `tags: [index]` + `# Current Task`, nothing else |
+| `_plans.md` | frontmatter `tags: [index]` + `# Plans Overview` |
+| `local-profile.md` | frontmatter `tags: [index]` + `# Local Profile` + empty `## Who decides each area` |
+| `_queue.json` | `{ "mode": "B", "entries": [] }` |
 | `Vocabulary/registry.json` | `{ "entries": [] }` |
 | `Vocabulary/dismissed.json` | `{ "entries": [] }` |
-| `Vocabulary/ignored-values.json` | the seed below |
+| `Vocabulary/ignored-values.json` | `{ "values": ["none", "n/a", "not-applicable", "default", "standard", "disabled", "tbd"] }` |
+| `foundations/.gitkeep`, `contracts/.gitkeep`, `sections/.gitkeep`, `plans/.gitkeep` | empty |
 
-For the Markdown files (`_index.md`, `_features.md`, `_plans.md`, `_architecture.md`,
-`_current-task.md`), load the `blueprint:docs-management` skill and use its templates.
+The vault `.gitignore`:
 
-**Seed `Vocabulary/ignored-values.json`** with the absent-answer values the value-inversion check must skip. Without it, every feature that correctly answers "nothing here" on caching, retries or rate limiting flags against every other one, and the check becomes noise the user stops reading:
-
-```json
-{ "values": ["none", "n/a", "not-applicable", "default", "standard", "disabled", "tbd"] }
+```gitignore
+_index/
+_full-context.md
+**/atoms.json
+**/modules.json
 ```
 
-A starter seed, not a closed set — a project extends it. Note `yes` and `no` are deliberately absent: a yes/no `choice` means the *axis* was authored wrong, which is a finding worth surfacing rather than silencing.
+**Language.** Write the Markdown files in the language the user speaks (docs-management §4b): if
+the conversation or the user's `CLAUDE.md` shows Italian, the headings are Italian (`# Attività in
+corso`, `## Chi decide ogni area`…). File and folder names stay as in the table.
 
-**Request durable permission on `~/.claude/blueprint/`.** Ask once, here, for read/write access
-to that folder, as a permission rule in the **user-level** `~/.claude/settings.json`, never the
-project's `.claude/settings.json`. The Profile is global, so one rule covers every Blueprint
-project.
-- First check whether the rule is already there. If it is, don't ask again.
-- If the edit is refused, give the user the exact snippet to add themselves, and carry on. Its
-  absence never blocks planning. This is not optional polish. `Read`/`Grep`/`Glob` outside the project directory prompt every single time, and the user-agent's Profile pass must *read* the Profile before updating it — so without this rule, every ratified decision triggers a permission prompt, which silently breaks agent-assist mode's one promise (that two-way decisions don't stop). Granted once, never asked again per lock.
+Every list file uses the `{ "entries": [...] }` wrapper, **never a bare `[]`**. Keep `yes` and `no`
+out of the ignored values on purpose: a yes/no choice means a question was written wrong.
 
-If the vault already exists, the command skips file creation (idempotent) but still evaluates the empty-vs-existing branch.
+Not created here: `_audit.md`, `_full-context.md` and `_index/` (the hooks create them the first
+time they have something to write); `management-info.md`, `_doc-rules.md` and `Sheets/` (only when
+needed).
 
-**Create every file with the `Write` tool.** `Write` creates missing parent folders by itself. Do
-not use shell commands (`mkdir`, brace expansion, PowerShell script blocks) to build the
-structure. They fail or need extra approval, especially on Windows. For the empty folders
-(`features/`, `_index/`, `Sheets/`), write a `.gitkeep` inside each one.
+**The vault is versioned.** Don't add it to the project's `.gitignore`. Say once, in plain words,
+that it lives in the repo so every branch and worktree sees the decisions at its own version, and
+that a private project can opt out by ignoring the folder.
 
-**Blueprint creates nothing outside the vault.** No second scratchpad (such as
-`.claude/current-task.md`), no source files. The vault's `_current-task.md` is Blueprint's only
-scratchpad. The user's own global conventions (for example keeping a `tree.md` up to date) still
-apply as usual.
+**If the vault already exists,** create only the missing files and never overwrite one. If it is a
+v1 vault (it has `features/`), tell the user in plain words that it uses the old layout; don't
+convert it automatically.
 
-## Next: your choice, determined by what the command found
+**Blueprint creates nothing outside the vault.** No source files, no second scratchpad. The user's
+own conventions (for example a `tree.md`) still apply.
 
-**The command will tell you** whether existing code was found. Choose your next step:
+## 2. One permission, asked once
 
-- **If existing code was found:** invoke `blueprint:discovery` to reverse-engineer it into
-  draft features.
-- **If the repo is empty:** invoke `blueprint:brainstorming` (not any other brainstorming skill)
-  and start the conversation right away: ask the user what the project is.
+Ask once for read/write access to `~/.claude/blueprint/` (the global Profile), as a rule in the
+**user-level** `~/.claude/settings.json`, never the project's settings. The exact rule — `Read` and
+`Edit` only, because `Edit(...)` rules cover every file-editing tool and Claude Code ignores
+`Write(...)` rules:
 
-If unsure, re-run `/blueprint` — it will re-evaluate and tell you which branch to take.
+```json
+{ "permissions": { "allow": ["Read(~/.claude/blueprint/**)", "Edit(~/.claude/blueprint/**)"] } }
+```
 
----
+- If the rule is already there, don't ask.
+- If the edit is refused, give the user this snippet and carry on. It never blocks planning.
 
-## Implementation notes
+## 3. Route
 
-The command is idempotent on structure (never overwrites existing files) but deterministic on the branch (re-evaluates empty vs. existing every run). Project name is derived from the repo's folder name or `package.json`'s `name` field, falling back to `project` if neither is available.
+Check whether the repo holds code (source files outside the vault, `.git`, `.claude/` and `docs/`).
+
+- **Empty repo:** invoke `blueprint:brainstorming` (not any other brainstorming skill) and start
+  the conversation right away: ask the user what the project is.
+- **Code exists:** invoke `blueprint:discovery`.
+
+Re-running `/blueprint` is safe: it re-checks the structure and the route.

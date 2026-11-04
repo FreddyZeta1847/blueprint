@@ -1,40 +1,41 @@
 ---
 name: pre-publish-check
-description: "Pre-push code coherence check — verify changed code against locked atoms before pushing"
+description: Before a push, offer to verify the user's own changes against the locked decisions that govern them. Ask first, never silent.
 ---
 
 # Pre-Publish Check
 
-Use this skill when you're about to push code. It checks for coherence between your changed code and the locked atoms that should govern it.
+<!--
+Header comment: Blueprint v2's pre-push coherence check. It looks only at the user's own diff
+(correction C-02), finds the decisions that govern the changed files, and offers an independent
+review. Later, the merge gate of the implementation method can call the same check.
+-->
 
-## How to use
-
-When you're ready to push changes:
-```
-/push
-```
-
-Claude will automatically offer the pre-publish check at that moment. Choose to run it or skip it. **Running it costs real tokens; skipping it costs rigor.**
+Use this skill when the user asks to push, or when you are about to push on their behalf.
 
 ## What it does
 
-1. **Identifies changed files** since the last push
-2. **Finds relevant atoms** — which feature's atoms govern these files?
-3. **Asks first, never silent** — "Want me to run a code review against the atoms before this goes out?"
-4. **If yes:** Dispatches a fresh-context agent to verify:
-   - Code actually implements the locked decision atoms
-   - No reversals of locked one-way decisions
-   - Rationale matches the implementation
-   - Hidden architectural assumptions match locked atoms
-5. **If no:** Claude does NOT push normally; it does everything possible to make it safer — different branch, separate folder, external location — keeping the risk contained without touching the real target
+1. **Find the user's own changes only.** Compare against the default branch: `git diff
+   <branch>...HEAD` plus uncommitted changes. Code that arrived from other people's merges is not
+   part of this check. If `_architecture.md` records a Discovery baseline, use that branch.
+2. **Find the governing decisions.** For each changed file: its owner from the module map
+   (`modules.json`), the decision blocks of that area or section, the contracts it uses, and any
+   foundation decision whose `Used by` names that section.
+3. **Ask first:** "Want me to check these changes against the decisions they rely on before they
+   go out? It costs a fresh review." Never run it silently.
+4. **If yes:** dispatch a fresh-context agent (not the one that wrote the code) with the diff and
+   the decisions. It checks that:
+   - the code implements the decisions it relies on;
+   - no one-way decision or contract was reversed;
+   - no hidden assumption contradicts a decision.
+   Explain its findings in plain words. A real contradiction is either fixed in the code or taken
+   back to a discussion (a revision), never patched by editing the decision quietly.
+5. **If no:** don't push straight to the shared branch. Keep the risk contained (a separate branch,
+   or ask the user where it should go).
 
-## Contrast with deep-review
+## Contrast with `/deep-review`
 
-- **deep-review** (via `/deep-review`): Checks vault prose against atoms — expensive semantic review, on-demand, for whole features or vault-wide
-- **pre-publish-check** (here): Checks actual code against atoms — at one specific moment (push time), asks first, verifies implementation coherence
+- `/deep-review` checks the **vault** against itself (prose vs. decisions).
+- This checks **code** against the vault, at push time.
 
-Both are high-cost semantic checks. They answer different questions: vault consistency vs. code-atoms alignment.
-
-## Key principle
-
-**Safety is never silently skipped.** Whether you run the check or skip it, Claude does what it can to keep the push safe — run a real verification or constrain the push to a protected location. The question is never "do we check?" but "how do we verify before this goes out?"
+Both cost real tokens; both are always asked, never forced.

@@ -1,158 +1,96 @@
 ---
 name: feature-detection
-description: Classify raw user input into documented work — firm needs-docs call plus provisional shape/target hints, one organized list for user review
+description: New work on an established Blueprint project — after the entry step, split the request, decide per item whether it touches the foundations, classify it (routine, note, addition, revision, new area or section) and propose the steps, in one list for the user to correct.
 ---
 
 # Feature-Detection
 
-Use this skill when the user describes work to be done on an established Blueprint project. Feature-Detection splits multi-item input, makes one firm call per item (needs documentation?), offers soft hints about shape and target, and queues everything in one organized list for the user to review.
+Use this skill on an **established project with a vault** (brainstorming or discovery already
+ran) when the entry step of `blueprint:using-blueprint` says the request touches the foundations
+or more than one section. It turns the request into steps of the path, in one organized list.
 
-## When to invoke
+## 1. Split the request if needed
 
-- On an **established project with a vault** (Brainstorming has already run, or Discovery has bootstrapped from code)
-- The **user states what needs to be done** (ongoing work, not a whole-project scope)
-- Automatically, OR explicitly by mentioning "feature-detection" if you want to trigger it mid-conversation
-
-## Your approach
-
-### 1. Split input if needed
-
-Does the user's input actually describe more than one independent item?
-
+Does it describe more than one independent item?
 - "Add a cache layer and fix the API response schema" → two items
-- "Improve the frontend by optimizing images and adding a dark mode" → two items
 - "Add multi-factor authentication" → one item
 
-Apply the feature-definition test from `skills/using-blueprint/SKILL.md`: independent why + external dependents? Use technology, contracts, functionality, placement as signals.
+Split along the foundations/sections tests (`blueprint:using-blueprint`, Core concept 1).
 
-### 2. For each item: Make the firm call
+## 2. Per item: does it touch the foundations?
 
-**Question:** Does this need documentation (a discussion, locked decisions, vault entries)? Never
-dispatch specialist agents here. They start only when `blueprint:topic-discussion` opens the
-item.
+Ground the answer in the vault (the area and section files, `_architecture.md`), the code, and any
+project rule. Default to **yes** when unsure. Never dispatch specialists here.
 
-**Ground it in:**
-- The item's existing atoms and prose (if it touches an existing feature)
-- The codebase itself (patterns, established conventions)
-- Any locked management-info Rule (Rules can force "needs documentation" outright)
-- Your judgment when genuinely unsure (default to "needs documentation")
+Then classify it:
 
-**Answer:** Yes or No. That's it. No hedging here.
+| Class | What it means | What happens |
+|---|---|---|
+| **Routine** | Inside one section, follows an established pattern, nothing new to decide (e.g. one more page like the others) | No discussion. Built directly **only if the user asked for the work now**. New details are recorded as `Decided by: claude` |
+| **Note** | One small decision inside an existing area or section | Light discussion (below) |
+| **Addition** | Adds to a locked area without contradicting it ("add a queue to CLOUD") | Short confirmation, written into the area |
+| **Revision** | Changes a locked decision ("move from App Service to Container Apps") | Real discussion with specialists, decided by the area's owner; dependents warned |
+| **New area / new section** | A new shared choice, or a new piece of value for the user | Full discussion; added to the graph, with importance and (for an area) who decides |
 
-**What counts as "routine execution"?** An example: adding a page to the frontend by following
-its established pattern, with nothing new to decide. That gets no queue entry and no discussion.
-It is normal coding, but only if the user actually asked for that work to be done now. Never
-start coding on your own from a planning conversation.
+**A note is light.** It gets **one** specialist, who first reads the code it touches and then
+proposes 2–3 concrete ways to fit in. The user picks; it is written as a block in the existing
+file.
 
-**What counts as "needs documentation"?** Anything that brings a real choice, an unestablished pattern, or a decision not yet locked in atoms → queue it, discuss it, lock atoms.
+**A new area** also needs its owner: ask in the same list *"Do you want to decide this one, or
+leave it to me?"* and record the answer in `local-profile.md`.
 
-### 3. For documented items: Offer soft hints
+## 3. Propose the steps
 
-If the item needs documentation, offer two **provisional** hints (not decisions — just your best guess based on context):
+Turn the items into path steps (`discuss`, `prototype`, `mockup`, `build`), mode B: dependencies
+first, following the graph. Put a `prototype` step first when a decision depends on unknown
+feasibility. Explain the order in one line.
 
-#### Hint 1: Shape
-- **"feature"** — looks like a whole new feature (independent why, external dependents, strong signals)
-- **"topic"** — needs documentation but not a feature (smaller scope, might be a note on an existing feature, or a sub-feature spin-off). Never shown to the user as jargon; phrase it naturally: "needs documentation, but probably not a whole new feature."
+## 4. Show one organized list
 
-**Why different bars?** A `topic` is cheap to get wrong — it runs through the same discussion mechanism regardless. A `feature` costs more to undo (different starting structure in Topic-Discussion). So "feature" only gets offered when grounding is actually strong.
-
-#### Hint 2: Target (for topics only)
-- Which existing feature does this probably relate to?
-- Ground it: existing atoms, codebase, established patterns
-- Leave blank if nothing obviously anchors
-- Explicitly provisional — Topic-Discussion might find a better one
-
-**Natural-language color is OK:** "probably just a paragraph on X," "might want its own file" — this is prose, not a tracked value, and never becomes a decision without real discussion.
-
-#### Scores and focus (new features only)
-
-An item hinted as `feature` gets the same two 1–5 scores as in `blueprint:brainstorming`, step 3
-— **importance** (for this project's goal) and **effort** — each with a one-line reason. Check
-`local-profile.md`: if the new feature isn't covered by the user's focus, ask in the same list
-whether they want to decide it personally ("Is this one you care about?"). An item hinted as
-`topic` gets no scores; it inherits its target feature's.
-
-The common feature kinds listed in brainstorming (design/UI, frontend, backend/API, storage…) are
-a useful reference here too — never a reason to split one item into several.
-
-### 4. Propose processing order
-
-Once all items are classified, propose an order for discussion:
-- Dependencies first (things other items need)
-- Simplest-first (foundations before dependents)
-- As-raised (the order the user mentioned them)
-- Grouped by type (routine first, features, then topics)
-
-Explain your reasoning briefly for the order.
-
-### 5. Show one organized list
-
-**Never a loop of small interruptions. Never two passes.**
-
-Present everything together in one organized list, grouped by outcome:
+**One list, one pass of corrections. Never a series of small questions.**
 
 ```
-## Routine Execution (no queue entry)
-- Item X (with brief reasoning)
+## Routine (no discussion)
+- Item X — follows the existing pattern of Y
 
-## New Features (queued)
-- Item Y · importance 4/5 · effort 2/5 (with reasoning and processing order rationale)
-  Is this one you want to decide yourself?
+## Touches the foundations
+- Item Y — revision of CLOUD: today we use App Service, this needs containers
+- Item Z — addition to DB: a new `invoices` table
+- Item W — new section INVOICES · importance 3/5 (uses DB, AUTH)
 
-## Needs Documentation (shape undecided, queued)
-- Item Z — probably just an update to Feature-Name (reasoning)
-- Item W — needs documentation, might be its own thing (reasoning)
-
-Proposed processing order: Item Y (needs Z's foundation), then Item Z, then Item W.
+Proposed steps: discuss CLOUD (revision) → discuss INVOICES → build INVOICES
 ```
 
-The user reviews this *one* clear picture and corrects it in a *single* pass.
+Never use internal words ("topic", "atom", "shape") with the user.
 
-### 6. Queue everything
+## 5. Write the steps
 
-Write confirmed items to `_queue.json` with:
-- `id` — unique identifier
-- `description` — what needs to be done
-- `shape_hint` — `feature` or `topic`
-- `target` — likely related feature (for topics; blank if unclear)
-- `importance`, `effort` — 1–5, features only (topics inherit their target's)
-- `status` — `pending`
+When the user confirms, append the steps to `_queue.json` (schema in `blueprint:docs-management`)
+in the right place of the existing order, and add any new area or section file and its graph
+edges. You write these files yourself.
 
-If the user answered the focus question, `vault-architect` also updates `local-profile.md`.
+## 6. Hand-off to implementation
 
-**All hints are provisional.** Topic-Discussion will confirm or revise them during real discussion (Recheck step).
+For a `build` step, prepare what the implementer reads, so planning and building stay separate:
+- the section file and its `--details.md`;
+- the contracts it uses or exposes;
+- the one-way decisions of the areas it depends on;
+- the acceptance criteria;
+- the skills and profile named in the step.
+
+Point the process plugin (for example `superpowers:writing-plans`) at exactly these files. The
+implementer never re-decides what they contain; if it finds a decision wrong or missing, it stops
+and it comes back here as a note, addition or revision.
 
 ## What NOT to do
 
-- Don't write vault files — vault-architect owns that
-- Don't guess sub-feature vs. note distinction — collapse that to one "topic" bucket; Topic-Discussion decides shape at Recheck
-- Don't silently skip decisions — if a management-info Rule applies, state it plainly
-- Don't ask the user to classify (don't quiz them on Blueprint terminology) — you classify, they correct
-- Don't interrupt with small per-item questions — show one organized list, get one pass of corrections
-- Don't use the word "topic" with the user — that's internal jargon; say "needs documentation, but probably not a feature"
-
-## Key constraints
-
-- **One firm call: needs documentation?** Ground it in atoms, codebase, management-info Rules; default to "yes" when unsure
-- **Two soft hints:** shape (`feature`/`topic`) and target feature (for topics only)
-- **One organized list, one pass of user review** — routine items, feature items, topic items, grouped by outcome
-- **All provisional** — Topic-Discussion will confirm, correct, or revise during real discussion
+- Don't write code from a planning conversation unless the user asked for the work now
+- Don't quiz the user on Blueprint terminology — you classify, they correct
+- Don't interrupt with per-item questions — one list, one pass
+- Don't skip a project rule silently — if one applies, say it plainly
+- Don't treat a revision as an addition to avoid a discussion
 
 ## Anti-sycophancy rule
 
-If the user downgrades something you still think matters (wants to skip documentation when you see it's really needed), push back once: name what's being traded away, explain why documentation matters here, then respect their call. No re-asking on the same item.
-
-## After Feature-Detection
-
-Items are queued in `_queue.json`. Next: invoke `blueprint:topic-discussion` to start processing
-them one at a time.
-
----
-
-## Technical notes
-
-**Shape hints were simplified:** Originally three-way (feature/sub-feature/note), collapsed to two (`feature`/`topic`) because sub-feature and note always get treated identically in Topic-Discussion (same mechanism, different output based on Recheck). One distinction: feature gets a higher confidence bar.
-
-**Ratification-at-Contact moved:** No longer triggered here by finding a `needs-review` draft. Now happens naturally inside Topic-Discussion's diverge phase — the exact moment real discussion makes genuine contact with a relevant draft, which is strictly better timing than a shallow upfront check before any conversation started.
-
-**Handoff always through the queue:** Confirmed items go to `_queue.json`, never a direct shortcut to Topic-Discussion. Same mechanism, same consistency, whether the queue has one item or ten.
+If the user wants to skip a discussion you think is needed (for example a revision presented as
+"just a small change"), push back once: say what is being traded away, then respect their call.

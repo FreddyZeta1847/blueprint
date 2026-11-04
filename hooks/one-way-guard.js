@@ -1,81 +1,80 @@
 /*
- * PreToolUse hook — Blueprint's one-way floor.
+ * PreToolUse hook — Blueprint's one-way floor (v2).
  *
- * Blocks exactly one thing: agent-assist mode locking a decision that cannot be undone.
- * It fires only when `reversibility: one-way` and `status: agent-approved` appear together
- * on the same atom. A manual-mode lock is `ratified`, so the condition can never be met —
- * this hook is NOT a second safety net for manual mode, which already stops for everything.
+ * Blocks exactly one thing: a decision that is hard to undo (`Reversibility: one-way`) being
+ * saved as decided by Claude (`Decided by: claude`) instead of by the user. This is the safety
+ * net behind "the user picks which areas the user agent handles": even in an area handed to
+ * Claude, a one-way decision always comes back to the user.
  *
- * Why a PreToolUse hook and not the constraints digest: the digest checks CONTENT correctness
- * (does Claude know what's locked). This checks PROCESS legitimacy (did a real human confirm).
- * Verified against the hooks docs: PreToolUse fires before any permission-mode check, in every
- * mode including acceptEdits and bypassPermissions — so agent-assist cannot outrun it.
+ * v2 (Markdown is the source): for a .md inside foundations/, contracts/, sections/ or legacy
+ * features/, the hook rebuilds the file as it will be AFTER this tool call — Write = the new
+ * content; Edit / MultiEdit = the current file with the replacements applied — parses the
+ * decision blocks and denies the call if any block is one-way + claude. Rebuilding the whole
+ * file means a one-line edit cannot slip past the floor.
+ * v1 (kept for old vaults): an atoms.json write carrying `one-way` + `agent-approved`.
  *
- * Partial-edit hardening: an `Edit` payload is a diff fragment, so it may carry `status`
- * without `reversibility` (or the reverse). When only one half is present, the atom's other
- * half is looked up by id in the compiled index rather than assumed safe — otherwise a
- * one-field edit would walk straight through the floor.
+ * Every block is appended to the vault's _audit.md. PreToolUse fires before any permission
+ * mode check, so no mode can outrun it. Bad or unexpected input fails open (exit 0, no output).
  *
- * Every block is also appended to the vault's _audit.md, as the audit spec requires
- * (docs-management: "one-way-guard blocked-write events").
- *
- * Usage: wired as the PreToolUse hook in hooks/hooks.json, matcher "Write|Edit".
- *        Receives the hook payload as JSON on stdin.
+ * Usage: PreToolUse hook in hooks/hooks.json, matcher "Write|Edit|MultiEdit".
  */
 
-const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
-
-function readStdin() {
-  let raw;
-  try {
-    raw = fs.readFileSync(0, 'utf8');
-  } catch {
-    return null;   // no stdin at all
-  }
-  try {
-    // Strip a leading BOM: some shells prepend one when piping, and JSON.parse rejects it.
-    return JSON.parse(raw.replace(/^﻿/, '').trim());
-  } catch (e) {
-    // Fail open (never block a write because the payload was odd), but say so.
-    process.stderr.write(`Blueprint one-way guard: unparseable hook payload (${e.message})\n`);
-    return null;
-  }
-}
+const { readStdinJson, projectDirOf, findVaultRoot, relInside, readText, readJson, auditWho, nowStamp, appendAudit } = require('./lib/common');
+const { parseDecisionBlocks, unitOf } = require('./lib/decisions');
 
 function deny(reason) {
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'PreToolUse',
-        permissionDecision: 'deny',
-        permissionDecisionReason: reason,
-      },
-    })
-  );
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason },
+  }));
 }
 
-function findVaultRoot(projectDir) {
-  try {
-    const entry = fs.readdirSync(projectDir).find((e) => e.startsWith('vault-'));
-    return entry ? path.join(projectDir, entry) : null;
-  } catch {
-    return null;
+// ---------------------------------------------------------------- v2: Markdown blocks
+
+function applyEdit(text, oldString, newString, replaceAll) {
+  if (typeof oldString !== 'string' || typeof newString !== 'string' || !oldString) return text;
+  if (replaceAll) return text.split(oldString).join(newString);
+  const at = text.indexOf(oldString);
+  return at === -1 ? text : text.slice(0, at) + newString + text.slice(at + oldString.length);
+}
+
+/** The file's content as it will be after this tool call, or null when we can't tell. */
+function contentAfter(toolName, toolInput, absPath) {
+  if (toolName === 'Write') return typeof toolInput.content === 'string' ? toolInput.content : null;
+  const current = readText(absPath);
+  if (toolName === 'Edit') {
+    if (current === null) return typeof toolInput.new_string === 'string' ? toolInput.new_string : null;
+    return applyEdit(current, toolInput.old_string, toolInput.new_string, toolInput.replace_all);
   }
-}
-
-/** The text this tool call is about to put on disk. */
-function writtenText(toolName, toolInput) {
-  if (toolName === 'Write' && typeof toolInput.content === 'string') return toolInput.content;
-  if (toolName === 'Edit' && typeof toolInput.new_string === 'string') return toolInput.new_string;
+  if (toolName === 'MultiEdit' && Array.isArray(toolInput.edits)) {
+    let text = current === null ? '' : current;
+    for (const e of toolInput.edits) text = applyEdit(text, e && e.old_string, e && e.new_string, e && e.replace_all);
+    return text;
+  }
   return null;
 }
 
-/**
- * Pull atom-shaped fragments out of the text. Deliberately regex-based rather than
- * JSON.parse: an Edit fragment is usually not valid JSON on its own.
- */
+function oneWayByClaude(markdown, source) {
+  // Any block with a choice counts, even if other fields are missing: it would be saved as a decision.
+  const { atoms } = parseDecisionBlocks(markdown, { source });
+  return atoms.filter((a) => a.reversibility === 'one-way' && a.decided_by === 'claude').map((a) => a.id);
+}
+
+function blockMarkdown(input, vaultRoot, projectDir, rel, ids) {
+  audit(vaultRoot, projectDir, input.session_id, rel, ids);
+  const list = ids.map((id) => `\`${id}\``).join(', ');
+  deny(
+    `[Blueprint] One-way floor: blocked saving ${list} in \`${rel}\` as decided by Claude. ` +
+    'A decision that is hard to change later (Reversibility: one-way) always needs the user\'s clear OK — ' +
+    'even in an area the user handed to Claude, and in every permission mode.\n\n' +
+    'Nothing in this write was saved. Ask the user about this decision in plain words (what it is, why it is hard to undo, ' +
+    'what you recommend). When they agree, write the block again with `Decided by: user` (`Deciso da: utente` in an Italian vault). If it is really easy to change ' +
+    'later, correct `Reversibility` as its own explained decision — never relabel it just to get past this check.'
+  );
+}
+
+// ---------------------------------------------------------------- v1: atoms.json fragments
+
 function scanFragments(text) {
   const findField = (field) => {
     const hits = [];
@@ -84,114 +83,70 @@ function scanFragments(text) {
     while ((m = re.exec(text)) !== null) hits.push(m[1]);
     return hits;
   };
-  return {
-    statuses: findField('status'),
-    reversibilities: findField('reversibility'),
-    ids: findField('id'),
-    axes: findField('axis'),
-  };
+  return { statuses: findField('status'), reversibilities: findField('reversibility'), ids: findField('id'), axes: findField('axis') };
 }
 
-/** Look an atom's stored reversibility up by id, for the partial-edit case. */
 function storedReversibility(vaultRoot, ids) {
-  if (!ids.length) return null;
-  try {
-    const index = JSON.parse(fs.readFileSync(path.join(vaultRoot, '_index', 'decisions.json'), 'utf8'));
-    for (const body of Object.values((index && index.features) || {})) {
-      for (const atom of (body && body.atoms) || []) {
-        if (atom && ids.includes(atom.id) && atom.reversibility) return atom.reversibility;
-      }
-    }
-  } catch {
-    /* no index yet — nothing to look up */
+  const index = readJson(path.join(vaultRoot, '_index', 'decisions.json'), null);
+  for (const body of Object.values((index && index.features) || {})) {
+    for (const atom of (body && body.atoms) || []) if (atom && ids.includes(atom.id) && atom.reversibility) return atom.reversibility;
   }
   return null;
 }
 
-/** Same identity tiers as file-watcher's auditWho: git config, then HEAD's author, then the OS user. */
-function auditWho(projectDir) {
-  const tryGit = (args) => {
-    try {
-      return execFileSync('git', args, { cwd: projectDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
-    } catch {
-      return null;
-    }
-  };
-  let osUser = 'unknown';
-  try { osUser = require('os').userInfo().username; } catch { /* keep 'unknown' */ }
-  return tryGit(['config', 'user.name']) || tryGit(['log', '-1', '--format=%an']) || osUser;
+function checkLegacyAtoms(input, vaultRoot, projectDir, rel) {
+  const t = input.tool_input;
+  const text = input.tool_name === 'Write' ? t.content : input.tool_name === 'Edit' ? t.new_string : null;
+  if (typeof text !== 'string') return;
+  const { statuses, reversibilities, ids, axes } = scanFragments(text);
+  if (!statuses.includes('agent-approved')) return;
+  const oneWay = reversibilities.includes('one-way')
+    || (reversibilities.length === 0 && storedReversibility(vaultRoot, ids) === 'one-way');
+  if (!oneWay) return;
+  const subjects = axes.length ? axes : ids;
+  audit(vaultRoot, projectDir, input.session_id, rel, subjects);
+  deny(
+    `[Blueprint] One-way floor: blocked an agent-assist lock on ${subjects.map((s) => `\`${s}\``).join(', ') || 'this decision'}. ` +
+    'A one-way decision can never be saved as `agent-approved` — it needs the user\'s confirmation first. Nothing was saved. ' +
+    'Ask the user in plain words, then save it again as `ratified`.'
+  );
 }
 
-/** Log the blocked write. Never throws — a logging failure must not change the deny decision. */
-function appendBlockedAudit(vaultRoot, projectDir, sessionId, feature, axes, ids) {
+// ---------------------------------------------------------------- audit + entry point
+
+function audit(vaultRoot, projectDir, sessionId, rel, subjects) {
   try {
-    const when = new Date().toISOString().replace('T', ' ').slice(0, 16);
-    const subject = axes.length ? axes.join(', ') : (ids.join(', ') || '?');
-    const lines = [
+    appendAudit(vaultRoot, [
       '',
-      `## ${when} — ${feature} / ${subject}`,
-      '- **what:** BLOCKED by the one-way guard — an agent-assist lock on a one-way decision (not saved)',
+      `## ${nowStamp()} — ${rel} / ${subjects.join(', ') || '?'}`,
+      '- **what:** BLOCKED by the one-way floor — a one-way decision saved as decided by Claude (not saved)',
       `- **who:** ${auditWho(projectDir)}`,
       `- **session:** \`${sessionId || 'unknown'}\``,
-    ];
-    const auditFile = path.join(vaultRoot, '_audit.md');
-    if (!fs.existsSync(auditFile)) {
-      fs.writeFileSync(
-        auditFile,
-        '# Decision Audit\n\nAuto-generated, append-only. Who changed which decision, when, and why.\nNever hand-edited.\n',
-        'utf8'
-      );
-    }
-    fs.appendFileSync(auditFile, lines.join('\n') + '\n', 'utf8');
+    ]);
   } catch (e) {
     process.stderr.write(`Blueprint one-way guard: could not write _audit.md (${e && e.message})\n`);
   }
 }
 
 function main() {
-  const input = readStdin();
-  if (!input) return;
-
-  const toolInput = input.tool_input || {};
-  const filePath = toolInput.file_path;
-  if (!filePath) return;
-
-  // Scope: only atom writes inside a Blueprint vault. Everything else is none of this hook's business.
-  if (path.basename(filePath) !== 'atoms.json') return;
-
-  const projectDir = input.cwd || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  const input = readStdinJson();
+  if (!input || !input.tool_input || typeof input.tool_input.file_path !== 'string') return;
+  const projectDir = projectDirOf(input);
   const vaultRoot = findVaultRoot(projectDir);
   if (!vaultRoot) return;
-  if (path.relative(vaultRoot, path.resolve(filePath)).startsWith('..')) return;
 
-  const text = writtenText(input.tool_name, toolInput);
-  if (!text) return;
+  const abs = path.resolve(input.tool_input.file_path);
+  const rel = relInside(vaultRoot, abs);
+  if (!rel) return;
+  const meta = unitOf(rel);
+  if (!meta) return;
 
-  const { statuses, reversibilities, ids, axes } = scanFragments(text);
-  if (!statuses.includes('agent-approved')) return;   // nothing autonomous here — let it through
+  if (path.basename(rel) === 'atoms.json') return checkLegacyAtoms(input, vaultRoot, projectDir, rel);
 
-  const oneWayInPayload = reversibilities.includes('one-way');
-  const oneWayStored = !oneWayInPayload && reversibilities.length === 0
-    ? storedReversibility(vaultRoot, ids) === 'one-way'
-    : false;
-
-  if (!oneWayInPayload && !oneWayStored) return;
-
-  const subject = axes.length ? `\`${axes[0]}\`` : (ids.length ? `atom \`${ids[0]}\`` : 'this decision');
-  const via = oneWayStored ? ' (its one-way reversibility was read from the compiled index, not this edit)' : '';
-  const feature = path.basename(path.dirname(path.resolve(filePath)));
-  appendBlockedAudit(vaultRoot, projectDir, input.session_id, feature, axes, ids);
-
-  deny(
-    `Blueprint one-way floor: blocked an agent-assist lock on ${subject}${via}. ` +
-      `A decision marked \`reversibility: one-way\` can never be locked with \`status: agent-approved\` — ` +
-      `it needs a real human confirmation first. Agent-assist mode cannot switch this off, in any permission mode.\n\n` +
-      `NOTHING in this write was saved. If you are vault-architect: do not retry with a different status — ` +
-      `report this as BLOCKED in your final report. The main conversation must ask the user about this ` +
-      `decision in plain words, then re-send the whole save with it marked \`confirmed\` (status \`ratified\`). ` +
-      `If it turns out to be reversible after all, correct \`reversibility\` as its own explained decision — ` +
-      `don't relabel it just to get past this hook.`
-  );
+  const after = contentAfter(input.tool_name, input.tool_input, abs);
+  if (after === null) return;
+  const ids = oneWayByClaude(after, rel);
+  if (ids.length) blockMarkdown(input, vaultRoot, projectDir, rel, ids);
 }
 
 try {

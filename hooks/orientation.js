@@ -1,118 +1,111 @@
 /*
- * SessionStart hook — Orientation for Blueprint-managed sessions
+ * SessionStart hook — Blueprint orientation (v2, short on purpose).
  *
- * Injected at session start to: (1) inject Blueprint's hard rules and pipeline (a compact
- * excerpt of skills/using-blueprint/SKILL.md, not the whole file), (2) surface the current
- * project's live state (_current-task.md, _index.md, _queue.json — each capped), (3) inject the
- * constraints digest (locked/one-way decisions, axis+choice only), (4) run a staleness check.
+ * Injects at most ~1.5 KB, because every byte here is paid in every session and an oversized
+ * injection gets truncated to a preview (TEST-FINDINGS R1-04). It carries only:
+ *   1. one line saying this is a Blueprint project and which skill to load;
+ *   2. where the work stands: the current and the next step of the path (_queue.json), and an
+ *      open discussion to resume (_current-task.md);
+ *   3. five essential rules (the full rules live in skills/using-blueprint);
+ *   4. a capped digest of confirmed one-way decisions (id → choice), so they are not silently
+ *      overridden.
+ * Without a vault it says one line. Errors never fail the session (exit 0).
  *
- * Output is kept compact on purpose: Claude Code persists large hook output to a file and shows
- * the model only a short preview, so an oversized injection silently loses its most important
- * lines. Delivered as JSON hookSpecificOutput.additionalContext.
- *
- * Triggers: SessionStart hook, always runs when Claude opens a project with this plugin enabled.
- *
- * References: hooks/hooks.json (wiring), skills/using-blueprint/SKILL.md (source of the rules),
- * vault-<project>/(_current-task.md, _index.md, _queue.json, _index/decisions.json).
+ * Usage: SessionStart hook in hooks/hooks.json. Reads the payload's `cwd` (or
+ * CLAUDE_PROJECT_DIR) to find the project. Output: JSON hookSpecificOutput.additionalContext.
  */
 
-const fs = require('fs');
 const path = require('path');
+const { readStdinJson, projectDirOf, findVaultRoot, readText, readJson } = require('./lib/common');
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '..');
+const BUDGET = 1500;
 
-const LIVE_FILE_CAP = 1500;
+const RULES = [
+  'Rules:',
+  '1. Any request that changes what the code does starts with one question: does it touch the foundations?',
+  '2. Specialists only inside a foundation-area or section discussion; never in brainstorming.',
+  '3. Talk in plain words: never say atom, axis, status or field names; end with a one-way / two-way summary.',
+  '4. No production code while discussing; prototypes and mockups only in prototypes/ or proto/* branches.',
+  '5. You write the vault yourself (decision blocks); say "✓ Locked" only after reading the [Blueprint] hook messages.',
+];
 
-function extractSection(markdown, startHeading, endHeading) {
-  const start = markdown.indexOf(startHeading);
-  if (start === -1) return '';
-  const end = markdown.indexOf(endHeading, start + startHeading.length);
-  return markdown.slice(start, end === -1 ? undefined : end).trim();
+function stepLabel(e) {
+  if (!e) return '';
+  const kind = e.kind || 'discuss';
+  const target = e.target ? ` ${e.target}` : '';
+  const desc = e.description ? ` — ${e.description}` : '';
+  return `${kind}${target}${desc}`.slice(0, 140);
 }
 
-function buildRulesExcerpt() {
-  const skill = fs.readFileSync(path.join(pluginRoot, 'skills/using-blueprint/SKILL.md'), 'utf8');
-  const rules = extractSection(skill, '## Hard rules', '## The pipeline');
-  const pipeline = extractSection(skill, '## The pipeline', '## Routing');
-  return [
-    '# Blueprint project',
-    'This project uses the Blueprint plugin. Before any Blueprint step, load the `blueprint:using-blueprint` skill for the routing table and core concepts.',
-    rules,
-    pipeline,
-  ].join('\n\n');
+function pathState(vaultRoot) {
+  const queue = readJson(path.join(vaultRoot, '_queue.json'), null);
+  const entries = queue && Array.isArray(queue.entries) ? queue.entries : [];
+  const open = entries.filter((e) => e && e.status !== 'done');
+  if (!open.length) return entries.length ? ['Path: every step is done. Wait for the user.'] : [];
+  const current = open.find((e) => e.status === 'in-progress') || open[0];
+  const next = open.find((e) => e !== current);
+  const lines = [`Path (mode ${queue.mode || 'B'}): now → ${stepLabel(current)}`];
+  if (next) lines.push(`Next → ${stepLabel(next)}`);
+  return lines;
 }
 
-function capped(text, filename) {
-  if (text.length <= LIVE_FILE_CAP) return text;
-  return text.slice(0, LIVE_FILE_CAP) + `\n… (truncated — read ${filename} for the rest)`;
+function resumeHint(vaultRoot, vaultName) {
+  const text = readText(path.join(vaultRoot, '_current-task.md'));
+  if (!text) return [];
+  const body = text.replace(/^---[\s\S]*?---\s*/, '').trim();
+  if (!body) return [];
+  const heading = (body.match(/^#+\s*(.+)$/m) || [])[1];
+  return [`Open discussion to resume: ${vaultName}/_current-task.md${heading ? ` (${heading.slice(0, 80)})` : ''}`];
 }
 
-function liveState(vaultPath, vaultFolderName) {
-  let out = '';
-  for (const filename of ['_current-task.md', '_index.md', '_queue.json']) {
-    const filePath = path.join(vaultPath, filename);
-    if (fs.existsSync(filePath)) {
-      const rel = `${vaultFolderName}/${filename}`;
-      out += `\n## ${rel}\n${capped(fs.readFileSync(filePath, 'utf8'), rel)}\n`;
+function digestLines(vaultRoot, room) {
+  const index = readJson(path.join(vaultRoot, '_index', 'decisions.json'), null);
+  const items = [];
+  for (const body of Object.values((index && index.features) || {})) {
+    for (const a of (body && body.atoms) || []) {
+      if (!a || !a.axis) continue;
+      const confirmed = a.status === 'ratified' || a.status === 'locked';
+      if (confirmed && a.reversibility === 'one-way') items.push(`${a.axis} → ${String(a.choice).slice(0, 60)}`);
+      else if (a.status === 'locked') items.push(`${a.axis} → ${String(a.choice).slice(0, 60)}`);
     }
   }
-  return out;
+  if (!items.length) return [];
+  const header = 'Confirmed one-way decisions (internal — never show raw):';
+  const lines = [header];
+  let used = header.length + 1;
+  let shown = 0;
+  for (const item of items) {
+    const line = `- ${item}`;
+    if (used + line.length + 1 + 40 > room) break;
+    lines.push(line);
+    used += line.length + 1;
+    shown++;
+  }
+  if (shown < items.length) lines.push(`(+${items.length - shown} more in _index/decisions.json)`);
+  return shown ? lines : [];
 }
 
-function constraintsDigest(vaultPath) {
-  const decisionsIndexPath = path.join(vaultPath, '_index', 'decisions.json');
-  if (!fs.existsSync(decisionsIndexPath)) return '';
-  const decisionsIndex = JSON.parse(fs.readFileSync(decisionsIndexPath, 'utf8'));
-  const constraints = [];
-  for (const featureName in decisionsIndex.features || {}) {
-    for (const atom of decisionsIndex.features[featureName].atoms || []) {
-      if (atom.status === 'locked' || atom.reversibility === 'one-way') {
-        constraints.push(`- ${atom.axis} → ${atom.choice}`);
-      }
-    }
+function buildContext(projectDir) {
+  const vaultRoot = findVaultRoot(projectDir);
+  if (!vaultRoot) {
+    return '[Blueprint] No Blueprint vault in this project. If the user wants to plan with Blueprint, run /blueprint.';
   }
-  if (constraints.length === 0) return '';
-  return '\n## Locked decisions that must not be silently overridden (internal — never show this list raw to the user)\n'
-    + constraints.join('\n') + '\n';
-}
-
-function stalenessCheck(vaultPath) {
-  try {
-    const { execSync } = require('child_process');
-    const markerPath = path.join(vaultPath, '.last-indexed-commit');
-    if (!fs.existsSync(markerPath)) return '';
-    const lastIndexedCommit = fs.readFileSync(markerPath, 'utf8').trim();
-    try {
-      execSync(`git diff --quiet ${lastIndexedCommit} HEAD`, { cwd: projectDir, stdio: 'pipe' });
-      return '\n✓ No code changes since last Blueprint index.\n';
-    } catch (e) {
-      return '\n⚠️ Code changed since last Blueprint index. Consider a discovery pass before proceeding.\n';
-    }
-  } catch (e) {
-    return '';
-  }
-}
-
-function buildContext() {
-  let out = buildRulesExcerpt() + '\n\n---\n';
-  const vaultFolderName = fs.readdirSync(projectDir).find(e => e.startsWith('vault-'));
-  if (!vaultFolderName) {
-    return out + '\n**No Blueprint vault in this repository yet.** When the user wants to start, run `/blueprint`.\n';
-  }
-  const vaultPath = path.join(projectDir, vaultFolderName);
-  out += liveState(vaultPath, vaultFolderName);
-  out += constraintsDigest(vaultPath);
-  out += stalenessCheck(vaultPath);
-  return out;
+  const vaultName = path.basename(vaultRoot);
+  const head = [`[Blueprint] This project is planned with Blueprint (${vaultName}/). Load \`blueprint:using-blueprint\` before any Blueprint step.`];
+  let state = [];
+  try { state = [...pathState(vaultRoot), ...resumeHint(vaultRoot, vaultName)]; } catch { state = []; }
+  const fixed = [...head, ...state, ...RULES].join('\n');
+  let digest = [];
+  try { digest = digestLines(vaultRoot, BUDGET - fixed.length - 1); } catch { digest = []; }
+  const out = [fixed, ...digest].join('\n');
+  return out.length <= BUDGET ? out : out.slice(0, BUDGET - 1) + '…';
 }
 
 try {
-  const additionalContext = buildContext();
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext },
-  }));
+  const input = readStdinJson();
+  const projectDir = projectDirOf(input);
+  const additionalContext = buildContext(projectDir);
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext } }));
 } catch (e) {
-  console.error(`Blueprint SessionStart hook error: ${e.message}`);
-  process.exit(1);
+  process.stderr.write(`Blueprint SessionStart hook error: ${e && e.message}\n`);
 }

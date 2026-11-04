@@ -1,139 +1,95 @@
 ---
 name: management-info
-description: "Create or update management-info.md — encode top-down rules and preferences as locked atoms"
+description: Create or update management-info.md (project rules and preferences) and _doc-rules.md (how to write the docs). Rules become decision blocks marked Decided by rule; preferences stay reference text.
 ---
 
 # Management-Info
 
-Use this skill when a manager or tech lead needs to set binding constraints or starting preferences for a Blueprint-managed project.
+<!--
+Header comment: Blueprint v2's channel for top-down project rules. The human-authored
+management-info.md stays plain Markdown; each binding Rule is written by the main session as a
+decision block with `Decided by: rule` in the area it governs, so the hooks derive a `locked` atom
+from it. Also owns _doc-rules.md, the project's rules on how the vault itself is written (C-08).
+-->
 
-## What it does
+Use this skill when someone sets binding constraints or starting preferences for a Blueprint
+project, or rules on how its documentation must be written.
 
-Converts plain-Markdown management input (`management-info.md`) into locked atoms:
-- **Rules** (binding) → become `status: locked` atoms (enforceable, checked by Review)
-- **Preferences** (defaults, can be overridden) → stay as reference text, never atoms
+## Two files, two jobs
 
-The file lives at `vault-<project>/management-info.md`, authored in plain Markdown, and is compiled into locked atoms by vault-architect.
+| File | Holds | Becomes decisions? |
+|---|---|---|
+| `management-info.md` | rules and preferences about **what** to build | Rules: yes. Preferences: no |
+| `_doc-rules.md` | rules about **how the vault is written** ("every external API gets an error-code table", "write the vault in Italian") | Never |
 
-## When to use
-
-- **Project setup:** Manager sets binding constraints ("always JWT", "Anthropic, not OpenAI")
-- **Mid-project:** Tech lead adds new rules or preferences
-- **Policy change:** Manager updates constraints as needs shift
-
-## How to write management-info.md
+## `management-info.md`
 
 ```markdown
+---
+tags: [index]
+---
+
 # Management Info
 
-## Rules (binding, cannot be overridden in discussion)
-
+## Rules (binding)
 - Always use JWT for authentication
-- Use Anthropic API, not OpenAI
 - Database must support transactions
 
-## Preferences (non-binding defaults, starting suggestions)
-
+## Preferences (starting suggestions)
 - We lean cost-sensitive over maximum scalability
-- Prefer managed services where the cost is close
 - When in doubt, choose the simpler solution
 ```
 
-**Section headings matter:**
-- `## Rules` → compile to `status: locked` atoms
-- `## Preferences` → reference text only (never atoms — they're suggestions, not decisions)
+- `## Rules` → each bullet becomes one decision block, `Decided by: rule`.
+- `## Preferences` → reference text read during discussions. Never a decision: a discussion may
+  override a preference.
 
-Each bullet becomes one atom (for Rules) or one preference entry (for Preferences).
+## Converting a rule
 
-## Key mechanics
+You are the only writer. When `management-info.md` changes:
 
-### Rules are real decisions
-A locked Rule:
-- Appears in the constraints digest (injected at session start)
-- Blocks conflicting alternatives during discussion (shown but flagged "blocked by management-info")
-- Triggers Review checks the same way any atom does
-- Counts as decided — no discussion can override it
+1. **Interpret.** Map each rule onto a question id and a choice ("always JWT" → `auth-method`,
+   `JWT`). Reuse an id from `Vocabulary/registry.json` when one fits.
+2. **Show your reading before saving:** "I read this as a binding rule: authentication always uses
+   JWT. Right?" A misread rule poisons every later discussion.
+3. **Ask for the reason** if it's missing. Prompted, not required.
+4. **Write the block** in the area it governs (`foundations/AUTH/AUTH.md`). A rule with no matching
+   area goes to `foundations/PROJECT-RULES/PROJECT-RULES.md`. Register a new id first.
 
-### Preferences are suggestions, not decisions
-A preference:
-- Never written as an atom (would corrupt the compiled atom index)
-- Visible as context during discussion
-- Can be silently overridden by discussion outcomes
-- Used as starting guidance, not enforcement
+```markdown
+### auth-method — Which authentication method does the system use?
+- **Choice:** JWT
+- **Reversibility:** one-way
+- **Decided by:** rule (2026-11-04)
+- **Rejected:** server sessions — excluded by management rule; OAuth-only — excluded by management rule
+- **Why:** company-wide standard set by management
+```
 
-### Conflicts are shown, not hidden
-When discussion hits a locked Rule:
-- Conflicting options still appear in alternatives
-- Marked "blocked by management-info"
-- Rejected field records: "OAuth — blocked by management rule"
-- Keeps the rationale visible (why was this option ruled out?)
+A rule is always `one-way`, so it needs `Rejected`: list what the rule excludes, or write "any
+other option — excluded by management rule".
 
-Hard-blocking would hide the option, leaving no trace. This way, someone reviewing later sees what was considered and why it was set aside.
+5. **Read the `[Blueprint]` messages.** The conflict check flags any existing decision that
+   contradicts the rule; explain it to the user in plain words and let them decide.
 
-## The conversion process
+## How rules behave in discussions
 
-When you save `management-info.md`:
+- A rule counts as decided: no discussion overrides it.
+- Options that conflict with a rule are **still shown**, marked "blocked by a project rule", and
+  recorded in `Rejected` with that reason. Someone reading later sees what was set aside and why.
+- One-way rules appear in the session-start digest.
 
-1. **File-watcher notices the change** (automatic, free — part of PostToolUse hook)
-2. **vault-architect reads and interprets** (real reasoning, not mechanical)
-   - Maps manager's words onto the controlled vocabulary (axis + choice)
-   - Example: "always JWT" → `axis: "authentication method", choice: "JWT"`
-   - Needs to understand context ("prefer Postgres where possible" = strong default, not absolute law)
-3. **Shows you the interpretation** (before saving)
-   - "I read this as: [Rule/Preference]. Is that right?"
-   - Prevents silent misinterpretation from poisoning future discussions
-4. **Asks for rationale on Rules** (optional if missing)
-   - Prompted but not required (avoids junk rationales written just to satisfy the check)
-5. **Writes atoms if confirmed** (same flow as any other atom, Review checks fire)
+## `_doc-rules.md`
+
+Plain Markdown, one rule per bullet, frontmatter `tags: [index]`. Written by the user, or by you
+when the user says "from now on, always …" about the docs. Read it before every vault write.
+
+A global version can exist at `~/.claude/blueprint/doc-rules.md` for rules valid in every project.
+When both exist, the project file wins on conflicts.
 
 ## What NOT to do
 
-- Don't hand-write JSON — write plain Markdown only
-- Don't put preferences into Rules section (they're suggestions, not locked)
-- Don't write overly broad rules ("no closed-source software" when you meant one specific vendor)
-- Don't expect hard blocks — options appear marked as blocked, not disappear silently
-- Don't assume rationales aren't needed — they're optional but prompted
-
-## Example
-
-```markdown
-# Management Info
-
-## Rules
-
-- Always use PostgreSQL for persistent data storage
-- API authentication must use JWT with RS256 signature
-- All customer data encrypted at rest (AES-256)
-
-## Preferences
-
-- Prefer open-source libraries over proprietary equivalents
-- Cost-sensitive — prefer spot instances and auto-scaling
-- Minimize external vendor lock-in where practical
-```
-
-**Result:**
-- Three locked atoms (Rules) appear in constraints digest and block conflicting choices
-- Three preferences sit as context, available but not enforced
-- During discussion, if someone proposes MySQL, it appears "blocked by management-info: always PostgreSQL"
-- That option is not hidden; the rationale is visible in the rejected field
-
-## After editing
-
-Once `management-info.md` is saved, vault-architect:
-1. Converts Rules to locked atoms
-2. Logs Rules to the audit file
-3. Injects Rules into the constraints digest (shown at session start)
-4. Prefers appear as reference text (not atoms)
-
-Next session, `/blueprint` or any topic-discussion will see these Rules active.
-
----
-
-## Technical notes
-
-**Per-project only:** No company-wide management file. User-Agent's global Profile is separate (company-wide, per-Claude, learned).
-
-**Conversion is one of vault-architect's jobs:** Not a separate agent or step. Same writer, same atomic action (write + cleanup together).
-
-**Same review checks apply:** A Rule is just an atom with `status: locked`. Review's conflict check (same axis, different choice → conflict) catches violations automatically — no new logic needed.
+- Don't put preferences in the Rules section.
+- Don't write a rule broader than the user meant ("no closed-source software" when they meant one
+  vendor). Ask.
+- Don't hide conflicting options: show them as blocked.
+- Don't turn `_doc-rules.md` into decisions.

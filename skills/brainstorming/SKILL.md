@@ -1,155 +1,146 @@
 ---
 name: brainstorming
-description: "Use this (not any other brainstorming skill) in a Blueprint project that has no feature list yet — right after /blueprint on an empty repo. A plain conversation with the user, with NO specialist agents, that finds out what the project is and ends with a short feature list and a processing order."
+description: "Use this (not any other brainstorming skill) in a Blueprint project with no areas or sections yet — right after /blueprint on an empty repo. A conversation with stop points and NO specialists that ends with foundation areas, sections, graph, who decides each area, and a proposed path."
 ---
 
 # Brainstorming
 
-Use this skill when a Blueprint project has **no feature division yet** (a brand-new, empty project). This skill runs the whole-project scoping discussion: understand what the project is, what major features it needs, and establish the initial queue for detailed discussion.
+Use this skill when a Blueprint project has **nothing divided yet** (a brand-new, empty project).
+It finds out what the project is and ends with everything the next steps need: the foundation
+areas, the sections, the dependency graph, who decides each area, and a proposed path.
 
-Brainstorming does NOT run for ongoing additions to an established project — those go straight to Feature-Detection.
+Ongoing work on an established project goes to `blueprint:feature-detection`, not here.
 
-## When to invoke
+Read `blueprint:using-blueprint` first: Core concept 1 (foundations vs sections), 2 (the path),
+3 (who decides each area) and 6 (multiple-choice questions) are used below.
 
-- `/blueprint` found an **empty repository** (no existing code)
-- OR: You're explicitly starting a new Blueprint project with no features defined yet
+## The flow — four phases, three hard stops
 
-If the project already has features, the user's input goes directly to Feature-Detection, not here.
+You may **not** merge phases into one message. Each `STOP` means: send the message, end your
+turn, and wait for the user's answer. Never answer your own questions, never "assume for now and
+continue".
 
-## Your approach
+### Phase 1 — Understand the project → STOP
 
-**The goal:** Converge on a project overview and initial feature list, live in conversation.
+Ask what the project is, in plain words. Cover, in a few short questions (not a questionnaire):
+- what it is and who uses it;
+- the main things a user can do with it;
+- anything already fixed (a cloud the company uses, a language the team knows, a deadline, a
+  budget);
+- whether it ships in stages (MVP1, MVP2…).
 
-### 1. Understand the project scope
+If the kind of project is still unclear after the user's first answer (website? app? internal
+tool?), ask it as a multiple-choice question (Core concept 6).
 
-Ask open-ended questions to understand:
-- What is this project? (role, main purpose, users/consumers)
-- What are the major functional areas or subsystems?
-- What technology choices constrain the feature split? (backend vs. frontend, data layer vs. API layer, etc.)
-- What external contracts or dependencies shape the architecture?
+Log what you learn into `_current-task.md` as you go.
 
-Use the shared **feature-definition test** from `skills/using-blueprint/SKILL.md`: a feature has (1) independent why + (2) external dependents. Technology, contracts, functionality, placement are delimiting signals.
+**STOP. Wait for the answers.** If the answers leave a big gap, ask one more short round, and STOP
+again. Do not propose anything in this phase.
 
-### 2. Identify initial features
+### Phase 2 — Propose the division → STOP
 
-Propose feature candidates based on:
-- Functional boundaries (what the user described as distinct)
-- Technology choices (different stacks for different parts)
-- Contracts (distinct APIs, schemas, permission models)
-- Placement (separate systems, organizational boundaries)
+In one message, propose:
 
-Apply the feature-definition test recursively — don't manufacture sub-features; only split when both criteria hold.
+1. **A short project overview** (3–5 lines): what it is, for whom, the fixed constraints.
+2. **The foundation areas** — the shared choices that are expensive to get wrong. Typical areas:
+   DB, cloud, CI/CD, versioning, auth and security, contracts/API, external integrations,
+   acceptance tests, deploy, project rules. Propose only the ones this project actually has, each
+   with one line on *what will be decided there* (not the decision itself). A small static site
+   may have three areas; a SaaS may have eight.
+3. **The sections** — the pieces of value for the end user (SIGNUP, LANDING-PAGE…), each with one
+   line, the MVP it belongs to, and the areas it uses.
+4. **The graph** as a Mermaid diagram: areas on top, sections below, arrows for "depends on".
+5. **Importance** (1–5) of each area and section, with a one-line reason. Importance sets how deep
+   the specialists go later. It never lowers the quality of a decision.
 
-**Common feature kinds — areas to think about, not a checklist.** Design/UI, frontend,
-backend/API, database/storage, auth/security, scripts/automation, integrations,
-distribution/deployment. Use them to make sure nothing big is forgotten. **Never one feature per
-kind:** a small site may put design and frontend in one feature and have no backend at all.
+**Your job here is to REDUCE.** Propose the smallest division that still separates the things
+that need their own discussion. Never one area per common kind just to fill a template. Say out
+loud when you merge two candidates and why.
 
-**Do NOT dispatch specialist agents here.** This is a conversation with the user, and you do not yet know what the project is — there is nothing specific enough for a domain specialist to weigh in on. Handing one a half-formed brief makes it design instead of scope: on a real run, three specialists returned 13 feature candidates for a five-file app, including "routing" and "API client" as separate top-level features. Domain agents come later, per sub-feature, in `topic-discussion`.
+If there is a real choice in the MVP split (for example "payments in MVP1 or MVP2?"), ask it as a
+multiple-choice question.
 
-**Your job here is to REDUCE, not to collect.** Produce the *smallest* feature division that still passes the feature-definition test — not every candidate that could pass it. The test deliberately refuses to consider size, so this step is the only place that weighs it, and you must do that out loud: if the division is heading toward one feature per file, say so and merge. A small household app is three or four features, not thirteen.
+**STOP. Wait.** The user corrects the division in one pass. Repeat Phase 2 only if they ask for
+big changes.
 
-### 3. Score each feature, and ask the user's focus
+### Phase 3 — Who decides each area → STOP
 
-**Scores.** Show each feature in the proposed list with two 1–5 scores and a one-line reason:
-- **Importance** — how much this part matters for *this project's goal*.
-  1 = nice to have · 3 = a normal, needed part · 5 = the heart of the project.
-- **Effort** — 1 = small, quick · 3 = a normal chunk of work · 5 = the biggest, hardest part.
-  An effort-5 feature is a hint to check whether it should split.
+Ask, in one multiple-choice question (multi-select): *"Which of these areas do you want to decide
+yourself? I handle the others and write down every choice, and anything hard to change later
+still comes back to you."* List the areas in plain words.
 
-Importance is relative to the goal. Example: for an artist's portfolio website, DESIGN and
-FRONTEND (with the animations) are 5, while a CONTACT form is 2. The user changes any score in
-the same pass as the feature list.
+- Read the global Profile first (`~/.claude/blueprint/profile.json`). If it holds a tendency
+  about this ("usually decides infrastructure, leaves design to Claude"), use it as the
+  recommended answer and say so.
+- Sections are not asked here: a section's decisions follow the areas it touches, and its own
+  details are Claude's unless the user says otherwise.
+- If `AskUserQuestion` is not available, list the areas numbered and ask the user to name the
+  ones they want to decide.
 
-**Focus.** Right after, ask one question: *"Which of these do you care about most — the parts
-you want to decide yourself? It can be all of them."* Read the global Profile first
-(`~/.claude/blueprint/profile.json`); if it holds a tendency about focus, offer it as the
-starting answer ("Last time you cared most about the visual side — same here?").
+**STOP. Wait for the answer.**
 
-Importance and focus are **different things**. Importance is about the project: it controls how
-much work the specialists do. Focus is about the user: it controls who makes the decisions. A
-backend developer building a SaaS may not care about design, but design still matters for the
-product — so it gets a deep specialist discussion, while Claude handles the decisions.
+### Phase 4 — Propose the path → STOP
 
-A low score **never** means lower quality. It means fewer and simpler decisions.
+Propose the path (mode B, Core concept 2): the ordered steps, each with its kind (`discuss`,
+`prototype`, `mockup`, `build`) and one line on why it sits there.
+- Foundations before the sections that need them, following the graph.
+- Discussion and building alternate when that helps. Example: discuss CLOUD + DB → build the
+  backend and test it with Postman → discuss the design → mockup → build the frontend → publish.
+- If a choice depends on feasibility nobody knows yet (a library, a cost, a performance limit),
+  put a `prototype` step before the discussion that needs it, and say why.
+- For each `build` step, name the profile (backend, frontend…) and who runs it (`session` for
+  one section, `mother` when several sections can be built in parallel).
 
-Scores and focus are never atoms. `vault-architect` writes them to `_features.md`,
-`_queue.json` and `local-profile.md` (see `blueprint:docs-management`). After the focus answer,
-also dispatch `blueprint:profile-updater` with it, so the global Profile can learn the pattern
-across projects (see `blueprint:user-agent`). This is a Profile update, not a specialist — the
-no-specialists rule still holds.
+If there are real alternatives (for example "design first or backend first?"), ask as a
+multiple-choice question.
 
-### 4. Propose a processing order
+**STOP. Wait for the confirmation.**
 
-Once the feature list stabilizes, propose an order for detailed discussion:
-- Simplest-first (foundational features before dependents)
-- As-raised (respect the order you discovered them)
-- Dependencies-first (start with features others depend on)
+## Writing the result
 
-The user accepts, adjusts, or re-orders. **This order is proposed exactly once** — it's not re-litigated for every item. Later updates (sub-features discovered during detailed discussion) insert into this order, they don't restart the proposal.
+When the user has confirmed Phase 4, write the vault yourself (schema and templates in
+`blueprint:docs-management`):
 
-### 5. Log decisions live
+1. `_architecture.md` — overview, the graph, the table of foundation areas (with a link to each
+   area file), the contracts table (empty for now).
+2. `_sections.md` — the sections table.
+3. `local-profile.md` — who decides each area.
+4. `_queue.json` — the path, `"mode": "B"`, every step `pending`, importance on `discuss` steps.
+5. One file per area (`foundations/AREA/AREA.md`) and per section (`sections/SEZ/SEZ.md`) with
+   frontmatter and a short "what will be decided here" — no decisions yet.
+6. `_index.md` updated; the settled lines removed from `_current-task.md`.
 
-As the conversation happens — features identified, order locked, project scope agreed — log these into `_current-task.md` immediately. Don't hold decisions in conversation and write them all at once at the end. This preserves memory if the session is long or interrupted.
+Then read the `[Blueprint]` messages the hooks returned, if any, and explain them in plain words.
+Only then tell the user it is saved, and ask: *"Shall I start the first step — <name>?"*
 
-### 6. Hand off explicitly
-
-Once the whole-project scope is locked (project overview + feature list + initial order), write that explicitly:
-
-> "The feature list is locked and queued. Next we'll go through the features one by one."
-
-Then invoke `blueprint:topic-discussion` for the first feature. That is where the specialists
-come in.
+After the Phase 3 answer, also dispatch `blueprint:profile-updater` with it, so the global Profile
+can learn the pattern. This is a Profile update, not a specialist. It follows the two-dispatch save
+in `blueprint:user-agent` §4 (propose → the user agrees → a fresh save dispatch); you never write
+the Profile yourself.
 
 ## What to produce
 
-- **Project overview** — what the project is, its role, main constraints
-- **Initial feature list** — features identified, brief description for each, rationale
-- **Scores** — importance and effort (1–5) per feature, with a one-line reason each
-- **Focus** — which features the user wants to decide personally (can be all)
-- **Processing order** — the order features will be discussed in detail
-- **All logged to `_current-task.md`** — live, as decisions lock, not at the end
+- Project overview
+- Foundation areas (with what will be decided in each and its importance)
+- Sections (with MVP, areas used, importance)
+- The graph (Mermaid)
+- Who decides each area
+- The path, in `_queue.json`
+- All logged live in `_current-task.md` and then written to the vault
 
 ## What NOT to do
 
-- Don't write locked atoms yet — that's Topic-Discussion's job
-- Don't write vault files — vault-architect owns writing (after your decisions lock, it writes `_features.md` and updates `_index.md`)
-- Don't pre-approve sub-features — apply the feature-definition test, let the test decide
-- Don't re-propose the queue order on every item — propose once, then maintain (insert new items, don't restart)
-- Don't dispatch specialist agents at all — they belong to `topic-discussion`, per sub-feature
-- Don't arrive assuming you know what the project is — ask, and let the user tell you
-- Don't hand back every candidate that passes the feature-definition test — hand back the smallest division that does
-- Don't create one feature per common feature kind — the kinds are reminders, not a template
-- Don't mix up importance and focus — a feature the user doesn't care about can still be important
+- Don't merge phases or skip a STOP. Proposing the division before the user has described the
+  project is the most common failure of this skill
+- Don't dispatch specialist agents — they belong to `blueprint:topic-discussion`
+- Don't decide anything inside an area here (no "we'll use PostgreSQL"). Brainstorming says
+  *what will be decided where*; the deciding is topic-discussion's job
+- Don't create one area per common kind, and don't hand back every possible section — the
+  smallest division that works
+- Don't ask "who decides" one area at a time — one multiple-choice question for all
+- Don't write code or create source files
 
-## Key constraints
+## After brainstorming
 
-- **Feature-definition test applies** — read `skills/using-blueprint/SKILL.md` first; recursive, not just top-level
-- **No specialist-dispatch here** — it is scoped to `topic-discussion`'s per-sub-feature divergence and the user-agent's agent-assist mode, nowhere else
-- **You start without knowing the project** — discovering it by asking the user IS this step's job, not a preliminary to it
-- **Queue gets proposed once** — "here's the order" → user accepts/adjusts → locked. No re-proposal loop.
-- **Live logging to `_current-task.md`** — decisions written as they happen, not batched at the end
-- **No vault writes** — vault-architect does that, atomically with cleanup
-
-## After Brainstorming
-
-Once locked:
-1. vault-architect writes `_features.md` with the feature list, scores and initial order
-2. vault-architect writes to `_queue.json` with queued features, scores and initial order
-3. vault-architect writes `local-profile.md` with the user's focus, and updates `_index.md`
-4. vault-architect removes the now-redundant entries from `_current-task.md`
-5. All in one atomic pass (write + cleanup = one action)
-
-**Next:** Invoke `blueprint:topic-discussion` to start discussing the first feature in detail.
-
-**Never write code here.** Brainstorming produces a feature list, not files in the repo.
-
----
-
-## Technical notes
-
-**Live output, not batched:** Brainstorming logs to `_current-task.md` as decisions lock, not at the end. This is why that file exists — as a working surface during exploration that survives session interruption.
-
-**One-time proposal, ongoing maintenance:** The queue order is proposed once. Items added mid-stream (sub-features discovered during detailed discussion) are inserted into the existing order — they don't reopen the "what's the right processing order?" conversation.
-
-**No manual-vs-agent-assist here:** The User-Agent feature's question fires later, once per topic, when Topic-Discussion actually starts on that item. Not here, not tied to the feature list locking.
+Start the first step of the path only when the user says so. A `discuss` step opens
+`blueprint:topic-discussion`, where the specialists come in.

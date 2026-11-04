@@ -1,5 +1,5 @@
 {
-  "description": "Blueprint: session orientation, the merged file-watcher, and the one-way decision guard.",
+  "description": "Blueprint v2: short session orientation, the file-watcher (Markdown decisions → derived atoms, checks, conversation record), the one-way floor, and the end-of-step question.",
   "hooks": {
     "SessionStart": [
       {
@@ -11,9 +11,20 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/one-way-guard.js\""
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|MultiEdit|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
@@ -22,13 +33,12 @@
         ]
       }
     ],
-    "PreToolUse": [
+    "Stop": [
       {
-        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/one-way-guard.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/step-close.js\""
           }
         ]
       }

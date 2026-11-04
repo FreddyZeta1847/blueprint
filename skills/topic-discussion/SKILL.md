@@ -1,245 +1,217 @@
 ---
 name: topic-discussion
-description: "Blueprint's core discussion engine — takes a queued feature, sub-feature, note or plan, dispatches the right specialist agents first, discusses their options with the user in plain words, closes with a plain one-way/two-way decision summary, then locks. Use for every queued item after brainstorming/feature-detection."
+description: "Blueprint's discussion engine for every discuss step of the path — a foundation area, contract, section, note or plan. Specialists first, one combined proposal, plain one-way/two-way summary, then you write the decisions yourself and lock."
 ---
 
 # Topic-Discussion
 
-The core engine. Every queued item (feature, sub-feature, note or plan) goes through it. First
-read the hard rules in `blueprint:using-blueprint`. The three that matter most here:
-- **Specialists first.** Every feature and every sub-feature starts by dispatching its
-  specialists.
-- **Plain words only.** Never show atoms, axes or field names. End with a plain decision summary
-  that marks the one-way and two-way decisions.
-- **No code.** Planning never writes source files.
+Every `discuss` step of the path goes through here. First read `blueprint:using-blueprint`. The
+rules that matter most here:
+- **Specialists first**, then **one proposal** to the user.
+- **Plain words only** in chat. End with a plain summary marking one-way and two-way decisions.
+- **No production code.** If a decision needs a test first, propose a prototype step instead.
 
-## Four shapes, one engine
+## What can be discussed
 
-### Feature
-A new top-level feature. It has two stages.
+| Shape | What it is | Written to |
+|---|---|---|
+| **Foundation area** | A shared choice (DB, cloud, CI/CD, auth…) | `foundations/AREA/AREA.md` (+ `AREA--details.md`) |
+| **Contract** | An API, type set or event between sections | `contracts/NAME.md` |
+| **Section** | A piece of value for the end user | `sections/SEZ/SEZ.md` (+ `SEZ--details.md`) |
+| **Note** | A small decision inside an existing area or section | a block in that file |
+| **Plan** | An ordered, verifiable task list for something already decided | `plans/PHASE-N-NAME.json` |
 
-1. **Intro stage**
-   - Ask the mode question if this is a fresh top-level topic (see Entry, below).
-   - **Dispatch the feature's specialists first.** Pick the 1–3 agent types that fit this
-     feature's domain (a FRONTEND feature → a frontend/UI design agent; a STORAGE feature → a
-     database/storage agent). How many depends on its importance — see "Set the depth" below.
-   - Brief them on the project summary and this feature's scope. Ask them for:
-     - the feature's role;
-     - its key decisions;
-     - whether it naturally splits into sub-features (apply the feature-definition test).
-   - Discuss their view with the user in plain words: what the feature is and what it does.
-   - **Always say whether it splits, and why**, in one or two sentences. Examples: "APP stays
-     one part: …" or "APP has two sub-features, SCREENS and LOOK, because …".
-   - **Keep it digestible.** If the specialists come back with many decisions (more than about
-     8–10), don't dump them all at once. Present the few that matter most first (the one-way
-     ones and the real choices). Group the small, easy-to-change details and handle them
-     afterwards, or leave them to Claude under agent-assist.
-   - **If it has sub-features:** `blueprint:vault-architect` writes the lean `FEATURE-NAME.md`
-     (only *what it is and what it does*). Queue each sub-feature right after the parent. Then
-     discuss them one by one.
-   - **If it doesn't:** run the discussion loop (below) on the feature itself, with its
-     specialists. A single-file feature still gets specialists and still gets a decision
-     summary.
-2. **Sub-feature stage**
-   - Each queued sub-feature goes through the discussion loop, one at a time.
-   - Each one gets its own specialists: the feature's specialists can stay, and others can join
-     for that sub-feature.
-
-### Sub-feature
-Part of a feature. **Dispatch this sub-feature's specialists first**, then run the discussion
-loop, then the decision summary, then lock.
-
-### Note
-A smaller decision that belongs as a paragraph in an existing file. It runs the same loop, with
-the specialists of the feature it belongs to.
-
-### Plan
-An ordered, verifiable task list for a feature that is already decided.
-- It runs the same loop, with the specialists that know how such work is usually built.
-- The output is `PHASE-N-NAME.json`, where every task has a machine-verifiable exit criterion.
-- **A plan is a list of tasks, not code.** Writing the code is implementation. That starts only
-  when the user explicitly asks.
+A section discussion is usually light: most of it is detail Claude settles. It becomes a real
+discussion only where it touches a foundation (then that part is an addition or a revision of the
+area, below).
 
 ## Entry
 
-When a queue item starts:
+1. **Read** the step in `_queue.json`, the area or section file, `_architecture.md`, and the files
+   of the areas it depends on. Mark the step `in-progress`.
+2. **Who decides** comes from `local-profile.md` (`blueprint:user-agent`). There is no mode
+   question here: it was asked once, at the end of brainstorming. If the area has no entry, ask
+   once with a multiple-choice question and save the answer.
+3. **Ask one question if it applies:** for areas that depend on tools or recent facts (design,
+   AI models, cloud services, 3D, prices), ask *"Do you already use or want to use a tool for
+   this?"* Record the answer in the area file.
+4. **Dispatch the specialists. This is your first real action.** Don't open the discussion before
+   they have reported. While they work, stay quiet: no "still waiting…" messages.
 
-1. **Mode question first**, only for a fresh top-level topic (no `target` on the queue entry).
-   Ask it and **wait for the answer** before anything else. See `blueprint:user-agent`.
-   Sub-features inherit the mode of their parent feature.
-2. **Start immediately.** Don't re-confirm the shape hint.
-3. **Dispatch the specialists. This is your first real action after the mode answer.** Don't
-   open the discussion with the user before the specialists have reported.
-   - While they work, stay quiet. Don't post "still waiting…" messages. Speak once, when you
-     have their combined view.
+## The discussion loop
 
-## The discussion loop (the core)
+### 1. Specialists work (diverge)
 
-### 1. Specialists propose (diverge)
+- **Pick 1–3 specialists** from the agent types actually available (the Agent tool's list),
+  matching this item. None fits → `general-purpose`, briefed as that specialist. Never the whole
+  roster.
+- **Depth from importance** (the step's importance; notes use their parent's):
+  4–5 → 2–3 specialists, the full range of questions including the operational ones (failure
+  recovery, caching, security, state); 3 → normal; 1–2 → 1 specialist, only the decisions that
+  really matter. Depth changes how many decisions are discussed, never how well.
+- **Brief them** with: the project overview, this item's scope, what is already locked (the
+  dependent areas), the user's tool answer, and the open questions. Ask for, per question: real
+  options, trade-offs, a recommendation, and whether the choice is **one-way**, judged with the
+  test in `blueprint:using-blueprint` concept 7 (copy its four questions into the brief).
+- **Fixed points are not options.** The code lives in the same repository as the vault (hard rule
+  6). Don't let a specialist's proposal move it elsewhere.
+- **Research step.** If the item depends on tools or recent facts, the specialists (or you,
+  before briefing them) search online and check which libraries, MCP servers or plugins exist,
+  with links and how to install them. Record the chosen tools and their source in the vault, so a
+  later session doesn't search again.
+- **Feasibility.** If a decision depends on something nobody knows yet (does this library handle
+  our case? what does it cost at our volume?), say so and propose a `prototype` step before
+  locking it. Don't guess a one-way decision.
+- **Ratification at contact:** if the discussion touches a draft found in existing code
+  (`Decided by: discovery` / `inherited`), raise it: confirm, correct, or decide fresh.
 
-**Pick the specialists.**
-- Choose from the agent types actually available to you in this session (the Agent tool's
-  list), matching this item's domain.
-- 1–3 agents, never the whole roster.
-- If none fits, dispatch `general-purpose` and brief it as that specialist.
+**Gate:** you may not present anything to the user until the specialists have produced real
+alternatives.
 
-**Set the depth from importance** (from `_queue.json`; sub-features and notes use their parent
-feature's):
-- **4–5, the heart of the project:** 2–3 specialists, and the full range of questions, including
-  the operational ones. Don't rush the user.
-- **3:** the normal treatment described here.
-- **1–2:** 1 specialist. Settle only the few decisions that really matter (the one-way ones and
-  the real choices). Small, easy-to-change details go straight into the summary with the
-  specialists' recommendation.
-- **No score** (an older vault): treat it as 3.
+### 2. One proposal (converge for the user)
 
-Depth changes *how many* decisions get discussed, never how well each one is made. Every
-decision still gets real specialist input. Who decides — the user or Claude — is the mode's job
-(`blueprint:user-agent`), not importance's.
+Combine the specialists' work into **one message**, in plain words:
+- **The decisions that matter** (one-way, or a real choice), each with: the options, what each
+  means in practice, the recommendation and why, where specialists disagree. Use a short example
+  when it helps. If two or more options are still alive on a one-way decision, ask it as a
+  multiple-choice question.
+- **The details** (two-way, low stakes): one short list with your choice for each, one line each.
+  The user doesn't need to discuss them; they can object to any.
+- **Every two-way decision in a foundation area or contract carries its reason** ("two-way: …").
+  If you can't write that reason in one line, the decision is one-way (concept 7).
+- **Length: about 25 lines.** Decisions that matter first; details compressed; explanations only
+  when asked. If there are more than about 8–10 decisions, split the proposal over two rounds.
 
-**Brief them.**
-- Include the project summary, this item's scope, what is already locked (read `_features.md`
-  and the related feature files), and the open questions.
-- Ask for real options per question, trade-offs for each, and a recommendation.
-- They may read relevant vault files and code. That is how they scan and reason.
+### 3. Talk it through
 
-**Cover all of it.** Their answer should cover the headline choices (framework? storage?) *and*
-the operational ones: failure recovery, caching, security, and state management where relevant.
+- The user asks, pushes back or leans to an option. **Relay** every real question or objection
+  to the same specialists (`SendMessage` if still addressable, otherwise re-dispatch with the
+  previous context) and bring the answer back. Trivial wording or a scope trim you can answer
+  yourself.
+- **Repeat until you agree.** No limit on rounds.
+- **Anti-sycophancy:** if you see a real problem with the user's direction, push back **once**,
+  say what is being traded away, then defer.
+- **In a Claude-owned area** (`blueprint:user-agent`): you settle the two-way decisions yourself
+  with the specialists' input; every one-way decision still goes to the user in this loop.
 
-**Gate:** you may not move on to picking an answer until the specialists have produced real
-alternatives. Never skip this step.
+### 4. Plain summary
 
-**Ratification at contact:** if the specialists or the discussion touch a `needs-review` draft
-(from Discovery), raise it naturally inside the discussion: confirm, correct, or decide fresh.
-
-### 2. Talk it through with the user
-
-- Explain the options in plain words:
-  - what each option means in practice;
-  - what the specialists recommend, and why;
-  - where they disagree.
-  Use a short example when it helps.
-- The user asks questions, pushes back, or leans toward an option.
-- **Relay back.** Take each real question or objection back to the same specialists: use
-  `SendMessage` if the agent is still addressable, otherwise re-dispatch with the previous
-  context. Bring their answer back to the user.
-- **Repeat until you and the user agree.** There is no limit on rounds. Don't call the
-  specialists for trivial wording questions you can answer yourself.
-- At a real fork, `AskUserQuestion` is a good tool (see `blueprint:using-blueprint`, Core
-  Concept 4). Its options are always written in plain words.
-- **Anti-sycophancy:** if you see a real problem with the user's direction, push back **once**.
-  Say what is being traded away, then defer to the user.
-
-### 3. Decision summary (converge)
-
-When the discussion has settled, give **one plain summary**. Use this format:
-
-> **Here's what we decided for STORAGE:**
-> - We store everything in the browser (localStorage) for now.
-> - Every item gets a random unique id, so syncing between devices later stays possible.
+> **Here's what we decided for DB:**
+> - PostgreSQL, managed by the cloud provider.
 > - …
 >
 > **One-way — hard to change later:**
-> - The unique-id scheme: changing it later means migrating every stored item.
+> - PostgreSQL: changing engine later means migrating all data and rewriting queries.
 >
 > **Two-way — easy to change later:**
-> - localStorage now; moving to SQLite later doesn't change the rest of the app.
+> - Daily backups kept 7 days — two-way: only a setting, no data depends on it.
+>
+> **Details I settled myself** *(only if any)*: connection pooling with the provider's default;
+> table names in snake_case. Tell me if you want to change any.
 >
 > Shall I lock these?
 
-- No internal words: never "atom", "axis", "status", "rejected" or "reversibility".
-- No surprises: the summary contains only decisions that were already raised in the
-  discussion. If a specialist's report holds an extra decision, bring it up in the discussion
-  first; never slip it in for the first time in the summary.
-- No JSON, and no full data-model dump.
-- **Manual mode:** wait for the user's confirmation.
-- **Agent-assist mode:** see `blueprint:user-agent`. The two-way decisions lock without
-  stopping. The one-way ones still need the user's confirmation.
+- No internal words, no JSON, no full data-model dump.
+- **No surprises:** only decisions already raised in step 2 or 3.
+- **"None" is suspicious.** A foundation area or contract whose summary has no one-way decision at
+  all gets a second look with concept 7 before you present it; if it is still none, say in one
+  line why.
+- **"Details I settled myself"** lists every two-way decision Claude took without the user —
+  including inside a **user-owned area**. It is a notice: confirming the summary does not need a
+  discussion of each one.
+- **User-owned area:** wait for the confirmation. **Claude-owned area:** the two-way decisions
+  lock without waiting; the one-way ones still need the user's clear OK.
 
-### 4. Recheck (internal, before writing)
+### 5. Recheck (internal, before writing)
 
-- **Shape:** is this its own file (sub-feature) or a paragraph on an existing file (note)?
-- **Target:** which feature does it belong to?
-- If it anchors to no feature at all, it may be a new feature. Tell the user in plain words
-  ("this looks like its own feature — should I add it to the list?").
+- **Does any decision belong to another area too?** Example: while discussing the NOTIFICATIONS
+  section you chose a message queue → that is also a CLOUD decision. Say it in plain words: *"This
+  also goes into CLOUD — add it there?"* (see Additions and revisions).
+- **Does the item belong where it was queued?** If it anchors nowhere, it may be a new area or
+  section: *"This looks like its own area — add it to the map?"*
+- **Does a section add something to a foundation** (a table, an endpoint)? It is written in both
+  places: the section says it needs it, the area gets it as an addition.
 
-### 5. Lock: save, check, report, *then* speak
+### 6. Lock: write, read the hooks, *then* speak
 
-Never say "✓ Locked" before the save is confirmed. The order is fixed:
+Never say "✓ Locked" before the files are written and the hooks have answered. You write the
+vault yourself; the exact block format, file names and frontmatter are in
+`blueprint:docs-management`. Write in the vault's language (§4b there: an Italian user gets
+`Scelta`, `Deciso da: utente`…). In short, each decision is one block:
 
-1. **Brief `blueprint:vault-architect` with one line per decision**, and mark each line:
-   - **`confirmed`**: the user explicitly agreed to it. This covers every decision in a summary
-     the user confirmed, and in agent-assist mode every one-way decision the user OK'd.
-   - **`agent-decided`**: agent-assist mode only; a two-way decision you made without asking.
+```markdown
+### db-engine — Which database engine does the system use?
+- **Choice:** PostgreSQL (managed)
+- **Reversibility:** one-way
+- **Decided by:** user (2026-11-04)
+- **Rejected:** MongoDB — data is relational; SQLite — no concurrent access
+- **Why:** orders and users are relational and queries are standard SQL
+- **Depends on:** cloud-provider
+- **Used by:** SIGNUP, ORDER-HISTORY
+```
 
-   The agent sets each decision's internal status from this mark (`confirmed` → `ratified`,
-   `agent-decided` → `agent-approved`). It never derives the status from the topic's mode.
-2. **Dispatch it with a fresh `Agent` call and wait for its result.**
-   - Do not send the job with `SendMessage` to an earlier agent.
-   - Do not run it in the background, and do not end your turn while it runs.
-   It writes, in one pass:
-   - the prose file;
-   - this feature's `atoms.json`;
-   - the `_current-task.md` cleanup;
-   - the `_queue.json` check-off.
-   The hooks fire during those writes: the one-way guard and Review's checks.
-3. **Read its report.** It lists:
-   - every write: saved, or blocked;
-   - every `[Blueprint]` hook message, verbatim.
-4. **Only then speak:**
-   - **All saved, no findings:** "✓ Locked." plus what comes next ("Next: the APP feature.").
-   - **A write was blocked by the one-way guard:** a hard-to-undo decision was marked
-     `agent-decided`. Ask the user about that decision in plain words ("This one is hard to change
-     later, so I need your clear OK: …"). Then dispatch the save again with it marked `confirmed`.
-   - **Review found something** (a clash with another feature, the same answer used for two
-     questions, a dangling link): explain it in plain words, with the options, and let the user
-     decide *before* anything is changed. Then re-dispatch the save with the decision.
-   - Never tell the user something is locked while any part of it is still unsaved or unresolved.
+0. **Register new questions first.** Add every genuinely new decision id to
+   `Vocabulary/registry.json` *before* writing the blocks (reuse an existing id when the question
+   is the same). Otherwise the vocabulary check flags every new decision as unknown.
+1. **Pick the file by who decided:**
+   - `Decided by: user` (the user confirmed it, in any area) and `rule` → the main file
+     (`AREA.md`, `SEZ.md`, or the contract file);
+   - `Decided by: claude` (two-way only, taken by Claude) → the `--details.md` file;
+   - a one-way decision is **never** `Decided by: claude`. The hook blocks it.
+2. **Write** the blocks, update `_architecture.md` (areas/contracts tables, graph) or
+   `_sections.md` if they changed, clear the settled lines from `_current-task.md`, and mark the
+   step `done` in `_queue.json`.
+3. **Read every `[Blueprint]` message** the hooks returned on those writes:
+   - **a block was refused** (a one-way decision marked `claude`): ask the user about that
+     decision in plain words ("This one is hard to change later, so I need your clear OK: …"),
+     then write it again as `Decided by: user`. Never relabel it two-way to get past the hook;
+   - **an unreadable block** (missing key, wrong value): fix the block and write it again;
+   - **a check found something** (a clash with another area, the same answer to two questions, a
+     dangling link, a `Used by` name that doesn't exist): explain it in plain words with the
+     options and let the user decide before changing anything.
+4. **Only then speak:** "✓ Locked." plus one line on what was saved.
+5. **End of the step:** ask *"Build this now, or discuss the next one?"* (multiple-choice
+   question when available). Name the next step of the path.
 
-## Termination
+## Additions and revisions (a locked area needs to change)
 
-**For a feature, sub-feature or note:**
-- the specialists produced alternatives;
-- the user agreed;
-- the decision summary was confirmed (or auto-locked under agent-assist, for two-way decisions
-  only);
-- `blueprint:vault-architect` has written the files and cleaned `_current-task.md`.
+When a later discussion, a build or a prototype needs something from an area that is already
+locked:
+- **Addition** — new decisions that contradict nothing ("add a queue", "add an `orders`
+  table"). Light: a short confirmation (or, in a Claude-owned area, a notice), then written
+  straight into the area with the stage that introduced it (for example "MVP2").
+- **Revision** — an existing decision changes ("move from App Service to Container Apps").
+  A real discussion of that point, with its specialists, decided by whoever owns the area. Then
+  every section in that decision's `Used by` is warned, in plain words.
+- If it is unclear which of the two it is, ask as a multiple-choice question.
 
-Internally, every one-way decision must record the alternatives it beat. That is proof they were
-really weighed.
+## Done when
+
+- the specialists produced alternatives and one proposal reached the user;
+- the user agreed (or, in a Claude-owned area, only the two-way decisions locked without them);
+- the blocks are written, the hooks' messages are handled, the step is `done`;
+- every one-way decision lists the alternatives it beat (`Rejected`).
 
 **For a plan:** every task has a machine-verifiable exit criterion, the order is locked, and
 `PHASE-N-NAME.json` is written.
 
-**When the queue is empty:** tell the user planning is complete and **stop**. Don't start
-implementing.
-
 ## What NOT to do
 
-- Don't open a feature or sub-feature discussion without dispatching its specialists first
-- Don't dispatch specialists anywhere outside feature and sub-feature discussions
-- Don't cap the specialists at "propose once, validate once". Relay until you and the user agree
-- Don't show the user atoms, axes, field names, JSON, or a full architecture dump
-- Don't write code, scaffolding or starter files. Planning produces decisions and vault files only
-- Don't write vault files yourself. `blueprint:vault-architect` is the only writer
-- Don't say "✓ Locked" before vault-architect's report confirms every write succeeded
-- Don't let vault-architect resolve a Review finding or a guard block on its own. The user
-  decides, through you
-- Don't answer a real objection yourself when it touches the specialists' reasoning. Relay it.
-  (Trimming scope the user doesn't want is fine to handle directly.)
-- Don't pre-decide Recheck's shape or target. Let the discussion reveal it
-- Don't use `AskUserQuestion` for every small choice. Keep it for real forks
+- Don't open a discussion without dispatching its specialists first
+- Don't send the specialists' reports to the user one by one — one combined proposal
+- Don't show atoms, field names, JSON or a full architecture dump in chat
+- Don't write production code; propose a prototype step when feasibility is unknown
+- Don't say "✓ Locked" before the writes are done and the `[Blueprint]` messages are handled
+- Don't settle a hook finding on your own — the user decides, through you
+- Don't write a one-way decision as `Decided by: claude`
+- Don't slip a decision into the summary that wasn't raised before
+- Don't start building after a lock — ask "build this now, or discuss the next one?"
 
 ## Technical notes
 
-**Queue insertion:** sub-features queued by a feature's intro stage go into `_queue.json` right
-after the parent. The order is not re-proposed.
+**Live logging:** decisions go into `_current-task.md` as they are reached (the chosen option, why,
+pros, cons, risks), so a resumed session can continue. The hook keeps the full trail in
+`_full-context.md`.
 
-**Mode:** asked once per fresh top-level topic. Sub-features inherit it.
-
-**Importance vs. focus:** importance sets the depth (how many specialists and questions); the
-user's focus, via the mode question, sets who decides. Neither ever lowers the quality of a
-single decision.
-
-**Live logging:** decisions go into `_current-task.md` as they are reached, so a resumed session
-can continue.
+**Importance vs who decides:** importance sets the depth (how many specialists and questions);
+`local-profile.md` sets who decides. Neither lowers the quality of a decision.
