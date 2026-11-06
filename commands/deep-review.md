@@ -5,12 +5,15 @@ description: Opt-in, expensive semantic review of a foundation area, contract or
 # /deep-review
 
 <!--
-Header comment: Blueprint v2's opt-in semantic review command. It dispatches fresh-context agents
-that read the decision blocks and the surrounding prose together. The deterministic checks run by
-the file-watcher hook cover only structural issues; this covers meaning.
+Header comment: Blueprint's opt-in semantic review command (v3). It dispatches fresh-context
+agents that read the decision blocks of blueprint/vault/ and the surrounding prose together. The
+deterministic checks run by the file-watcher hook cover only structural issues; this covers
+meaning.
 -->
 
-Run an expensive semantic review when certainty matters more than token cost.
+Run an expensive semantic review of the decision vault (`blueprint/vault/`, or a legacy
+`vault-<project>/` folder) when certainty matters more than token cost. A project without a vault
+has nothing to review here: say so in one line.
 
 ## How to use
 
@@ -23,8 +26,8 @@ Run an expensive semantic review when certainty matters more than token cost.
 
 ## What it checks
 
-Fresh-context agents read the decision blocks and the prose of `foundations/`, `contracts/` and
-`sections/` together, looking for:
+Fresh-context agents read the decision blocks and the prose of `blueprint/vault/foundations/`,
+`contracts/` and `sections/` together, looking for:
 - **paraphrase-level contradictions:** a block says X, the prose says or implies Y;
 - **unsupported claims:** prose stating something no decision backs;
 - **cross-area contradictions:** a section assumes X about a contract or foundation that decided

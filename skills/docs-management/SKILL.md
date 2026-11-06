@@ -1,29 +1,47 @@
 ---
 name: docs-management
-description: Blueprint's vault schema — folder layout, decision-block format, tags, the path file, hook channels and the save sequence. Load before writing, reading or locating anything in `vault-<project>/`.
+description: "Blueprint's file schema — the blueprint/ folder (context card, plan, notes, vault), the vault layout and how to create it, the decision-block format, tags, how the hooks talk and the save sequence. Load before writing, reading or locating anything in blueprint/vault/."
 ---
 
 # Docs Management
 
 <!--
 Header comment (Markdown has no native comment syntax, so this HTML comment stands in for one):
-the canonical vault schema shipped by the Blueprint plugin, v2. Every other Blueprint skill and
-agent points here instead of carrying its own copy. The hooks (file-watcher, one-way-guard,
+the canonical file schema of the Blueprint plugin, v3. Every other Blueprint skill points here
+instead of carrying its own copy. The hooks (file-watcher, one-way-guard, plan-guard,
 orientation, step-close) parse exactly the formats defined below, so the block format, the
 Decided-by values and the folder names are an interface, not a style choice. Change them only
 together with hooks/.
 -->
 
-The single source of truth for how a Blueprint project's documentation is laid out. The **main
-session is the only writer** of authoritative vault files. Agents (specialists, `sheet-designer`,
-`profile-updater`) may read the vault; none of them writes it.
+The single source of truth for where Blueprint's files live and how they are written. The **main
+session is the only writer** of `blueprint/`. Agents (specialists, search helpers) may read it;
+none of them writes it.
 
-## 1. Hierarchy — what sits on top
+## 1. The `blueprint/` folder
 
-The vault has three levels. Keep them visibly separate:
+Everything Blueprint keeps in a project sits in one folder at the repo root:
 
+| File | Written by | What it holds |
+|---|---|---|
+| `blueprint/context.md` | Claude, after the user's yes | the context card: one answer per context question, with its source. Format in `blueprint:get-context` §7 |
+| `blueprint/plan.json` | the main session only, after the user's OK | stages, topics, current phase, how, deadlines, independent parts. Format in `blueprint:create-plan` §5; checked by the plan-guard hook |
+| `blueprint/notes.json` | the user (optional) | notes per stage: `{ "notes": [{ "stage": "<id>", "text": "...", "read": false }] }`. Read them when a stage opens; mark them `read` once told to the user |
+| `blueprint/vault/` | Claude, checked by the hooks | the decisions (foundations, contracts, sections) — **only when the card's `documentation` answer says a vault is needed** |
+
+Other folders that the execution of a stage may create inside `blueprint/` are not Blueprint's: never
+read them as decisions and never write them from a Blueprint step.
+
+- Create every file with the `Write` tool (it creates parent folders). Never build files with
+  shell redirection: on Windows it can produce UTF-16 files that every reader then sees as garbage.
+- A legacy v2 vault (`vault-<project>/` at the repo root) is still read by the hooks; never create
+  a new one there.
+
+## 2. The vault — hierarchy and structure
+
+Three levels, kept visibly separate:
 1. **`_architecture.md`** — the entry point. Goal, global defaults, components and how they
-   communicate, the dependency graph, and links to every foundation area and contract.
+   communicate, the dependency graph, links to every foundation area and contract.
 2. **Foundations and contracts** — the shared choices that are expensive to get wrong
    (`foundations/`, `contracts/`).
 3. **Sections** — pieces of user value that *use* the foundations (`sections/`).
@@ -31,27 +49,16 @@ The vault has three levels. Keep them visibly separate:
 Inside every area and section, decisions are split by who made them:
 - the main file (`AREA.md`, `SECTION.md`) holds decisions the user made or confirmed, rules,
   inherited/discovered decisions, and every one-way decision;
-- `AREA--details.md` / `SECTION--details.md` holds **only** two-way decisions Claude made on its own
-  (the user agent). It is the lowest level of the hierarchy.
-
-Tags give each level its own colour in Obsidian's graph (§6).
-
-## 2. Structure
+- `AREA--details.md` / `SECTION--details.md` holds **only** two-way decisions Claude made on its own.
 
 ```
-vault-<project>/
-├── .gitignore               (derived files — see §3)
+blueprint/vault/
+├── .gitignore               derived files (§3)
 ├── _index.md                map of every file
 ├── _architecture.md         TOP: goal, defaults, components, graph, areas, contracts
 ├── _sections.md             table of sections
 ├── _current-task.md         the discussion in progress
-├── _full-context.md         full discussion record (hook-written, not versioned)
 ├── _audit.md                decision changelog (hook-written)
-├── _queue.json              the path (§7)
-├── _plans.md                list of implementation phases
-├── plans/                   PHASE-N-NAME.md, PHASE-N-NAME--substep.md, PHASE-N-NAME.json
-├── local-profile.md         who decides each area: user / claude
-├── management-info.md       project rules and preferences (optional)
 ├── _doc-rules.md            rules on how to write these docs (optional)
 ├── foundations/
 │   ├── DB/
@@ -69,50 +76,41 @@ vault-<project>/
 │   ├── registry.json        shared question ids
 │   ├── dismissed.json       findings the user ruled not real
 │   └── ignored-values.json  absent-answer values the value-inversion check skips
-├── _index/                  derived: decisions.json, unassigned.json, shadow files
-└── Sheets/                  optional: engineering-sheets.html
+└── _index/                  derived by the hooks, not versioned
 ```
 
-- The vault folder is named after the project (`vault-<project>/`), never a generic `vault/`.
-- A v1 vault's `features/` folder is still read by the hooks, but v2 never creates it.
-- Create files with the `Write` tool (it creates parent folders). Never build files with shell
-  redirection: on Windows it can produce UTF-16 files that every reader then sees as garbage.
+Who decides each area is not a vault file: it is the `roles` answer of the context card.
 
-## 3. What is versioned
+## 3. Creating the vault
 
-**The vault is committed by default.** Every git worktree then holds the foundations at the
-version of its own branch, git history records every change, and a merge gate can protect contract
-files by path. A project that must keep the vault private (someone else's repo, an NDA) adds the
-folder to its own `.gitignore` — accepting that parallel worktrees won't see it.
+Create the vault only when the confirmed card asks for one (usually right after the plan is
+confirmed). Write each file with `Write`; for an empty folder write a `.gitkeep` inside it.
 
-**The code and the vault live in the same repository.** This is fixed, not a decision to discuss.
-Never decide — not even in an area Claude owns — to put the application code in a separate
-repository "away from the vault": worktrees, parallel sessions and the merge gate only see the
-vault when it sits next to the code. If the user explicitly wants two repositories, that is a
-one-way decision: raise it with the user, explain what is lost (parallel sessions no longer read
-the foundations), and record it with `Decided by: user`.
-
-The rule behind the table is **"re-derivable → not versioned"**:
-
-| File | Versioned? | Why |
-|---|---|---|
-| Every `.md` in the vault (except `_full-context.md`) | yes | Original content |
-| `Vocabulary/*.json`, `_queue.json`, `plans/*.json` | yes | Original data |
-| `_audit.md` | yes | Machine-written but not re-derivable: the who/when/what history |
-| `**/atoms.json` | no | Derived from the Markdown blocks by the hook |
-| `**/modules.json`, `_index/` | no | Derived; rebuilt in a second |
-| `_full-context.md` | no | Machine-only, grows without bound |
-
-The vault's own `.gitignore`, created by `/blueprint`:
+| File | Starting content |
+|---|---|
+| `.gitignore` | the lines below |
+| `_index.md` | template (§11), no entries yet |
+| `_architecture.md` | template (§11), sections empty |
+| `_sections.md` | template (§11), empty table |
+| `_current-task.md` | frontmatter `tags: [index]` + `# Current Task`, nothing else |
+| `Vocabulary/registry.json` | `{ "entries": [] }` |
+| `Vocabulary/dismissed.json` | `{ "entries": [] }` |
+| `Vocabulary/ignored-values.json` | `{ "values": ["none", "n/a", "not-applicable", "default", "standard", "disabled", "tbd"] }` |
+| `foundations/.gitkeep`, `contracts/.gitkeep`, `sections/.gitkeep` | empty |
 
 ```gitignore
 _index/
-_full-context.md
-**/atoms.json
 **/modules.json
 ```
 
-## 4. Naming
+- Write the Markdown files in the user's language (§5); file and folder names stay as above.
+- Every list file uses the `{ "entries": [...] }` wrapper, **never a bare `[]`**. Keep `yes` and
+  `no` out of the ignored values on purpose: a yes/no choice means a question was written wrong.
+- Not created here: `_audit.md` and `_index/` (the hooks create them), `_doc-rules.md` (only when
+  the user gives rules on how to write the docs).
+- If the vault already exists, create only the missing files and never overwrite one.
+
+## 4. Naming and versioning
 
 | Type | Convention | Example |
 |---|---|---|
@@ -122,21 +120,30 @@ _full-context.md
 | Contract | `contracts/NAME.md` — caps, hyphens | `contracts/BOOKINGS-API.md` |
 | Section | `sections/SECTION/SECTION.md` | `sections/SIGNUP/SIGNUP.md` |
 | Section details | `sections/SECTION/SECTION--details.md` | `sections/SIGNUP/SIGNUP--details.md` |
-| Phase | `plans/PHASE-N-NAME.md` | `plans/PHASE-1-SETUP.md` |
 | Decision id | lowercase kebab-case | `db-engine` |
 
 What makes something an area, a contract or a section is decided by the tests in
-`blueprint:using-blueprint`. They are not restated here.
+`blueprint:using-blueprint`.
 
-## 4b. Language of the vault
+**`blueprint/` is committed by default.** Every branch and worktree then holds the card, the plan
+and the foundations at its own version, and git keeps their history. A project that must keep them
+private (someone else's repo, an NDA) ignores the folder in its own `.gitignore`, accepting that
+parallel worktrees won't see it. Not versioned: what the hooks derive (`_index/`, `modules.json`) —
+rebuilt in a second. `_audit.md` is versioned: it is machine-written but not re-derivable.
 
-**Write the vault in the language the user speaks with you** — prose, headings, questions in the
-block headings, and the block keys. An Italian-speaking user gets an Italian vault. `_doc-rules.md`
-can override this ("write the vault in English").
+**The code and the vault live in the same repository.** Fixed, not a decision to discuss. If the
+user explicitly wants two repositories, it is a one-way decision: raise it, explain what is lost
+(parallel work no longer reads the foundations), and record it with `Decided by: user`.
 
-What stays in English in every language, because tools read it: folder and file names
-(`foundations/`, `DB--details.md`), frontmatter tags (`foundation`, `details`), decision ids
-(`db-engine`), and the values `one-way` / `two-way` and `claude`.
+## 5. Language
+
+**Write the card and the vault in the language the user speaks with you** — prose, headings, the
+questions in block headings, and the block keys. An Italian-speaking user gets an Italian vault.
+`_doc-rules.md` can override this ("write the vault in English").
+
+What stays in English in every language, because tools read it: folder and file names, frontmatter
+tags, decision ids, stage ids, the context card's headings and question ids, and the values
+`one-way` / `two-way` and `claude`.
 
 Italian keys and values (the hooks accept both languages; never mix them inside one block):
 
@@ -147,31 +154,18 @@ Italian keys and values (the hooks accept both languages; never mix them inside 
 | `Decided by` — `user` / `claude` / `rule` / `discovery` / `inherited` | `Deciso da` — `utente` / `claude` / `regola` / `scoperta` / `ereditata` |
 | `Rejected` | `Alternative scartate` |
 | `Why` | `Perché` |
+| `Stage` | `Tappa` |
 | `Depends on` | `Dipende da` |
 | `Used by` | `Usata da` |
 | `Facts` | `Fatti` |
 
-The same block in an Italian vault:
+The templates in §11 are written in English; translate their headings too (for example
+`## What it covers` → `## Cosa copre`, `## Decisions` → `## Decisioni`).
 
-```markdown
-### db-engine — Quale database usa il sistema?
-- **Scelta:** PostgreSQL (Azure Flexible Server)
-- **Reversibilità:** one-way
-- **Deciso da:** utente (2026-11-04)
-- **Alternative scartate:** Cosmos DB — costo e query relazionali; SQLite — niente accessi contemporanei
-- **Perché:** i dati sono relazionali (ordini, utenti) e le query sono SQL standard
-- **Dipende da:** cloud-provider
-- **Usata da:** SIGNUP, ORDER-HISTORY
-```
-
-The templates in §12 are written in English; translate their headings too (for example
-`## What it covers` → `## Cosa copre`, `## Decisions` → `## Decisioni`, `## Links` → `## Link`).
-
-## 5. Decision blocks — the only source of decisions
+## 6. Decision blocks — the only source of decisions
 
 Every decision is written once, in Markdown, as a level-3 heading followed by a list with fixed
-keys. The hook derives the machine-readable atoms from these blocks; nobody writes `atoms.json` by
-hand.
+keys. The hooks read these blocks directly; there is no other decision file.
 
 ```markdown
 ### db-engine — Which database engine does the system use?
@@ -180,128 +174,113 @@ hand.
 - **Decided by:** user (2026-11-04)
 - **Rejected:** Cosmos DB — cost and relational queries; SQLite — no concurrent access
 - **Why:** the data is relational (orders, users) and queries are standard SQL
+- **Stage:** foundations
 - **Depends on:** cloud-provider
 - **Used by:** SIGNUP, ORDER-HISTORY
 ```
 
 **Heading:** `### <id> — <question>`. The separator is an em dash `—`; ` - ` is also accepted.
-`<id>` is lowercase kebab-case. It is the decision's question id in `Vocabulary/registry.json`.
-The question is written in full ("which database engine does the system use?"), never a bare noun:
-a noun like `db` invites two different questions to collide under one id.
-
-**Keys:**
+`<id>` is lowercase kebab-case and is the question id in `Vocabulary/registry.json`. The question is
+written in full, never a bare noun: a noun like `db` invites two questions to collide under one id.
 
 | Key | Required | Content |
 |---|---|---|
 | `Choice` | yes | the value decided |
 | `Reversibility` | yes | `one-way` (hard or expensive to change later) or `two-way` |
 | `Decided by` | yes | one of the five values below, optional date in parentheses |
-| `Why` | yes | short reasoning. For a **two-way** decision in a foundation area or a contract, it also says *why* it is easy to change (e.g. "two-way: no stored data depends on it, switching is a config change") |
+| `Why` | yes | short reasoning. For a **two-way** decision in a foundation area or a contract, it also says *why* it is easy to change |
 | `Rejected` | yes if one-way | alternatives really weighed, each with a short reason, separated by `;` |
+| `Stage` | when a plan exists | the id of the plan stage that took the decision. Missing or unknown → the hook reports it |
 | `Depends on` | no | other decision ids this one presumes, separated by `,` |
 | `Used by` | no | section names that rely on this decision, separated by `,` |
 | `Facts` | no | secondary properties useful to later checks |
 
-The parser also accepts the Italian keys and `Deciso da` values listed in §4b.
-
 **`Decided by` values:**
 
-| Decided by | Internal status | Meaning | Where the block goes |
-|---|---|---|---|
-| `user` | `ratified` | the user made or confirmed it | main file |
-| `claude` | `agent-approved` | Claude decided it alone (user agent); **two-way only** | `--details.md` |
-| `rule` | `locked` | a rule from `management-info.md` | main file |
-| `discovery` | `inferito` | found in the code, with an inferable reason; awaits ratification | main file |
-| `inherited` | `ereditato-ignoto` | inherited, no known reason; awaits ratification | main file |
+| Decided by | Meaning | Where the block goes |
+|---|---|---|
+| `user` | the user made or confirmed it | main file |
+| `claude` | Claude decided it alone; **two-way only** | `--details.md` |
+| `rule` | a binding project rule (from the card's `constraints`, or the user's own rules) | main file |
+| `discovery` | found in the code, with an inferable reason; awaits ratification | main file |
+| `inherited` | inherited, no known reason; awaits ratification | main file |
 
 - "Counts as decided" means `user` or `rule`. Everything else is a guess until ratified.
 - A `claude` block marked `one-way` is **blocked** by the one-way guard before it is written. The
   fix is to ask the user and write `Decided by: user`, never to relabel the reversibility.
-- A block whose heading parses but whose keys are missing or invalid (no `Choice`, a one-way block
-  without `Rejected`, an unknown `Decided by`) does not silently disappear: the hook reports it.
-- Prose around the blocks is free. A file can have `##` sections (for example `## Added for MVP2`)
-  — the parser reads every `###` block regardless of which `##` it sits under.
-- A decision added to an existing area because another area or section needed it (an
-  **addition**) goes under a `## Added for <stage>` heading, so the area reads as "MVP1 needs X,
-  MVP2 adds Y".
+- **A rule** becomes a block only after you showed the user how you read it ("I read this as a
+  binding rule: authentication always uses JWT. Right?"). A rule is always one-way; its `Rejected`
+  lists what the rule excludes, or "any other option — excluded by a project rule".
+- A block whose heading parses but whose keys are missing or invalid is reported by the hook, never
+  silently dropped.
+- Prose around the blocks is free; the parser reads every `###` block under any `##`.
+- A decision added to an existing area because another part needed it (an **addition**) goes under
+  `## Added for <stage>`, so the area reads as "stage 1 needs X, stage 4 adds Y".
 
-**Never shown to the user.** These blocks are bookkeeping for the vault. In conversation, the user
-only ever sees decisions in plain words (see `blueprint:using-blueprint`, hard rule 2).
+**Never shown to the user.** In conversation the user only sees decisions in plain words.
 
-## 6. Frontmatter tags and colours
+## 7. Frontmatter tags and colours
 
 Every vault Markdown file begins with YAML frontmatter carrying exactly one type tag:
 
 | File | Tag |
 |---|---|
-| `_*.md`, `local-profile.md`, `_doc-rules.md`, `management-info.md` | `index` |
+| `_*.md`, `_doc-rules.md` | `index` |
 | `foundations/AREA/AREA.md`, `foundations/INTEGRATIONS/*.md` | `foundation` |
 | `contracts/*.md` | `contract` |
 | `sections/SECTION/SECTION.md` | `section` |
 | `*--details.md` | `details` |
-| `plans/PHASE-N-NAME.md` / `--substep.md` | `phase` / `substep` |
 | holds unconfirmed content (Discovery drafts, inherited decisions) | add `needs-review` |
 | a future, not-yet-built placeholder | add `parked` |
 
-Recommended Obsidian graph groups (Graph view → Settings → Groups):
-`tag:#foundation` red · `tag:#contract` orange · `tag:#section` blue · `tag:#details` light grey ·
-`tag:#index` grey · `tag:#phase` green · `tag:#needs-review` yellow · `tag:#parked` muted orange.
+Obsidian graph groups (Graph view → Settings → Groups): `tag:#foundation` red · `tag:#contract`
+orange · `tag:#section` blue · `tag:#details` light grey · `tag:#index` grey · `tag:#needs-review`
+yellow · `tag:#parked` muted orange.
 
-**Diagrams use Mermaid** fenced blocks, never ASCII art. Obsidian renders Mermaid natively.
-
-## 7. `_queue.json` — the path
-
-The path is the ordered list of steps. Discussion is only one kind of step.
-
-```json
-{ "mode": "B", "entries": [
-  { "id": "db", "kind": "discuss", "scope": "foundation", "target": "DB",
-    "description": "Which database, hosting and backups", "importance": 5, "status": "pending" },
-  { "id": "backend-build", "kind": "build", "scope": "section", "target": "SIGNUP",
-    "profile": "backend", "skills": ["superpowers:test-driven-development"],
-    "runner": "session", "done_when": "signup API passes its acceptance tests",
-    "status": "pending" }
-]}
-```
-
-| Field | Values |
-|---|---|
-| `mode` | `A` (decide everything, then build) · `B` (Claude proposes the path, the user confirms — default) · `C` (the user writes the path) |
-| `kind` | `discuss` · `prototype` · `mockup` · `build` |
-| `scope` | `foundation` · `contract` · `section` · `note` · `plan` |
-| `target` | the area, contract or section name |
-| `importance` | 1–5, optional; sets how many specialists a discussion gets |
-| `profile`, `skills`, `runner`, `done_when` | build / prototype / mockup steps only; `runner` is `session` or `mother` |
-| `status` | `pending` · `in-progress` · `done` |
-
-The array order is the path order. Items found later are inserted into the existing order, never
-trigger a full re-proposal. A starting file is `{ "mode": "B", "entries": [] }`.
+**Diagrams use Mermaid** fenced blocks, never ASCII art.
 
 ## 8. How the hooks talk
 
-Every hook message starts with `[Blueprint]` and reaches the session that made the write — which,
-since the main session is the only writer, is the main conversation.
+Every hook message starts with `[Blueprint]` and reaches the session that made the write — the main
+conversation, since it is the only writer.
 
-| Hook | Event | Channel | What it does |
-|---|---|---|---|
-| `orientation` | SessionStart | `additionalContext` | Short state: current path step, a discussion to resume, essential rules, digest of confirmed one-way decisions |
-| `one-way-guard` | PreToolUse (Write/Edit) | `permissionDecision: "deny"` | Blocks a vault file that would contain a `one-way` block with `Decided by: claude` |
-| `file-watcher` | PostToolUse | `additionalContext` | Derives atoms from the blocks, runs the checks, mirrors `_current-task.md`, keeps the module map and the audit |
-| `step-close` | Stop | `decision: "block"` + `reason` | At the end of a step that changed code owned by an area or section with decisions: asks once whether the work changed the foundations |
+| Hook | Event | What it does |
+|---|---|---|
+| `orientation` | SessionStart | A few lines: current stage, phase, deadline, new notes; a discussion to resume |
+| `plan-guard` | PreToolUse on `blueprint/plan.json` | Refuses a plan that breaks the shape (topics included), the loop order or a skip without a reason; asks before a done stage changes |
+| `one-way-guard` | PreToolUse on the vault | Refuses a `one-way` block with `Decided by: claude` |
+| `file-watcher` | PostToolUse | Reads the decision blocks and runs the checks (§10), keeps the audit |
+| `step-close` | Stop | At the end of a turn: is a phase finished, does the plan need updating, did the foundations change? |
 
-**Findings are presented, never resolved alone.** Explain each `[Blueprint]` finding to the user
-in plain words ("the database we picked for SIGNUP clashes with the one in DB"), group them with
-conflicts first, and let the user decide before anything is changed, dismissed or added to
-`ignored-values.json`.
+**Findings are presented, never resolved alone.** Explain each finding to the user in plain words
+("the database we picked for SIGNUP clashes with the one in DB"), conflicts first, and let the user
+decide before anything is changed, dismissed or added to `ignored-values.json`.
 
-## 9. Derived atoms and the checks
+## 9. The save sequence
 
-On every write of a `.md` in `foundations/`, `contracts/`, `sections/` (or a v1 `features/`), the
-file-watcher reads every block in that folder's Markdown files and writes the folder's derived
-`atoms.json`. Then it recompiles `_index/decisions.json` and runs the checks.
+When a discussion settles:
 
-**Scope of the checks:** all atoms in `foundations/` and `contracts/`, plus the **one-way** atoms in
-`sections/`. Claude's two-way details in sections are not checked.
+1. **Register** every genuinely new question id in `Vocabulary/registry.json` (reuse an existing id
+   when the question is the same). Otherwise the vocabulary check flags every new decision.
+2. **Write the blocks.** `user`, `rule`, `discovery`, `inherited` blocks go in the main file;
+   Claude's two-way blocks go in `--details.md`. `Stage` set when a plan exists. `Write` or `Edit`
+   only.
+3. **Read the hook messages** returned by those writes: a guard denial, unreadable blocks, check
+   findings.
+4. **Resolve with the user.** Guard denial → ask the user about that decision in plain words, then
+   rewrite it as `Decided by: user`. Findings → explain them, let the user decide, then fix.
+5. **Update** `_architecture.md`, `_sections.md`, `_index.md` if they changed; record the topic's phase in
+   `blueprint/plan.json`; clear `_current-task.md` when the topic is done.
+6. **Only then** tell the user it is locked ("✓ Locked.").
+
+Before every vault write, read `_doc-rules.md` if it exists (and `~/.claude/blueprint/doc-rules.md`
+for rules valid in every project; the project file wins on conflicts).
+
+## 10. Checks, audit and the live log
+
+On every write of a `.md` in `foundations/`, `contracts/` or `sections/`, the file-watcher reads the
+blocks and runs the checks. Scope: everything in `foundations/` and `contracts/`, plus the
+**one-way** decisions in `sections/`.
 
 | Check | Question it answers |
 |---|---|
@@ -310,65 +289,21 @@ file-watcher reads every block in that folder's Markdown files and writes the fo
 | Value inversion | the same literal choice answering two different ids? (skips `ignored-values.json`) |
 | Orphan | does every `Depends on` point to an existing decision id? |
 | Used by | does every name in `Used by` exist as a folder in `sections/`? |
+| Stage | does a new or changed block name a stage of `plan.json`? |
 | Unreadable block | a heading that parses, with missing or invalid keys |
 
-These are real scripts, never Claude comparing JSON by reading it.
+These are real scripts, never Claude comparing files by reading them.
 
-**Register before writing.** Add each genuinely new question to `Vocabulary/registry.json`
-*before* writing its block. The vocabulary check then still catches the error it exists for (a
-misspelled id) without flagging every new question.
+**The audit.** `_audit.md` is appended by the hook on every change to the decisions (added /
+changed / removed), with who, when and the `Why`. It also logs every one-way-guard block. Never
+hand-edited.
 
-**The audit.** `_audit.md` is appended by the hook on every change to the derived atoms (added /
-changed / removed), with who (`git config user.name`, falling back to the OS user), when, the
-session id and the `Why`. It also logs every one-way-guard block. Never hand-edited.
+**`_current-task.md`** is the live log of **one discussion at a time**. Write into it the moment a
+decision is reached, never batched: the chosen option, why, pros, cons, known risks. A revised
+decision shows the current answer only. Clear it once the topic is written to its permanent home;
+git keeps the history.
 
-**Profile flag.** A newly derived `ratified` atom (a `Decided by: user` block) is flagged for
-`profile-updater`. Only `user` decisions ever feed the global Profile.
-
-**Module map.** The file-watcher keeps `modules.json` per area or section (the source files it
-owns) and `_index/unassigned.json` (source files owned by nobody yet). It ignores `docs/`,
-`.superpowers/`, `.claude/`, `node_modules/`, `prototypes/`, lock files, and `.md` files outside
-the vault. `step-close` uses this map to decide whether a step touched code that has decisions.
-
-## 10. `_current-task.md` and `_full-context.md`
-
-`_current-task.md` is the live discussion log for **one topic at a time**. The unit written into it
-is "a decision was reached", written the moment it happens, never batched. One block per decision:
-the chosen option, why, pros, cons, known risks. If a decision is revised, the entry shows the
-current answer only. It is cleared once the whole topic is discussed and written to its permanent
-home.
-
-`_full-context.md` is the full record. The hook keeps a shadow copy of `_current-task.md` in
-`_index/` and, on every change, compares old and new and appends **only the new lines**, with a
-timestamp. So:
-- a full rewrite of `_current-task.md` loses nothing;
-- clearing it appends nothing;
-- a change made through Bash is caught too (the hook compares the file on every PostToolUse).
-
-Read `_full-context.md` only when strictly necessary — a hallucination, a repeated mistake, a clear
-misunderstanding with the user. Never write it directly.
-
-## 11. The save sequence
-
-The main session writes; nothing else does. When a discussion settles:
-
-1. **Register** every genuinely new question id in `Vocabulary/registry.json`.
-2. **Write the blocks.** `Decided by: user` (and rule / discovery / inherited) blocks go in the main
-   file; Claude's two-way blocks go in `--details.md`. Use `Write` or `Edit`, never shell
-   redirection.
-3. **Read the hook messages** returned by those writes: a guard denial, unreadable blocks, check
-   findings, `Used by` warnings.
-4. **Resolve with the user.** Guard denial → ask the user about that decision in plain words, then
-   rewrite it as `Decided by: user`. Findings → explain them, let the user decide, then fix.
-5. **Update the overview files:** `_architecture.md` (areas, contracts, graph), `_sections.md`,
-   `_index.md`, `_queue.json` (check the step off). Clear `_current-task.md` when the topic is done.
-6. **Only then** tell the user it is locked ("✓ Locked."). Never before every write has succeeded
-   and every finding is resolved.
-
-Before every write, read `_doc-rules.md` if it exists (and `~/.claude/blueprint/doc-rules.md` for
-rules valid in every project; the project file wins on conflicts).
-
-## 12. File templates
+## 11. File templates
 
 ### `_architecture.md`
 ````markdown
@@ -424,30 +359,10 @@ tags: [index]
 
 # Sections
 
-| Section | Depends on | Contracts used | Contracts exposed | Owned paths | Acceptance tests | Status |
-|---|---|---|---|---|---|---|
-| [[SIGNUP]] | DB, AUTH | BOOKINGS-API | — | `web/src/signup/` | `tests/acceptance/signup/` | pending |
+| Section | Depends on | Contracts used | Contracts exposed | Acceptance tests | Status |
+|---|---|---|---|---|---|
+| [[SIGNUP]] | DB, AUTH | BOOKINGS-API | — | `tests/acceptance/signup/` | pending |
 ```
-"Owned paths" are the files only this section may touch; a merge gate checks them.
-
-### `local-profile.md`
-```markdown
----
-tags: [index]
----
-
-# Local Profile
-
-## Who decides each area
-- DB: user
-- CI-CD: claude
-
-## Focus
-- Cares most about: DB, AUTH
-```
-`user` = the user discusses that area; `claude` = the user agent decides its two-way details, and
-every one-way decision still comes back to the user. The user can change any line at any time.
-Never update it silently.
 
 ### `foundations/AREA/AREA.md`
 ```markdown
@@ -464,7 +379,7 @@ Engine, hosting, backups, migrations.
 ### db-engine — Which database engine does the system use?
 - **Choice:** ...
 
-## Added for MVP2
+## Added for <stage>
 ### orders-table — ...
 
 ## Links
@@ -486,6 +401,7 @@ Two-way decisions Claude made on its own. Any of them can be promoted to a user 
 - **Reversibility:** two-way
 - **Decided by:** claude (2026-11-04)
 - **Why:** default for the expected load
+- **Stage:** foundations
 ```
 
 ### `contracts/NAME.md`
@@ -506,8 +422,7 @@ Endpoints, types or events, as a table or a short schema.
 ### api-style — Which API style do the frontend and backend use?
 - ...
 ```
-A contract changes only through a discussion (a revision), never as a side effect of building a
-section.
+A contract changes only through a discussion (a revision), never as a side effect of building.
 
 ### `sections/SECTION/SECTION.md`
 ```markdown
@@ -522,7 +437,7 @@ tags: [section]
 Foundations and contracts it relies on: [[DB]], [[BOOKINGS-API]].
 ## Adds to the foundations
 What it needs that a foundation area now holds (written there too, under `## Added for <stage>`).
-## Owned paths and acceptance tests
+## Acceptance tests
 ## Decisions
 ```
 
@@ -556,16 +471,14 @@ tags: [index]
 # Vault Index
 
 ## Top
-- [[_architecture]] · [[_sections]] · [[local-profile]] · [[_current-task]] · [[_plans]]
-- `_queue.json` — the path · `_audit.md` — decision changelog
+- [[_architecture]] · [[_sections]] · [[_current-task]]
+- `_audit.md` — decision changelog
 ## Foundations
 - [[DB]] · [[DB--details]]
 ## Contracts
 - [[BOOKINGS-API]]
 ## Sections
 - [[SIGNUP]]
-## Plans
-- [[PHASE-1-NAME]]
 ```
 A map and nothing else: no descriptions, no status prose. Update it on every file add or remove.
 
@@ -586,12 +499,14 @@ tags: [index]
 - **Cons:** ...
 - **Risks:** ... or "none identified"
 ```
-These are working notes, not decision blocks: they use `Chosen`, not `Choice`, and the hook does
-not parse them.
+Working notes, not decision blocks: they use `Chosen`, not `Choice`, and the hook does not parse
+them.
 
 ### `_doc-rules.md`
-Plain Markdown, one rule per bullet ("every external API gets a table of its error codes", "write
-the vault in Italian"). Read before every vault write. Never compiled into decisions.
+Plain Markdown, frontmatter `tags: [index]`, one rule per bullet ("every external API gets a table
+of its error codes", "write the vault in Italian"). Written by the user, or by you when the user
+says "from now on, always …" about the docs. Read before every vault write. Never turned into
+decisions.
 
 ### `Vocabulary/` — exact shapes
 Read by hook code: a wrong shape fails silently.
@@ -608,35 +523,14 @@ Read by hook code: a wrong shape fails silently.
 // Vocabulary/ignored-values.json — the starter seed, verbatim
 { "values": ["none", "n/a", "not-applicable", "default", "standard", "disabled", "tbd"] }
 ```
-Empty lists use `{ "entries": [] }`, never a bare `[]`. Never add `yes` or `no` to the ignored
-values: a yes/no choice means the question was written wrong, which is worth surfacing.
+Empty lists use `{ "entries": [] }`, never a bare `[]`.
 
-### `_plans.md`, `plans/PHASE-N-NAME.md`, `plans/PHASE-N-NAME.json`
-As in v1: `_plans.md` lists phases with one line each; a phase file has Scope, Steps, Linked areas
-and sections; the JSON holds tasks with `id`, `description`, `exit_criterion` (machine-verifiable),
-`depends_on`, `status`.
+## 12. When to read
 
-## 13. Engineering sheets (optional)
-
-`Sheets/engineering-sheets.html` is a derived, non-authoritative picture of the vault: Sheet 0 for
-the whole project plus one sheet per foundation area and section. It is rendered by
-`sheet-designer` only after the user says yes (see `blueprint:engineering-sheets`). It never writes
-a vault Markdown file.
-
-## 14. When to read
-
-- Session start: `_index.md`, `_current-task.md`, `_queue.json` (the orientation hook summarises
-  them).
+- Session start: the orientation hook summarises the plan; read `blueprint/plan.json` and
+  `_current-task.md` when you need more.
+- Before a stage opens: its entry in `plan.json`, the card, its notes in `notes.json`.
 - Before building a section: its `SECTION.md`, the contracts it uses, the foundation areas it
-  depends on — that is the section's slice, nothing more.
+  depends on — that slice, nothing more.
 - Architectural doubt: `_architecture.md` first.
 - Before locking a decision: `Vocabulary/registry.json`, to reuse an existing id.
-- Only when strictly necessary: `_full-context.md`.
-
-## 15. Not part of this schema
-
-- No mandatory HTML recap per area.
-- No assumed `PROGRESS.md`.
-- No hand-written `atoms.json`: the Markdown blocks are the only source.
-- The area / contract / section tests and Ratification-at-Contact live in
-  `blueprint:using-blueprint`, never restated here.

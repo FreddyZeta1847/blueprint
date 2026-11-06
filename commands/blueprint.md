@@ -1,96 +1,56 @@
 ---
-description: Bootstrap a repository into Blueprint — scaffolds the versioned vault, then starts brainstorming (empty repo) or discovery (existing code)
+description: Start Blueprint in a repository — creates the blueprint/ folder, offers Discovery when there is code Claude doesn't know, then starts get-context (the vault is created later, only if the context says so)
 ---
 
 # /blueprint
 
 <!--
-Header comment: the bootstrap command of the Blueprint plugin (v2). It creates the vault layout
-defined in blueprint:docs-management (section 2) with exact starting contents, then routes to
-blueprint:brainstorming or blueprint:discovery. Idempotent on structure: it never overwrites an
+Header comment: the start command of the Blueprint plugin (v3). It creates the project's
+blueprint/ folder (layout in blueprint:docs-management §1), offers Discovery when the repo holds
+code Claude doesn't know, and starts blueprint:get-context. It never creates the vault: the vault
+is created only when the confirmed context card asks for one. Idempotent: it never overwrites an
 existing file.
 -->
 
-Bootstrap a repository into Blueprint's documentation-driven workflow. No arguments. Plugin
+Start Blueprint's pipeline (context → plan → stages) in this repository. No arguments. Plugin
 commands are namespaced, so the user may type `/blueprint:blueprint`; `/blueprint` also reaches
 this command when nothing else has that name.
 
-## 1. Create the vault
+## 1. Check what is already there
 
-Create `vault-<project-name>/` at the repo root. The project name comes from the repo folder name,
-or `package.json`'s `name`, falling back to `project`. Load `blueprint:docs-management` for the
-templates.
+- **`blueprint/plan.json` exists** → Blueprint is already running here. Say in one line where the
+  plan stands (stage, phase) and ask what the user wants to do: go on, or start new work (then the
+  entry step of `blueprint:using-blueprint`).
+- **`blueprint/context.md` exists but no plan** → show the card briefly. If it is confirmed, go to
+  `blueprint:create-plan`; if not, go on with `blueprint:get-context` to finish it.
+- **A legacy v2 vault** (`vault-<project>/` at the repo root) → tell the user in plain words that it
+  uses the old layout and that its decisions are still read. Don't move or convert it
+  automatically.
 
-**Create every file with the `Write` tool.** `Write` creates missing parent folders by itself.
-Never use shell commands (`mkdir`, brace expansion, PowerShell blocks, `echo >`): they need extra
-approval and, on Windows, can write UTF-16 files. For an empty folder, write a `.gitkeep` inside it.
+## 2. Create the `blueprint/` folder
 
-| File | Starting content |
-|---|---|
-| `.gitignore` | the four lines below |
-| `_index.md` | docs-management template, no entries yet |
-| `_architecture.md` | docs-management template, sections empty |
-| `_sections.md` | docs-management template, empty table |
-| `_current-task.md` | frontmatter `tags: [index]` + `# Current Task`, nothing else |
-| `_plans.md` | frontmatter `tags: [index]` + `# Plans Overview` |
-| `local-profile.md` | frontmatter `tags: [index]` + `# Local Profile` + empty `## Who decides each area` |
-| `_queue.json` | `{ "mode": "B", "entries": [] }` |
-| `Vocabulary/registry.json` | `{ "entries": [] }` |
-| `Vocabulary/dismissed.json` | `{ "entries": [] }` |
-| `Vocabulary/ignored-values.json` | `{ "values": ["none", "n/a", "not-applicable", "default", "standard", "disabled", "tbd"] }` |
-| `foundations/.gitkeep`, `contracts/.gitkeep`, `sections/.gitkeep`, `plans/.gitkeep` | empty |
+If `blueprint/` does not exist, create it by writing `blueprint/.gitkeep` with the `Write` tool
+(it creates the folder). Never use shell commands (`mkdir`, `echo >`): they need extra approval
+and, on Windows, can write UTF-16 files.
 
-The vault `.gitignore`:
+Create nothing else here: the card is written by get-context, the plan by create-plan, and the
+vault (`blueprint/vault/`) only when the confirmed card says the project needs one.
 
-```gitignore
-_index/
-_full-context.md
-**/atoms.json
-**/modules.json
-```
+Say once, in plain words, that `blueprint/` is committed with the code so every branch sees the
+context, the plan and the decisions at its own version, and that a private project can opt out by
+ignoring the folder.
 
-**Language.** Write the Markdown files in the language the user speaks (docs-management §4b): if
-the conversation or the user's `CLAUDE.md` shows Italian, the headings are Italian (`# Attività in
-corso`, `## Chi decide ogni area`…). File and folder names stay as in the table.
-
-Every list file uses the `{ "entries": [...] }` wrapper, **never a bare `[]`**. Keep `yes` and `no`
-out of the ignored values on purpose: a yes/no choice means a question was written wrong.
-
-Not created here: `_audit.md`, `_full-context.md` and `_index/` (the hooks create them the first
-time they have something to write); `management-info.md`, `_doc-rules.md` and `Sheets/` (only when
-needed).
-
-**The vault is versioned.** Don't add it to the project's `.gitignore`. Say once, in plain words,
-that it lives in the repo so every branch and worktree sees the decisions at its own version, and
-that a private project can opt out by ignoring the folder.
-
-**If the vault already exists,** create only the missing files and never overwrite one. If it is a
-v1 vault (it has `features/`), tell the user in plain words that it uses the old layout; don't
-convert it automatically.
-
-**Blueprint creates nothing outside the vault.** No source files, no second scratchpad. The user's
-own conventions (for example a `tree.md`) still apply.
-
-## 2. One permission, asked once
-
-Ask once for read/write access to `~/.claude/blueprint/` (the global Profile), as a rule in the
-**user-level** `~/.claude/settings.json`, never the project's settings. The exact rule — `Read` and
-`Edit` only, because `Edit(...)` rules cover every file-editing tool and Claude Code ignores
-`Write(...)` rules:
-
-```json
-{ "permissions": { "allow": ["Read(~/.claude/blueprint/**)", "Edit(~/.claude/blueprint/**)"] } }
-```
-
-- If the rule is already there, don't ask.
-- If the edit is refused, give the user this snippet and carry on. It never blocks planning.
+**Blueprint creates nothing outside `blueprint/`.** No source files. The user's own conventions
+(for example a `tree.md`) still apply.
 
 ## 3. Route
 
-Check whether the repo holds code (source files outside the vault, `.git`, `.claude/` and `docs/`).
+Check whether the repo holds code (source files outside `blueprint/`, `.git`, `.claude/` and
+`docs/`).
 
-- **Empty repo:** invoke `blueprint:brainstorming` (not any other brainstorming skill) and start
-  the conversation right away: ask the user what the project is.
-- **Code exists:** invoke `blueprint:discovery`.
+- **Code Claude doesn't know** → offer Discovery: *"There is code here I don't know yet. Shall I
+  read it first? It fills several context answers by itself."* Yes → `blueprint:discovery`, then
+  `blueprint:get-context`. No → `blueprint:get-context` directly.
+- **Empty repo** → `blueprint:get-context` right away: start with what the user wants to build.
 
-Re-running `/blueprint` is safe: it re-checks the structure and the route.
+Re-running `/blueprint` is safe: it re-checks the folder and the route.

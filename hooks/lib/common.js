@@ -1,5 +1,6 @@
 /*
- * Blueprint hooks — shared plumbing: reading the hook payload, finding the vault, path helpers
+ * Blueprint hooks — shared plumbing: reading the hook payload, finding the vault (blueprint/vault/
+ * first, legacy vault-<project>/ second) and blueprint/plan.json, path helpers
  * that behave on native Windows (backslashes, any drive-letter case), JSON/text I/O, the audit
  * identity and the `_audit.md` writer.
  *
@@ -31,8 +32,16 @@ function projectDirOf(input) {
   return (input && input.cwd) || process.env.CLAUDE_PROJECT_DIR || process.cwd();
 }
 
-/** The `vault-<project>/` folder at the project root, or null when this is not a Blueprint project. */
+/**
+ * The decision vault, or null when the project has none.
+ * Blueprint 3 keeps it in `blueprint/vault/`; a legacy v1/v2 `vault-<project>/` folder at the
+ * project root is still accepted when the new one does not exist.
+ */
 function findVaultRoot(projectDir) {
+  try {
+    const modern = path.join(projectDir, 'blueprint', 'vault');
+    if (fs.statSync(modern).isDirectory()) return modern;
+  } catch { /* not there: try the legacy folder */ }
   try {
     const entry = fs
       .readdirSync(projectDir, { withFileTypes: true })
@@ -40,6 +49,23 @@ function findVaultRoot(projectDir) {
     return entry ? path.join(projectDir, entry.name) : null;
   } catch {
     return null;
+  }
+}
+
+/** `<project>/blueprint/` — the folder holding context.md, plan.json, notes.json and vault/. */
+function blueprintDirOf(projectDir) {
+  return path.join(projectDir, 'blueprint');
+}
+
+/** blueprint/plan.json parsed, null when absent, or { unreadable: true } when it is not valid JSON. */
+function readPlan(projectDir) {
+  const text = readText(path.join(blueprintDirOf(projectDir), 'plan.json'));
+  if (text === null) return null;
+  try {
+    const plan = JSON.parse(text);
+    return plan && typeof plan === 'object' && Array.isArray(plan.stages) ? plan : { unreadable: true };
+  } catch {
+    return { unreadable: true };
   }
 }
 
@@ -118,6 +144,8 @@ module.exports = {
   readStdinJson,
   projectDirOf,
   findVaultRoot,
+  blueprintDirOf,
+  readPlan,
   toPosix,
   relInside,
   readText,

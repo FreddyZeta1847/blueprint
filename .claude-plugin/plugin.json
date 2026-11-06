@@ -1,7 +1,7 @@
 {
   "name": "blueprint",
-  "version": "2.0.0",
-  "description": "Documentation-driven development: discuss the foundations, let Claude settle the details, keep every decision in a versioned vault.",
+  "version": "3.0.0",
+  "description": "From the first message to a staged plan: fixed context questions, a plan built on written best practices, a fixed loop for every stage, and a decision vault when the project needs one.",
   "author": { "name": "FreddyZeta1847" },
   "hooks": "./hooks/hooks.json"
 }

@@ -1,5 +1,5 @@
 {
-  "description": "Blueprint v2: short session orientation, the file-watcher (Markdown decisions → derived atoms, checks, conversation record), the one-way floor, and the end-of-step question.",
+  "description": "Blueprint v3: short session orientation (plan stage, phase, deadline), the plan-guard on blueprint/plan.json, the file-watcher (Markdown decisions → checks), the one-way floor, and the end-of-step question.",
   "hooks": {
     "SessionStart": [
       {
@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/one-way-guard.js\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-guard.js\""
           }
         ]
       }

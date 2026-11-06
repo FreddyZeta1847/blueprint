@@ -20,8 +20,9 @@
  */
 
 const path = require('path');
-const { readStdinJson, projectDirOf, findVaultRoot, relInside, readText, readJson, auditWho, nowStamp, appendAudit } = require('./lib/common');
+const { readStdinJson, projectDirOf, findVaultRoot, relInside, readJson, auditWho, nowStamp, appendAudit } = require('./lib/common');
 const { parseDecisionBlocks, unitOf } = require('./lib/decisions');
+const { contentAfter } = require('./lib/edits');
 
 function deny(reason) {
   process.stdout.write(JSON.stringify({
@@ -30,29 +31,6 @@ function deny(reason) {
 }
 
 // ---------------------------------------------------------------- v2: Markdown blocks
-
-function applyEdit(text, oldString, newString, replaceAll) {
-  if (typeof oldString !== 'string' || typeof newString !== 'string' || !oldString) return text;
-  if (replaceAll) return text.split(oldString).join(newString);
-  const at = text.indexOf(oldString);
-  return at === -1 ? text : text.slice(0, at) + newString + text.slice(at + oldString.length);
-}
-
-/** The file's content as it will be after this tool call, or null when we can't tell. */
-function contentAfter(toolName, toolInput, absPath) {
-  if (toolName === 'Write') return typeof toolInput.content === 'string' ? toolInput.content : null;
-  const current = readText(absPath);
-  if (toolName === 'Edit') {
-    if (current === null) return typeof toolInput.new_string === 'string' ? toolInput.new_string : null;
-    return applyEdit(current, toolInput.old_string, toolInput.new_string, toolInput.replace_all);
-  }
-  if (toolName === 'MultiEdit' && Array.isArray(toolInput.edits)) {
-    let text = current === null ? '' : current;
-    for (const e of toolInput.edits) text = applyEdit(text, e && e.old_string, e && e.new_string, e && e.replace_all);
-    return text;
-  }
-  return null;
-}
 
 function oneWayByClaude(markdown, source) {
   // Any block with a choice counts, even if other fields are missing: it would be saved as a decision.

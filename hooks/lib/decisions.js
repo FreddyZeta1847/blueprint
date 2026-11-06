@@ -1,14 +1,15 @@
 /*
- * Blueprint v2 — the Markdown decision-block parser (spec A2) and the vault-path → unit map (A1).
+ * Blueprint — the Markdown decision-block parser (spec A2) and the vault-path → unit map (A1).
  *
  * The Markdown is the single source of a decision. Every decision is a level-3 heading
  * `### <id> — <question>` followed by a bullet list with fixed keys (Choice, Reversibility,
- * Decided by, Why, Rejected, Depends on, Used by, Facts — Italian aliases accepted). This module
- * turns that text into atoms (the JSON shape the checks compare) and into a list of problems,
- * so a block written wrong is reported instead of silently disappearing.
+ * Decided by, Why, Rejected, Depends on, Used by, Facts, and the optional v3 Stage — Italian
+ * aliases accepted). This module turns that text into atoms (the JSON shape the checks compare,
+ * kept in memory only) and into a list of problems, so a block written wrong is reported instead
+ * of silently disappearing. Unknown keys are ignored.
  *
- * Used by: hooks/file-watcher.js (derives atoms.json), hooks/one-way-guard.js (the floor on
- * Markdown writes), hooks/step-close.js and hooks/orientation.js (via the compiled index).
+ * Used by: hooks/lib/vault.js (atoms for the checks and _index/decisions.json),
+ * hooks/one-way-guard.js (the floor on Markdown writes).
  */
 
 const DECIDED_BY_STATUS = {
@@ -50,6 +51,8 @@ const KEY_ALIASES = {
   'usato da': 'used_by',
   facts: 'facts',
   fatti: 'facts',
+  stage: 'stage',          // v3: the plan stage (blueprint/plan.json id) that took the decision
+  tappa: 'stage',
 };
 
 const LIST_FIELDS = new Set(['rejected', 'depends_on', 'used_by']);
@@ -238,6 +241,8 @@ function parseDecisionBlocks(markdown, { source = '' } = {}) {
     if (decidedMatch && decidedMatch[2]) atom.decided_on = decidedMatch[2].trim();
     const facts = value('facts');
     if (facts) atom.facts = facts;
+    const stage = value('stage').replace(/`/g, '').trim();
+    if (stage) atom.stage = stage;
     atoms.push(atom);
   }
 

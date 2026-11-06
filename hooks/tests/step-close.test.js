@@ -3,6 +3,8 @@
  * change the foundations?". Asked once per set of changed source files, only when the changes
  * touch parts with recorded decisions (via modules.json, or any decision when there is no map),
  * never when stop_hook_active is set, never for docs / Markdown / vault-only changes.
+ * v3: with an in_progress stage in blueprint/plan.json, the same once-only block also reminds
+ * Claude to record a finished phase — with or without a vault, never when nothing changed.
  *
  * Run: node --test hooks/tests/*.test.js
  */
@@ -92,4 +94,40 @@ test('outside a git repository, or with bad input, it stays silent', () => {
     assert.equal(res.status, 0);
     assert.equal(res.stdout, '');
   }
+});
+
+// ---------------------------------------------------------------- v3: the plan reminder
+
+function writePlan(dir, status) {
+  write(path.join(dir, 'blueprint', 'plan.json'), JSON.stringify({ version: 3, project: 'P', stages: [
+    { id: 'demo-frontend', name: 'Demo frontend', type: 'implementation', status, phase: status === 'in_progress' ? 'build' : undefined },
+  ] }));
+}
+
+test('an in_progress stage + changed files: asks once to record a finished phase (no vault needed)', () => {
+  const { dir } = makeProject({ vault: null, git: true });
+  writePlan(dir, 'in_progress');
+  assert.equal(runHook('step-close.js', stop(dir)).stdout, '');      // only blueprint/ changed: nothing to say
+  write(path.join(dir, 'src', 'app.js'), 'x');
+  const reason = blocked(runHook('step-close.js', stop(dir)));
+  assert.ok(reason);
+  assert.match(reason, /If a phase of stage «Demo frontend» is finished, record it in blueprint\/plan\.json \(the plan-guard checks the order\); tick the topics that are done/);
+  assert.doesNotMatch(reason, /foundations/);
+  assert.equal(runHook('step-close.js', stop(dir)).stdout, '');      // same set: never twice
+  writePlan(dir, 'in_progress');                                     // recording the phase changes nothing
+  assert.equal(runHook('step-close.js', stop(dir)).stdout, '');
+});
+
+test('a todo-only plan does not nag; with a vault both reminders share one block', () => {
+  const { dir } = projectWithDecisions();
+  writePlan(dir, 'todo');
+  write(path.join(dir, 'src', 'app.js'), 'x');
+  let reason = blocked(runHook('step-close.js', stop(dir)));
+  assert.doesNotMatch(reason, /record it in blueprint/);
+
+  writePlan(dir, 'in_progress');
+  write(path.join(dir, 'src', 'b.js'), 'y');
+  reason = blocked(runHook('step-close.js', stop(dir)));
+  assert.match(reason, /record it in blueprint\/plan\.json/);
+  assert.match(reason, /change the foundations/);
 });

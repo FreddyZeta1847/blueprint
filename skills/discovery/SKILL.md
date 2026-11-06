@@ -1,24 +1,26 @@
 ---
 name: discovery
-description: Bootstrap a Blueprint vault from an existing codebase — records the git baseline, drafts foundation areas, contracts and sections, writes decisions found in the code as unconfirmed, and documents every external system.
+description: "Read existing code Claude doesn't know yet and turn it into Blueprint material — records the git baseline, prefills the context answers the code already gives, and (when a vault is wanted) drafts foundation areas, contracts, sections and the decisions found in the code as unconfirmed, with one file per external system. Run on request (/blueprint:discovery) or when get-context proposes it and the user agrees."
 ---
 
 # Discovery
 
 <!--
-Header comment: Blueprint v2's code-to-vault bootstrap. Runs once, when /blueprint finds existing
-code. Produces drafts tagged needs-review whose decisions carry `Decided by: discovery` or
-`Decided by: inherited`, so the hooks derive real atoms from them (correction C-04), records the
-git baseline (C-02) and one file per external system (C-05). The schema it writes is defined in
-blueprint:docs-management.
+Header comment: Blueprint v3's code-to-context bootstrap. Runs on existing code Claude doesn't
+know, only with the user's OK. It prefills the answers of the context questions that the code
+already gives (for blueprint:get-context) and, when the project keeps a vault, drafts it in
+blueprint/vault/ with decisions tagged needs-review and carrying `Decided by: discovery` or
+`Decided by: inherited`, the git baseline, and one file per external system. The schema it writes
+is defined in blueprint:docs-management.
 -->
 
-Use this skill when `/blueprint` finds existing code. It turns what the code already decided into
-a draft vault. Nothing it writes counts as decided: every decision waits for **Ratification at
-contact** (see `blueprint:using-blueprint`).
+Use this skill on a repo with code that Claude doesn't know yet: when the user asks for it, or when
+`blueprint:get-context` proposes it and the user agrees. It turns what the code already decided
+into context answers and, if wanted, a draft vault. Nothing it writes counts as decided: every
+decision waits for **Ratification at contact** (see `blueprint:using-blueprint`).
 
-Load `blueprint:docs-management` first: it defines the folders, the decision-block format and the
-templates used below. You are the only writer; write every file yourself with `Write`/`Edit`.
+Load `blueprint:docs-management` first: it defines the folders, the block format and the templates
+used below. You are the only writer; write every file yourself with `Write`/`Edit`.
 
 ## 1. Record the git baseline
 
@@ -26,7 +28,8 @@ So Blueprint can tell inherited code from the user's own work:
 
 1. Find the default branch (`main`, else `master`, else the remote's HEAD) and its commit
    (`git rev-parse <branch>`).
-2. Write it in `_architecture.md` under `## Baseline`: "`main` at `<sha>` on `<date>`".
+2. Keep it for the vault's `_architecture.md` (`## Baseline`: "`main` at `<sha>` on `<date>`") and
+   for the `existing` answer of the card.
 3. The user's own work is `git log <branch>..HEAD` plus uncommitted changes. Describe it apart
    ("work in progress on your branch: …"), never as an inherited decision.
 
@@ -41,37 +44,52 @@ the code, the README and any docs folder.
 ## 3. Read the code and the docs
 
 - Read the README, any `docs/` folder and the key configuration files (package manifests, CI
-  workflows, infrastructure files, Docker files). Facts written there belong in the vault too.
+  workflows, infrastructure files, Docker files). Facts written there are part of the result.
 - For a large codebase, fan out read-only exploration agents (one per module or major boundary)
-  to locate the pieces. They are search helpers, not specialists: specialists only join area and
-  section discussions.
+  to locate the pieces. They are search helpers, not specialists: specialists only join
+  discussions.
 
-## 4. Propose the split
+## 4. Prefill the context answers
 
-From what you found, propose:
-- **foundation areas** — the shared choices the code already fixed (DB, cloud, CI/CD, auth,
-  versioning, …), using the area test in `blueprint:using-blueprint`;
+Hand `blueprint:get-context` every answer the code already gives, marked as deduced, with where you
+found it. Typically:
+- **`existing`** — the stack, what is built, the baseline, inherited constraints;
+- **`constraints`** — mandatory technologies, rules written in the repo (a CONTRIBUTING file, CI
+  checks, licence);
+- **`parts`** — the parts the code is made of (frontend, backend, mobile app…) and how they talk;
+- **`kind`**, **`approver`** — only when the repo makes them evident (a client's name, a review
+  rule).
+
+Never invent the answers about intent (`goal`, `risk`, `timing`, `roles`): those are the user's.
+get-context shows the deductions to the user and asks the rest.
+
+## 5. Propose the split
+
+From what you found, propose in plain words:
+- **foundation areas** — the shared choices the code already fixed (DB, cloud, CI/CD, auth, …),
+  using the area test in `blueprint:using-blueprint`;
 - **contracts** — APIs, shared types, events between parts;
 - **sections** — the pieces of user value (signup, checkout, admin, …);
 - **the dependency graph** between them.
 
-Give each area a proposed **importance** (1–5, marked as a guess from the code). Show the list to
-the user in plain words and ask, for each area, **who decides it from now on**: the user, or Claude
-for the easy-to-change details. Write the answers to `local-profile.md`. Use `AskUserQuestion` for
-this question when it is available.
+Who decides each area from now on is not asked here: it is the `roles` question of get-context,
+which uses this list.
 
-## 5. Write the drafts
+## 6. Write the drafts — only if the project keeps a vault
 
-For each area, contract and section, write its main file (docs-management templates), tagged
-`needs-review` on top of its type tag. Write every decision the code already made as a block:
+If the user wants a vault (the card's `documentation` answer, or the user says so now), create
+`blueprint/vault/` with the scaffold in `blueprint:docs-management` §3, then write for each area,
+contract and section its main file, tagged `needs-review` on top of its type tag. Write every
+decision the code already made as a block:
 
 | What you found | Decided by |
 |---|---|
 | A choice with a visible reason (constants, defaults, a comment explaining it) | `discovery` |
 | A choice stated or used with no discoverable reason ("uses Redis", no why) | `inherited` |
-| A rule in `management-info.md` | `rule` (see `blueprint:management-info`) |
+| A binding rule written in the repo, confirmed by the user as a rule | `rule` |
 
 - Register each new question id in `Vocabulary/registry.json` before writing its block.
+- Leave `Stage` out: these decisions come from the code, not from a plan stage.
 - Inherited choices are **constraints**, not discussion topics: record them, don't reopen them.
   They are confirmed only when later work touches them and conflicts with something.
 - A one-way block needs `Rejected`. When the code shows no alternative, write what the choice
@@ -79,35 +97,40 @@ For each area, contract and section, write its main file (docs-management templa
 
 Then write:
 - **one file per external system** in `foundations/INTEGRATIONS/` (template in docs-management):
-  what it is and who uses it; where its code and docs live (repos, paths, classes); the calls used,
-  with parameters and data shapes as found; **known unknowns, written explicitly** ("refund error
-  codes: we don't have them"); existing examples to copy; open questions for its owner;
+  what it is and who uses it; where its code and docs live; the calls used, with parameters and
+  data shapes as found; **known unknowns, written explicitly** ("refund error codes: we don't have
+  them"); examples to copy; open questions for its owner;
 - `_architecture.md` (overview, components, graph, areas, contracts, baseline) tagged
   `[index, needs-review]`;
-- `_sections.md`, `_index.md`;
-- `_queue.json` only with the steps the user wants next (mode B: propose, the user confirms).
+- `_sections.md`, `_index.md`.
 
-Read the `[Blueprint]` hook messages after the writes and explain any finding to the user in plain
-words.
+Read the `[Blueprint]` hook messages after the writes and explain any finding in plain words.
 
-## 6. Hand off
+Without a vault, keep the result in the card: the prefilled answers, and the inherited one-way
+choices listed in the `existing` answer.
 
-Discovery stops at drafting. Confirmation happens later, inside real work, through Ratification at
-contact.
+## 7. Hand off
+
+Discovery stops at drafting and goes back to `blueprint:get-context`, which shows the prefilled
+answers and asks the rest. Confirmation of the drafted decisions happens later, inside real work,
+through Ratification at contact.
 
 ## What NOT to do
 
-- Don't write `Decided by: user` for anything you found in the code. The user hasn't confirmed it.
-- Don't run semantic review; the deterministic checks fire on their own.
-- Don't dispatch specialists here.
-- Don't describe the user's branch work as inherited decisions.
+- Don't run without the user's OK
+- Don't write `Decided by: user` for anything you found in the code. The user hasn't confirmed it
+- Don't answer the questions about intent (goal, risk, timing, who decides)
+- Don't write a plan: planning starts only after the card is confirmed
+- Don't run semantic review; the deterministic checks fire on their own
+- Don't dispatch specialists here
+- Don't describe the user's branch work as inherited decisions
 - Don't skip external systems because the code doesn't show their details: the unknowns are the
-  point.
+  point
 
 ## Verification
 
-- `_architecture.md` holds the baseline (or the note that there is no git repo).
-- Every drafted file carries `needs-review`.
-- Every decision block uses `discovery`, `inherited` or `rule`.
-- Every external system has its own file with an explicit "Known unknowns" section.
-- `local-profile.md` says who decides each area.
+- The baseline is recorded (or the note that there is no git repo).
+- get-context received the prefilled answers, each with its source.
+- With a vault: every drafted file carries `needs-review`; every block uses `discovery`,
+  `inherited` or `rule`; every external system has its own file with an explicit "Known unknowns"
+  section.

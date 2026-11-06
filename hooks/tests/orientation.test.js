@@ -1,7 +1,9 @@
 /*
- * Integration tests for hooks/orientation.js (SessionStart, H10): a short orientation (≤ 1.5 KB)
- * with the current and next step of the path, the open discussion to resume, five essential
- * rules and a capped digest of confirmed one-way decisions. Never fails a session.
+ * Integration tests for hooks/orientation.js (SessionStart, v3): with blueprint/plan.json, a few
+ * short lines (current stage i/n, type, phase and/or topics done — no counter without topics —,
+ * deadline and "overdue", new notes, the "not opened yet" instruction for a todo stage); with a vault, the open discussion to resume
+ * and a capped digest of confirmed one-way decisions (≤ 1.5 KB); with neither, silence.
+ * Never fails a session.
  *
  * Run: node --test hooks/tests/*.test.js
  */
@@ -23,49 +25,102 @@ function bigIndex(n) {
   return { features: { 'foundations/DB': { scope: 'foundation', atoms } } };
 }
 
-test('shows the current and next step, the discussion to resume and the rules, within 1.5 KB', () => {
-  const { dir, vault } = makeProject();
-  write(path.join(vault, '_queue.json'), JSON.stringify({
-    mode: 'B',
-    entries: [
-      { id: 'db', kind: 'discuss', scope: 'foundation', target: 'DB', description: 'Database choices', status: 'done' },
-      { id: 'cloud', kind: 'discuss', scope: 'foundation', target: 'CLOUD', description: 'Cloud and hosting', status: 'in-progress' },
-      { id: 'be', kind: 'build', scope: 'section', target: 'SIGNUP', description: 'Build the signup flow', status: 'pending' },
-    ],
-  }));
-  write(path.join(vault, '_current-task.md'), '---\ntags: [index]\n---\n# Now discussing — CLOUD\nhalf way\n');
-  write(path.join(vault, '_index', 'decisions.json'), JSON.stringify(bigIndex(60)));
+function writePlan(dir, stages) {
+  write(path.join(dir, 'blueprint', 'plan.json'), JSON.stringify({ version: 3, project: 'Gym bookings', stages }));
+}
 
+const FOUNDATIONS = { id: 'foundations', name: 'Foundations', type: 'discussion', status: 'done', topics: [{ name: 'Stack', done: true, phase: 'decision' }] };
+
+test('an in_progress per_stage stage: position, phase, topics, overdue deadline, new notes', () => {
+  const { dir } = makeProject({ vault: null });
+  writePlan(dir, [
+    FOUNDATIONS,
+    { id: 'demo-frontend', name: 'Demo frontend', type: 'implementation', status: 'in_progress', phase: 'build', deadline: '2000-01-01',
+      topics: [{ name: 'Calendar', done: true }, { name: 'Booking', done: false }] },
+    { id: 'demo', name: 'Demo', type: 'delivery', status: 'todo' },
+  ]);
+  write(path.join(dir, 'blueprint', 'notes.json'), JSON.stringify({ notes: [
+    { stage: 'demo', text: 'a', read: false }, { stage: 'demo', text: 'b', read: true }, { stage: 'demo', text: 'c', read: false },
+  ] }));
   const res = runHook('orientation.js', start(dir));
   assert.equal(res.status, 0);
-  const ctx = contextOf(res);
   assert.equal(res.json.hookSpecificOutput.hookEventName, 'SessionStart');
+  const ctx = contextOf(res);
+  const first = ctx.split('\n')[0];
+  assert.match(first, /^\[Blueprint\] Gym bookings · stage 2\/3 «Demo frontend» \(implementation\) · phase build · topics 1\/2/);
+  assert.match(first, /deadline 2000-01-01 \(overdue\)/);
+  assert.match(first, /2 new notes/);
+  assert.doesNotMatch(ctx, /Not opened yet/);
+  assert.ok(ctx.split('\n').length <= 3, ctx);
+});
+
+test('a todo current stage gets the "not opened yet" line; per_step shows topics, a future deadline is not overdue', () => {
+  const { dir } = makeProject({ vault: null });
+  writePlan(dir, [
+    FOUNDATIONS,
+    { id: 'ux-check', name: 'UX check', type: 'verification', status: 'todo', deadline: '2999-12-31',
+      topics: [{ name: 'Test with 3 users', done: false }] },
+  ]);
+  const ctx = contextOf(runHook('orientation.js', start(dir)));
+  assert.match(ctx, /stage 2\/2 «UX check» \(verification\) · topics 0\/1 · deadline 2999-12-31/);
+  assert.doesNotMatch(ctx, /overdue/);
+  assert.doesNotMatch(ctx.split('\n')[0], /phase/);
+  assert.match(ctx, /Not opened yet: before starting, tell the user its topics \(if any\), phases and how you would do it, and wait for the OK\./);
+});
+
+test('a per_stage stage without topics shows its phase and no topic counter', () => {
+  const { dir } = makeProject({ vault: null });
+  writePlan(dir, [
+    FOUNDATIONS,
+    { id: 'publish', name: 'Publish', type: 'implementation', status: 'in_progress', phase: 'build' },
+  ]);
+  const first = contextOf(runHook('orientation.js', start(dir))).split('\n')[0];
+  assert.match(first, /stage 2\/2 «Publish» \(implementation\) · phase build$/);
+  assert.doesNotMatch(first, /topics/);
+});
+
+test('every stage done: says so; an unreadable plan is reported', () => {
+  const { dir } = makeProject({ vault: null });
+  writePlan(dir, [FOUNDATIONS]);
+  assert.match(contextOf(runHook('orientation.js', start(dir))), /every stage is done or postponed/);
+  write(path.join(dir, 'blueprint', 'plan.json'), '{ broken');
+  const res = runHook('orientation.js', start(dir));
+  assert.equal(res.status, 0);
+  assert.match(contextOf(res), /plan\.json is unreadable/);
+});
+
+test('a vault (blueprint/vault/) adds the discussion to resume and the one-way digest, within 1.5 KB', () => {
+  const { dir } = makeProject({ vault: null });
+  const vault = path.join(dir, 'blueprint', 'vault');
+  writePlan(dir, [{ id: 'foundations', name: 'Foundations', type: 'discussion', status: 'in_progress', topics: [{ name: 'Stack', done: false }] }]);
+  write(path.join(vault, '_current-task.md'), '---\ntags: [index]\n---\n# Now discussing — CLOUD\nhalf way\n');
+  write(path.join(vault, '_index', 'decisions.json'), JSON.stringify(bigIndex(60)));
+  write(path.join(vault, '_queue.json'), JSON.stringify({ entries: [{ id: 'old', description: 'OLD QUEUE ENTRY' }] }));
+
+  const ctx = contextOf(runHook('orientation.js', start(dir)));
   assert.ok(ctx.length <= 1500, `length ${ctx.length}`);
-  assert.match(ctx, /CLOUD/);
-  assert.match(ctx, /SIGNUP/);
-  assert.match(ctx, /_current-task\.md/);
-  assert.match(ctx, /blueprint:using-blueprint/);
+  assert.match(ctx, /stage 1\/1 «Foundations»/);
+  assert.match(ctx, /blueprint\/vault\/_current-task\.md \(Now discussing — CLOUD\)/);
   assert.match(ctx, /decision-number-0/);
   assert.match(ctx, /more/);
+  assert.doesNotMatch(ctx, /OLD QUEUE ENTRY/);
 });
 
-test('without a vault it says one short line', () => {
-  const { dir } = makeProject({ vault: null });
-  const ctx = contextOf(runHook('orientation.js', start(dir)));
-  assert.match(ctx, /\/blueprint/);
-  assert.ok(ctx.length < 400, `length ${ctx.length}`);
-});
-
-test('reads a v1 queue and survives broken files', () => {
+test('a legacy vault-*/ folder without a plan still orients', () => {
   const { dir, vault } = makeProject();
-  write(path.join(vault, '_queue.json'), JSON.stringify({ entries: [{ id: 'app', description: 'The app', shape_hint: 'feature' }] }));
+  write(path.join(vault, '_current-task.md'), '# Now discussing — DB\n');
   write(path.join(vault, '_index', 'decisions.json'), '{ broken');
   const res = runHook('orientation.js', start(dir));
   assert.equal(res.status, 0);
-  assert.match(contextOf(res), /The app/);
+  const ctx = contextOf(res);
+  assert.ok(ctx.startsWith('[Blueprint] This project keeps its decisions in vault-demo/'), ctx);
+  assert.match(ctx, /blueprint:using-blueprint/);
+  assert.match(ctx, /vault-demo\/_current-task\.md/);
+});
 
-  write(path.join(vault, '_queue.json'), 'not json');
-  const res2 = runHook('orientation.js', start(dir));
-  assert.equal(res2.status, 0);
-  assert.ok(contextOf(res2).startsWith('[Blueprint]'));
+test('no plan and no vault: silent', () => {
+  const { dir } = makeProject({ vault: null });
+  const res = runHook('orientation.js', start(dir));
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, '');
 });

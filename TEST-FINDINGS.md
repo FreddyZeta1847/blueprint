@@ -13,6 +13,63 @@ We use this list to fix the plugin and test again.
 
 ---
 
+## Run 5 — 2026-11-06, Blueprint 3.0
+
+Setup:
+- plugin 3.0 from the `feat/blueprint-v3` worktree (uncommitted), loaded with `--plugin-dir` into a
+  separate test repository (`blueprint-test`);
+- sessions run with `claude -p`, prompt passed through stdin; a simulated persona answered as the
+  user;
+- three scenarios: **T1** a new project (padel court bookings, empty repo), **T2** a running
+  project plus one task (sync a notes app between PC and phone), **T3** a running project plus
+  four tiny changes;
+- about **$9** of tested sessions plus about **$2.5** of persona. Hook unit tests: 65/65 at the
+  time of the run.
+
+### The plans
+
+| Scenario | Expected | Result |
+|---|---|---|
+| T1, new project (7 turns) | a plan with many stages, contracts before parallel work | ✓ **7 stages**: base choices (discussion) → contracts and data (discussion, API contract included) → base: data, API and login (implementation, sequential on purpose) → frontend, admin area and emails (implementation, **`independent_parts`: the three parts, in parallel on the stage 2 contract**) → publishing (implementation) → checks (verification) → demo to the club president (delivery, deadline) |
+| T2, running project + one task (7 turns) | Discovery, then a short plan on the foundations | ✓ Discovery proposed first, then **3 stages**: foundations (discussion) → sync and phone (implementation, `independent_parts`: sync and UI, in parallel after the stage 1 contract) → verification |
+| T3, tiny changes (4 turns) | no plan | ✓ **No plan, no card, no `blueprint/` folder**, four changes in four turns |
+
+### What worked
+
+| # | What happened | Evidence |
+|---|---|---|
+| R5-01 | **Context in T1:** the 10 answers in 4 turns, two questions at a time, multiple choice with a recommendation. Discovery skipped (empty repo), pace derived ("steady: the app must last years, the demo is a soft milestone"), the user's correction on risk (high → medium) accepted, the card written and the plan held until "confermo" | T1 turns 1–4 |
+| R5-02 | **Parallel work planned as designed:** contracts discussed first (stage 2), independent parts recorded (stage 4), and the session explained why stage 3 is *not* parallel | T1 plan |
+| R5-03 | **Stage opening in T1:** the 4 topics, the loop's phases, which optional phase it would use (the probe only for hosting, "to see what a free plan really offers") and how it would work; then it waited for the OK | T1 last turn |
+| R5-04 | **Vault** created in `blueprint/vault/` because the card asked for one | T1 |
+| R5-05 | **Discovery in T2** found on its own that the notes live only in the PC browser, that the phone cannot reach them and that the To-Do screen is an empty placeholder. It advised an Export first as a safety net, asked only what the code could not answer (timing, constraints, roles, documentation), proposed a vault and accepted "the card is enough" | T2 turns 1–4 |
+| R5-06 | **T2 stayed short:** the unfinished To-Do screen was left out of the plan, as the user asked, with an offer to add it later as before → after. At the opening it said which topics would use the probe phase and why | T2 |
+| R5-07 | **T3, a "tiny" request that was not tiny:** the to-do list code did not exist, so the session said so, did not widen the work silently, and offered two ways forward | T3 turn 3 |
+| R5-08 | **Hooks live on the T1 plan:** orientation in 3 lines with the "not opened yet" instruction ✓; an implementation stage moved straight to `test` denied ("the mandatory phase "plan" comes first") ✓; an unknown stage type denied, with the valid types ✓; an optional phase skipped without a reason denied, with a reason allowed ✓; a discussion stage marked done without decisions ✗ accepted (R5-09) | scripted payloads |
+
+### Problems
+
+| # | Category | Problem | Status |
+|---|---|---|---|
+| R5-09 | PLUGIN | A discussion (or verification) stage could be marked `done` with no topic decided: the guard checked each topic's phase, not that every topic was closed | **FIXED:** such a stage is done only when every topic is done or carries `"postponed": "<reason>"`; test added, `create-plan` updated |
+| R5-10 | PLUGIN / MODEL | **Steps vs phases.** In the T1 delivery stage Claude listed "Rehearsal, Demo, Feedback" as its steps: those are the delivery phases. In single-part stages (publishing, a quick task) the steps added nothing | **FIXED (decision S-14):** plan steps renamed **topics**; required (at least one) in `discussion` and `verification`, optional in `implementation`, `delivery` and `quick_task`. The plan-guard now refuses the old `steps` field, a topic named like a phase of its stage type, and independent parts that are not topics. `create-plan` gained the topic rules and stage-count guidance (a full project usually lands around 8–12 stages; fewer → check that no stage is too big) |
+| R5-11 | ENV | In T3 Claude loaded no Blueprint skill and made the colour change without the one-line confirmation. Without a plan the orientation hook is silent, so nothing points to `using-blueprint`. It also quoted "the plan decided with Blueprint", inferred from an old code comment and the global CLAUDE.md | OPEN — the outcome (no plan) is right; the confirmation line belongs in the user's CLAUDE.md, not in Blueprint |
+| R5-12 | PLUGIN | The plan-guard reports one problem per stage at a time: a stage moved from `todo` to `test` is first refused for the missing skip reason of `clarify`, then, once fixed, for the missing `plan` phase. It works but costs an extra attempt | OPEN (minor) — could list every problem at once |
+| R5-13 | MODEL | Load order: on the first message the session ran `/blueprint`, then `get-context`, and only then `using-blueprint` (which should come first). No visible effect | OPEN (note) |
+| R5-14 | ENV | The global CLAUDE.md still describes the old flow ("Blueprint plans everything, then superpowers"). It did not interfere | OPEN — to update in the user's CLAUDE.md |
+
+### Not exercised
+
+- phases moving during real work (each run stopped at the opening of the first stage);
+- a re-planning (a moved deadline) and a quick-task stage;
+- the hand-off to the user's own implementation tooling;
+- a check that `context.md` holds all 10 answers: in the spec, not built, so today only the skill
+  guarantees it;
+- the `Stage` field of vault decisions, live (built and unit-tested only);
+- the topics rename itself (S-14) was verified by the hook unit tests only (68/68), not live.
+
+---
+
 ## Run 4 — 2026-11-04 (night), verification of the run 3 fixes, Italian vault
 
 Setup:

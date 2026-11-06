@@ -1,22 +1,24 @@
 /*
  * Blueprint hooks — vault-level operations shared by the file-watcher, the Stop hook and
- * orientation: listing the folders that hold decisions, deriving each folder's atoms.json from
- * its Markdown (H1), compiling _index/decisions.json, the deterministic Review checks scoped to
- * what matters (H3, H5), the audit diff (H4) and the file-ownership maps (modules.json).
+ * orientation: listing the folders that hold decisions, reading each folder's decisions (atoms)
+ * from its Markdown IN MEMORY, compiling _index/decisions.json, the deterministic Review checks
+ * scoped to what matters (H3, H5), the v3 Stage check, the audit diff (H4) and the
+ * file-ownership maps (modules.json).
  *
  * Layout (spec A1): foundations/<AREA>/, contracts/ (+ contracts/<NAME>/), sections/<SEC>/,
- * legacy v1 features/<F>/, plus management-info.md (rules, `Decided by: rule`).
- * Derived atoms.json files carry `"derived": true`; a hand-written v1 atoms.json is never
- * overwritten.
+ * legacy v1 features/<F>/, plus a legacy root management-info.md (rules, `Decided by: rule`).
+ * Blueprint 3 writes no atoms.json files: the Markdown blocks are parsed every time. Only a
+ * hand-written v1 features/<F>/atoms.json is still read (never written). _index/decisions.json
+ * stays, because orientation, step-close and the audit diff read it.
  */
 
 const fs = require('fs');
 const path = require('path');
-const { readText, readJson, writeJson, toPosix, auditWho, nowStamp, appendAudit } = require('./common');
+const { readText, readJson, writeJson, toPosix, auditWho, nowStamp, appendAudit, readPlan } = require('./common');
 const { parseDecisionBlocks, unitOf, isCheckable } = require('./decisions');
 
 const MANAGEMENT_INFO = 'management-info.md';
-const MANAGEMENT_ATOMS = '_index/management-info.atoms.json';
+const INDEX_FILE = '_index/decisions.json';
 
 // ---------------------------------------------------------------- folders
 
@@ -39,6 +41,13 @@ function listUnitFolders(vaultRoot) {
   return out;
 }
 
+/** Every folder key the compiler reads: the unit folders, plus '' for management-info.md. */
+function allFolderKeys(vaultRoot) {
+  const keys = listUnitFolders(vaultRoot).map((f) => f.folder);
+  if (fs.existsSync(path.join(vaultRoot, MANAGEMENT_INFO))) keys.push('');
+  return keys;
+}
+
 function mdFilesIn(vaultRoot, folder) {
   try {
     return fs
@@ -51,8 +60,9 @@ function mdFilesIn(vaultRoot, folder) {
   }
 }
 
-function atomsFileOf(vaultRoot, folder) {
-  return folder === '' ? path.join(vaultRoot, MANAGEMENT_ATOMS) : path.join(vaultRoot, folder, 'atoms.json');
+function sourceFilesOf(vaultRoot, folder) {
+  if (folder === '') return fs.existsSync(path.join(vaultRoot, MANAGEMENT_INFO)) ? [MANAGEMENT_INFO] : [];
+  return mdFilesIn(vaultRoot, folder);
 }
 
 function atomsOf(parsed) {
@@ -61,20 +71,33 @@ function atomsOf(parsed) {
   return [];
 }
 
-// ---------------------------------------------------------------- deriving atoms.json (H1, H2)
+/** A v1 hand-written features/<F>/atoms.json (never one Blueprint 2 derived), or null. */
+function handWrittenLegacyAtoms(vaultRoot, folder) {
+  if (!folder.startsWith('features/')) return null;
+  const parsed = readJson(path.join(vaultRoot, folder, 'atoms.json'), null);
+  if (!parsed || parsed.derived) return null;
+  return atomsOf(parsed);
+}
+
+// ---------------------------------------------------------------- reading decisions (H1, H2)
 
 /**
- * Parse every .md of one folder and write its derived atoms.json.
- * `folder === ''` means management-info.md (rules), derived into _index/.
- * Returns { folder, atoms, problems, wrote }.
+ * Parse every .md of one folder into atoms, in memory. `folder === ''` means management-info.md.
+ * A legacy v1 folder with a hand-written atoms.json keeps those atoms (its prose is not parsed).
+ * Returns { folder, atoms, problems }.
  */
 function deriveFolder(vaultRoot, folder) {
-  const files = folder === '' ? (fs.existsSync(path.join(vaultRoot, MANAGEMENT_INFO)) ? [MANAGEMENT_INFO] : []) : mdFilesIn(vaultRoot, folder);
+  const legacy = handWrittenLegacyAtoms(vaultRoot, folder);
+  if (legacy) {
+    const unit = folder.slice('features/'.length);
+    const atoms = legacy.filter((a) => a && typeof a === 'object').map((a) => ({ ...a, unit: a.unit || unit, scope: a.scope || 'feature' }));
+    return { folder, atoms, problems: [] };
+  }
+
   const atoms = [];
   const problems = [];
   const byUnit = new Map();
-
-  for (const name of files) {
+  for (const name of sourceFilesOf(vaultRoot, folder)) {
     const rel = folder === '' ? name : `${folder}/${name}`;
     const meta = folder === '' ? { scope: 'foundation', unit: 'management-info' } : unitOf(rel);
     if (!meta) continue;
@@ -89,30 +112,7 @@ function deriveFolder(vaultRoot, folder) {
       atoms.push({ ...atom, unit: meta.unit, scope: meta.scope });
     }
   }
-
-  const target = atomsFileOf(vaultRoot, folder);
-  const existing = readJson(target, null);
-  const isLegacy = folder.startsWith('features/');
-  const handWritten = existing && !existing.derived;
-  let wrote = false;
-  if (isLegacy) {
-    // v1: only derive when the prose actually holds blocks, and never over a hand-written file.
-    if (atoms.length && !handWritten) wrote = true;
-  } else if (folder === '') {
-    wrote = atoms.length > 0 || Boolean(existing);
-  } else {
-    wrote = true;
-  }
-  if (wrote) {
-    writeJson(target, { derived: true, generated_from: files.map((f) => (folder ? `${folder}/${f}` : f)), atoms });
-    // keep atoms.json at least as new as its newest source, so the mtime fast path stays quiet
-    const newest = files.reduce((m, f) => Math.max(m, mtime(path.join(vaultRoot, folder, f))), 0);
-    if (newest > mtime(target)) {
-      const t = new Date(newest);
-      try { fs.utimesSync(target, t, t); } catch { /* best effort */ }
-    }
-  }
-  return { folder, atoms, problems, wrote };
+  return { folder, atoms, problems };
 }
 
 function mtime(file) {
@@ -123,44 +123,42 @@ function mtime(file) {
   }
 }
 
-/** Folders whose Markdown changed after their atoms.json (a Bash write, H8). */
+/** Folders whose Markdown changed after the index was last compiled (a shell write, H8). */
 function staleFolders(vaultRoot) {
+  const compiledAt = mtime(path.join(vaultRoot, INDEX_FILE));
   const out = [];
-  const candidates = listUnitFolders(vaultRoot).map((f) => f.folder);
-  if (fs.existsSync(path.join(vaultRoot, MANAGEMENT_INFO))) candidates.push('');
-  for (const folder of candidates) {
-    const files = folder === '' ? [MANAGEMENT_INFO] : mdFilesIn(vaultRoot, folder);
+  for (const folder of allFolderKeys(vaultRoot)) {
+    const files = sourceFilesOf(vaultRoot, folder).map((f) => path.join(vaultRoot, folder, f));
+    if (handWrittenLegacyAtoms(vaultRoot, folder)) files.push(path.join(vaultRoot, folder, 'atoms.json'));
     if (!files.length) continue;
-    const newestMd = files.reduce((m, f) => Math.max(m, mtime(path.join(vaultRoot, folder, f))), 0);
-    const atomsTime = mtime(atomsFileOf(vaultRoot, folder));
-    if (folder.startsWith('features/') && !atomsTime) continue;   // v1 prose-only folder
-    if (newestMd > atomsTime) out.push(folder);
+    const newest = files.reduce((m, f) => Math.max(m, mtime(f)), 0);
+    if (newest > compiledAt) out.push(folder);
   }
   return out;
 }
 
 // ---------------------------------------------------------------- the compiled index
 
-/** { features: { <unit>: { scope, atoms } } } — the v1 shape, keyed by unit. */
-function compileIndex(vaultRoot) {
-  const compiled = { features: {} };
-  const add = (unit, scope, atom) => {
-    if (!compiled.features[unit]) compiled.features[unit] = { scope, atoms: [] };
-    compiled.features[unit].atoms.push({ ...atom, unit, scope });
-  };
-  for (const { scope, folder } of listUnitFolders(vaultRoot)) {
-    const file = atomsFileOf(vaultRoot, folder);
-    if (!fs.existsSync(file)) continue;
-    const folderUnit = scope === 'feature' ? folder.slice('features/'.length) : folder;
-    for (const atom of atomsOf(readJson(file, null))) {
-      if (!atom || typeof atom !== 'object') continue;
-      add(atom.unit || folderUnit, atom.scope || scope, atom);
+/**
+ * Read the whole vault. Returns { index, problems } where index is the v1 shape
+ * { features: { <unit>: { scope, atoms } } } and problems is a Map folder → problem list.
+ */
+function compileVault(vaultRoot) {
+  const index = { features: {} };
+  const problems = new Map();
+  for (const folder of allFolderKeys(vaultRoot)) {
+    const derived = deriveFolder(vaultRoot, folder);
+    problems.set(folder, derived.problems);
+    for (const atom of derived.atoms) {
+      if (!index.features[atom.unit]) index.features[atom.unit] = { scope: atom.scope, atoms: [] };
+      index.features[atom.unit].atoms.push(atom);
     }
   }
-  for (const atom of atomsOf(readJson(path.join(vaultRoot, MANAGEMENT_ATOMS), null))) {
-    if (atom && typeof atom === 'object') add('management-info', 'foundation', atom);
-  }
-  return compiled;
+  return { index, problems };
+}
+
+function compileIndex(vaultRoot) {
+  return compileVault(vaultRoot).index;
 }
 
 function flattenIndex(index) {
@@ -265,6 +263,23 @@ function registryOrphanCheck(entries, registryIds) {
     .map((axis) => `\`${axis}\` is still used by a decision but has no registry entry — renamed or removed?`);
 }
 
+/**
+ * v3: when blueprint/plan.json exists, every decision added or changed in this write must name
+ * the plan stage that took it (`Stage:` / `Tappa:`), and that stage must exist in the plan.
+ */
+function stageCheck(changes, projectDir) {
+  const plan = readPlan(projectDir);
+  if (!plan || plan.unreadable) return [];
+  const ids = new Set(plan.stages.map((s) => s && s.id).filter(Boolean));
+  const findings = [];
+  for (const { type, unit, atom } of changes) {
+    if (type === 'removed') continue;
+    if (!atom.stage) findings.push(`${unit} — \`${atom.id}\` has no **Stage** (the blueprint/plan.json stage id that decided it)`);
+    else if (!ids.has(atom.stage)) findings.push(`${unit} — \`${atom.id}\` names stage \`${atom.stage}\`, which is not in blueprint/plan.json`);
+  }
+  return findings;
+}
+
 // ---------------------------------------------------------------- audit diff (H4)
 
 function diffAtoms(oldIndex, newIndex) {
@@ -306,22 +321,28 @@ function auditChanges(vaultRoot, projectDir, sessionId, changes) {
 
 // ---------------------------------------------------------------- the cascade after a change
 
+function problemLines(problems) {
+  if (!problems.length) return [];
+  return [
+    'UNREADABLE DECISION BLOCKS (fix the Markdown — these are not saved as decisions until they read correctly):',
+    ...problems.map((p) => `  - \`${p.source}\`${p.line ? ` line ${p.line}` : ''} — \`${p.id}\`: ${p.message}`),
+  ];
+}
+
 /**
- * Re-derive the given folders, recompile the index, run the scoped checks, audit, flag the
- * profile. Returns the finding lines (without the [Blueprint] prefix).
+ * Re-read the vault, recompile the index, run the scoped checks, audit. `folders` are the folders
+ * just written: their unreadable blocks are reported (plus any folder a shell command changed).
+ * Returns the finding lines (without the [Blueprint] prefix).
  */
 function processDecisionChange(vaultRoot, projectDir, sessionId, folders, extraNotes = []) {
   const findings = [...extraNotes];
-  const problems = [];
-  // Also re-derive any folder whose Markdown is newer than its atoms (written before the hook ran,
-  // or by a shell command), so the index is never missing a part of the vault.
-  const todo = [...new Set([...folders, ...staleFolders(vaultRoot)])];
-  for (const folder of todo) problems.push(...deriveFolder(vaultRoot, folder).problems);
+  const reported = new Set([...folders, ...staleFolders(vaultRoot)]);
 
-  const indexFile = path.join(vaultRoot, '_index', 'decisions.json');
+  const indexFile = path.join(vaultRoot, INDEX_FILE);
   const oldIndex = readJson(indexFile, { features: {} });
-  const newIndex = compileIndex(vaultRoot);
+  const { index: newIndex, problems: problemsByFolder } = compileVault(vaultRoot);
   writeJson(indexFile, newIndex);
+  const problems = [...reported].flatMap((f) => problemsByFolder.get(f) || []);
 
   const all = flattenIndex(newIndex);
   const checked = all.filter(({ atom }) => isCheckable(atom));
@@ -332,26 +353,20 @@ function processDecisionChange(vaultRoot, projectDir, sessionId, folders, extraN
   const conflictInput = all.filter(({ atom }) => isCheckable(atom) || checkedAxes.has(atom.axis));
   const dismissed = dismissedTitlesOf(vaultRoot);
   const keep = (list) => list.filter((f) => !dismissed.has(f));
+  const changes = diffAtoms(oldIndex, newIndex);
 
-  if (problems.length) {
-    findings.push('UNREADABLE DECISION BLOCKS (fix the Markdown — these are not saved as decisions until they read correctly):');
-    for (const p of problems) findings.push(`  - \`${p.source}\`${p.line ? ` line ${p.line}` : ''} — \`${p.id}\`: ${p.message}`);
-  }
+  findings.push(...problemLines(problems));
   const groups = [
     ['CONFLICT CHECK', keep(conflictCheck(conflictInput))],
     ['VOCABULARY CHECK', keep(vocabularyCheck(checked, registryIdsOf(vaultRoot)))],
     ['VALUE-INVERSION CHECK', keep(valueInversionCheck(checked, ignoredValuesOf(vaultRoot)))],
     ['ORPHAN CHECK', keep(orphanCheck(checked, all))],
     ['USED-BY CHECK', keep(usedByCheck(all, vaultRoot))],
+    ['STAGE CHECK', keep(stageCheck(changes, projectDir))],
   ];
   for (const [title, list] of groups) if (list.length) findings.push(`${title}:`, ...list.map((f) => `  - ${f}`));
 
-  const changes = diffAtoms(oldIndex, newIndex);
   auditChanges(vaultRoot, projectDir, sessionId, changes);
-  const ratified = changes.filter((c) => c.type === 'added' && c.atom && c.atom.status === 'ratified');
-  if (ratified.length) {
-    findings.push(`PROFILE: ${ratified.length} newly confirmed decision(s) by the user. Dispatch \`blueprint:profile-updater\` to judge whether this reveals a tendency — and show the user before it saves. (Decisions made by Claude never feed learning.)`);
-  }
   if (findings.length > extraNotes.length) {
     findings.push('Explain these to the user in plain words and let them decide before changing anything. A dismissal is recorded in Vocabulary/dismissed.json with its reason.');
   }
@@ -395,8 +410,11 @@ module.exports = {
   listUnitFolders,
   deriveFolder,
   staleFolders,
+  compileVault,
   compileIndex,
   flattenIndex,
+  registryIdsOf,
+  registryOrphanCheck,
   processDecisionChange,
   loadOwnership,
   ownerOf,

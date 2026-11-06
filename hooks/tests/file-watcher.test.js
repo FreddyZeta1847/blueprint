@@ -1,8 +1,9 @@
 /*
- * Integration tests for hooks/file-watcher.js (PostToolUse): Markdown → derived atoms.json (H1),
- * unreadable-block reports (H2), scoped Review checks (H3), audit + profile flag (H4), Used-by
- * check (H5), module-map ignore list (H6), the diff-based _full-context.md mirror (H7) and the
- * cheap Bash path (H8). Each test builds a temp project and runs the real hook script.
+ * Integration tests for hooks/file-watcher.js (PostToolUse): Markdown → in-memory atoms and the
+ * compiled index, with no atoms.json on disk (H1), unreadable-block reports (H2), scoped Review
+ * checks (H3), audit without the old profile flag (H4), Used-by check (H5), module-map ignore
+ * list (H6), no _full-context.md mirror any more, the cheap Bash path (H8), the v3 Stage check
+ * and the blueprint/vault/ location. Each test builds a temp project and runs the real hook.
  *
  * Run: node --test hooks/tests/*.test.js
  */
@@ -36,7 +37,7 @@ function registry(vault, ids) {
   write(path.join(vault, 'Vocabulary', 'registry.json'), JSON.stringify({ entries: ids.map((id) => ({ id, question: id })) }));
 }
 
-test('derives atoms.json from the Markdown, compiles the index, audits, flags the profile', () => {
+test('reads the Markdown in memory (no atoms.json), compiles the index, audits, no profile flag', () => {
   const { dir, vault } = makeProject();
   registry(vault, ['db-engine', 'backup-window']);
   const md = write(path.join(vault, 'foundations', 'DB', 'DB.md'),
@@ -47,19 +48,15 @@ test('derives atoms.json from the Markdown, compiles the index, audits, flags th
   const res = runHook('file-watcher.js', writePayload(dir, md));
   assert.equal(res.status, 0);
 
-  const atoms = JSON.parse(read(path.join(vault, 'foundations', 'DB', 'atoms.json')));
-  assert.equal(atoms.derived, true);
-  assert.deepEqual(atoms.atoms.map((a) => a.id), ['db-engine', 'backup-window']);
-  assert.equal(atoms.atoms[0].unit, 'foundations/DB');
-  assert.equal(atoms.atoms[0].scope, 'foundation');
-
+  assert.equal(read(path.join(vault, 'foundations', 'DB', 'atoms.json')), null);
   const index = JSON.parse(read(path.join(vault, '_index', 'decisions.json')));
-  assert.equal(index.features['foundations/DB'].atoms.length, 2);
+  const atoms = index.features['foundations/DB'].atoms;
+  assert.deepEqual(atoms.map((a) => a.id), ['db-engine', 'backup-window']);
+  assert.equal(atoms[0].unit, 'foundations/DB');
+  assert.equal(atoms[0].scope, 'foundation');
 
   assert.match(read(path.join(vault, '_audit.md')), /db-engine/);
-  const ctx = contextOf(res);
-  assert.ok(ctx.startsWith('[Blueprint]'), ctx);
-  assert.match(ctx, /PROFILE/);
+  assert.doesNotMatch(contextOf(res), /PROFILE/);
 });
 
 test('details file decisions join the same unit; removing a block removes the atom', () => {
@@ -67,13 +64,14 @@ test('details file decisions join the same unit; removing a block removes the at
   registry(vault, ['db-engine', 'pool-size']);
   write(path.join(vault, 'foundations', 'DB', 'DB.md'), block({ id: 'db-engine', choice: 'PostgreSQL' }));
   const details = write(path.join(vault, 'foundations', 'DB', 'DB--details.md'), block({ id: 'pool-size', choice: '20', by: 'claude' }));
+  const indexAtoms = () => JSON.parse(read(path.join(vault, '_index', 'decisions.json'))).features['foundations/DB'].atoms;
   runHook('file-watcher.js', writePayload(dir, details));
-  let atoms = JSON.parse(read(path.join(vault, 'foundations', 'DB', 'atoms.json'))).atoms;
+  let atoms = indexAtoms();
   assert.deepEqual(atoms.map((a) => a.id).sort(), ['db-engine', 'pool-size']);
 
   write(details, '# nothing decided here anymore\n');
   runHook('file-watcher.js', writePayload(dir, details));
-  atoms = JSON.parse(read(path.join(vault, 'foundations', 'DB', 'atoms.json'))).atoms;
+  atoms = indexAtoms();
   assert.deepEqual(atoms.map((a) => a.id), ['db-engine']);
   assert.match(read(path.join(vault, '_audit.md')), /removed/);
 });
@@ -124,11 +122,15 @@ test('Used by must name an existing section', () => {
   assert.doesNotMatch(ctx, /`SIGNUP`/);
 });
 
-test('a hand-written atoms.json inside a v2 folder is flagged as derived', () => {
+test('a hand-written atoms.json outside legacy features/ is flagged as unused', () => {
   const { dir, vault } = makeProject();
-  const file = write(path.join(vault, 'foundations', 'DB', 'atoms.json'), '{"atoms":[]}');
+  const file = write(path.join(vault, 'foundations', 'DB', 'atoms.json'), '{"atoms":[{"id":"x","axis":"x","choice":"y"}]}');
   const ctx = contextOf(runHook('file-watcher.js', writePayload(dir, file)));
-  assert.match(ctx, /derived/i);
+  assert.match(ctx, /not used/i);
+  write(path.join(vault, 'foundations', 'DB', 'DB.md'), block({ id: 'db-engine', choice: 'PG' }));
+  runHook('file-watcher.js', writePayload(dir, path.join(vault, 'foundations', 'DB', 'DB.md')));
+  const index = JSON.parse(read(path.join(vault, '_index', 'decisions.json')));
+  assert.deepEqual(index.features['foundations/DB'].atoms.map((a) => a.id), ['db-engine']);   // the stray file is ignored
 });
 
 test('legacy v1 vaults still compile and prose never overwrites a hand-written atoms.json', () => {
@@ -166,48 +168,26 @@ test('real source files are recorded; the reminder only speaks once ownership ma
   assert.match(contextOf(res), /belong to no part/);
 });
 
-test('_full-context.md keeps every new line: create, full rewrite, one-word edit, clear', () => {
+test('_current-task.md writes are not mirrored any more (no _full-context.md)', () => {
   const { dir, vault } = makeProject();
-  const task = path.join(vault, '_current-task.md');
-  const mirror = path.join(vault, '_full-context.md');
-
-  write(task, '# Now discussing — DB\nwe chose Postgres\n');
-  runHook('file-watcher.js', writePayload(dir, task));
-  assert.match(read(mirror), /we chose Postgres/);
-
-  write(task, '# Now discussing — CLOUD\nwe chose Azure\n');           // a rewrite, not a clear
-  runHook('file-watcher.js', writePayload(dir, task));
-  assert.match(read(mirror), /Now discussing — CLOUD/);
-  assert.match(read(mirror), /we chose Azure/);
-
-  write(task, '# Now discussing — CLOUD\nwe chose Azure (westeurope)\n'); // a one-word Edit
-  runHook('file-watcher.js', writePayload(dir, task, 'Edit'));
-  assert.match(read(mirror), /we chose Azure \(westeurope\)/);       // the whole line, with context
-
-  const before = read(mirror);
-  write(task, '');                                                    // the clear
-  runHook('file-watcher.js', writePayload(dir, task));
-  assert.equal(read(mirror), before);
+  const task = write(path.join(vault, '_current-task.md'), '# Now discussing — DB\nwe chose Postgres\n');
+  const res = runHook('file-watcher.js', writePayload(dir, task));
+  assert.equal(res.stdout, '');
+  assert.equal(read(path.join(vault, '_full-context.md')), null);
 });
 
-test('a Bash write to _current-task.md or to a decision file is caught by the cheap mtime path', () => {
+test('a Bash write to a decision file is caught by the cheap mtime path', () => {
   const { dir, vault } = makeProject();
-  const task = write(path.join(vault, '_current-task.md'), 'first line\n');
-  runHook('file-watcher.js', writePayload(dir, task));
-
-  write(task, 'first line\nadded by bash\n');
-  touchFuture(task);
-  const bash = { session_id: 's1', hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'echo added >> _current-task.md' }, cwd: dir };
-  runHook('file-watcher.js', bash);
-  assert.match(read(path.join(vault, '_full-context.md')), /added by bash/);
-
+  const bash = { session_id: 's1', hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'sed -i s/Azure/AWS/ CLOUD.md' }, cwd: dir };
   const md = write(path.join(vault, 'foundations', 'CLOUD', 'CLOUD.md'), block({ id: 'cloud-provider', choice: 'Azure' }));
   runHook('file-watcher.js', writePayload(dir, md));
+  assert.equal(runHook('file-watcher.js', bash).stdout, '');          // nothing changed since: silent
   write(md, block({ id: 'cloud-provider', choice: 'AWS' }));
   touchFuture(md);
   runHook('file-watcher.js', bash);
-  const atoms = JSON.parse(read(path.join(vault, 'foundations', 'CLOUD', 'atoms.json'))).atoms;
+  const atoms = JSON.parse(read(path.join(vault, '_index', 'decisions.json'))).features['foundations/CLOUD'].atoms;
   assert.equal(atoms[0].choice, 'AWS');
+  assert.equal(read(path.join(vault, 'foundations', 'CLOUD', 'atoms.json')), null);
 });
 
 test('Windows-style payload paths (backslashes, lower-case drive letter) are understood', { skip: process.platform !== 'win32' }, () => {
@@ -215,7 +195,37 @@ test('Windows-style payload paths (backslashes, lower-case drive letter) are und
   const md = write(path.join(vault, 'foundations', 'DB', 'DB.md'), block({ id: 'db-engine', choice: 'PG' }));
   const odd = md.replace(/^([A-Z]):/, (m, d) => d.toLowerCase() + ':').replace(/\//g, '\\');
   runHook('file-watcher.js', writePayload(dir.toUpperCase(), odd));
-  assert.ok(read(path.join(vault, 'foundations', 'DB', 'atoms.json')));
+  assert.ok(read(path.join(vault, '_index', 'decisions.json')));
+});
+
+test('the v3 vault lives in blueprint/vault/ and wins over a legacy vault-*/ folder', () => {
+  const { dir } = makeProject({ vault: null });
+  const legacy = path.join(dir, 'vault-old');
+  fs.mkdirSync(legacy, { recursive: true });
+  const vault = path.join(dir, 'blueprint', 'vault');
+  const md = write(path.join(vault, 'foundations', 'DB', 'DB.md'), block({ id: 'db-engine', choice: 'PG' }));
+  runHook('file-watcher.js', writePayload(dir, md));
+  assert.ok(read(path.join(vault, '_index', 'decisions.json')));
+  assert.equal(read(path.join(legacy, '_index', 'decisions.json')), null);
+  // blueprint/ files outside the vault are never source files for the module map
+  runHook('file-watcher.js', writePayload(dir, write(path.join(dir, 'blueprint', 'plan.json'), '{}')));
+  assert.equal(read(path.join(vault, '_index', 'unassigned.json')), null);
+});
+
+test('with a plan, new or changed decisions must name an existing plan stage', () => {
+  const { dir, vault } = makeProject();
+  registry(vault, ['db-engine', 'cache']);
+  write(path.join(dir, 'blueprint', 'plan.json'), JSON.stringify({ version: 3, project: 'P', stages: [{ id: 'foundations', name: 'F', type: 'discussion', status: 'in_progress', topics: [{ name: 'Stack', done: false }] }] }));
+  const md = path.join(vault, 'foundations', 'DB', 'DB.md');
+  write(md, block({ id: 'db-engine', choice: 'PG' }));
+  let ctx = contextOf(runHook('file-watcher.js', writePayload(dir, md)));
+  assert.match(ctx, /STAGE CHECK/);
+  assert.match(ctx, /no \*\*Stage\*\*/);
+
+  write(md, block({ id: 'db-engine', choice: 'PG' }) + '- **Stage:** foundations\n' + block({ id: 'cache', choice: 'redis' }) + '- **Tappa:** nowhere\n');
+  ctx = contextOf(runHook('file-watcher.js', writePayload(dir, md)));
+  assert.match(ctx, /`nowhere`/);
+  assert.doesNotMatch(ctx, /db-engine` has no/);
 });
 
 test('malformed or empty stdin never breaks the session', () => {
