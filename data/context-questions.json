@@ -1,16 +1,16 @@
 {
   "version": 1,
-  "about": "The questions get-context must answer before any plan. Each answer is the user's, deduced by Claude (and shown to the user), or 'not needed'. Pace is never a question: Claude derives it from tempo, type and risk and writes it in plain words. Claude never edits this file.",
+  "about": "What get-context must know before any plan. These are not a questionnaire: Claude first derives each answer from the context (the request, the conversation, the repo, the user's rules, an existing card) and shows what it derived. Only what it cannot derive becomes a question, using `ask` as a starting point; Claude may also ask other questions the work needs. Each answer is the user's, deduced, or 'not needed'. From the answers Claude draws the conclusions: size, difficulty and pace (pace is never asked). Claude never edits this file.",
   "questions": [
     { "id": "goal", "ask": "What do you want to achieve, and how will we know it is done?", "why": "defines the last stage and how it is verified" },
     { "id": "kind", "ask": "Is it personal, for your company, or for a client?", "why": "pace, who approves, what goes into git" },
     { "id": "approver", "ask": "Who approves the result?", "why": "delivery stages and pull requests" },
     { "id": "timing", "ask": "Who decides the timing? Are there deadlines (final and intermediate)?", "why": "stage deadlines and pace" },
     { "id": "existing", "ask": "What already exists: code, decisions, inherited constraints?", "why": "Discovery, what is not up for discussion" },
-    { "id": "risk", "ask": "How costly is a mistake (a demo, a product that must last, sensitive data)?", "why": "how much to discuss, whether a vault is needed" },
-    { "id": "constraints", "ask": "Budget, mandatory technologies, rules (personal data, NDA)?", "why": "foundations already decided" },
-    { "id": "roles", "ask": "What do you decide, and what do you leave to Claude?", "why": "who decides each area" },
+    { "id": "risk", "ask": "How costly is a mistake (a demo, a product that must last, sensitive data)?", "why": "how much to discuss, whether a decisions folder is needed" },
+    { "id": "constraints", "ask": "Budget, mandatory technologies, rules (personal data, NDA)?", "why": "choices already decided" },
+    { "id": "roles", "ask": "What do you decide, and what do you leave to Claude?", "why": "who decides each area of choices" },
     { "id": "parts", "ask": "Which parts is the work made of (frontend, backend, app, documents...)?", "why": "parallel work: independent parts get their contracts discussed first" },
-    { "id": "documentation", "ask": "Do we need a decision vault, or is the context card enough?", "why": "Claude proposes, the user confirms" }
+    { "id": "documentation", "ask": "Do we keep the decisions in a decisions folder, or is the context card enough?", "why": "Claude proposes, the user confirms" }
   ]
 }

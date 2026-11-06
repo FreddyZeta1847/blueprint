@@ -8,9 +8,13 @@
  *   - with blueprint/plan.json (at most ~3 lines): project · stage i/n «name» (type) · phase and/or
  *     topics done (no counter when the stage has no topics) · deadline (overdue?) · new notes from blueprint/notes.json; then where the plan
  *     lives; and, when the current stage is still `todo`, the "not opened yet" instruction;
- *   - with a vault (blueprint/vault/, or a legacy vault-<project>/): the discussion to resume
+ *   - with a decisions folder (blueprint/decisions/, or a legacy vault-<project>/): the discussion to resume
  *     (_current-task.md) and a capped digest of confirmed one-way decisions;
- *   - with neither: silent.
+ *   - the context card (blueprint/context.md, lib/card.js): a draft (no `Confirmed:` line) → resume
+ *     get-context, with its open points; confirmed but no plan yet → go on with create-plan;
+ *   - no plan and no card: one line — every new request starts with get-context (a tiny one: one
+ *     line of confirmation, no files). Blueprint is the start of every piece of work, so this line
+ *     appears in every project where the plugin is enabled.
  * The current stage is the first `in_progress` one, else the first `todo` one.
  * Errors never fail the session (exit 0).
  *
@@ -21,6 +25,7 @@
 const path = require('path');
 const { readStdinJson, projectDirOf, findVaultRoot, blueprintDirOf, readPlan, relInside, readText, readJson } = require('./lib/common');
 const { loadLoops, currentStage } = require('./lib/plan');
+const { readCard, openList } = require('./lib/card');
 
 const BUDGET = 1500;
 const LOAD_SKILL = 'Load `blueprint:using-blueprint` before any Blueprint step.';
@@ -126,15 +131,31 @@ function vaultLines(projectDir, vaultRoot, hasPlan) {
   return [...head, ...resume];
 }
 
+// ---------------------------------------------------------------- the context card
+
+const NEW_REQUEST = '[Blueprint] No plan here: every new request starts with `blueprint:get-context` (a tiny one: one line of confirmation, no files).';
+
+function cardLines(projectDir, hasPlan, hasHead) {
+  const card = readCard(projectDir);
+  const load = hasHead ? '' : ` ${LOAD_SKILL}`;
+  if (card && !card.confirmed) {
+    const open = openList(card);
+    return [`[Blueprint] Context in progress: blueprint/context.md is a draft. Resume \`blueprint:get-context\`${open ? ` (open points: ${open})` : ' (draw the conclusions and ask for the confirmation)'}.${load}`];
+  }
+  if (hasPlan) return [];
+  if (card) return [`[Blueprint] Context confirmed, no plan yet: go on with \`blueprint:create-plan\`.${load}`];
+  return [`${NEW_REQUEST}${load}`];
+}
+
 // ---------------------------------------------------------------- assembly
 
 function buildContext(projectDir) {
   const plan = readPlan(projectDir);
   const vaultRoot = findVaultRoot(projectDir);
-  if (!plan && !vaultRoot) return '';
   let lines = [];
   try { if (plan) lines = planLines(projectDir, plan); } catch { lines = []; }
   if (vaultRoot) lines.push(...vaultLines(projectDir, vaultRoot, Boolean(plan)));
+  try { lines.push(...cardLines(projectDir, Boolean(plan), Boolean(plan || vaultRoot))); } catch { /* never fail the session */ }
   const fixed = lines.join('\n');
   let digest = [];
   try { if (vaultRoot) digest = digestLines(vaultRoot, BUDGET - fixed.length - 1); } catch { digest = []; }

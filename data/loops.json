@@ -1,15 +1,15 @@
 {
-  "version": 1,
-  "about": "One loop per stage type: which phases a stage has and what each phase must produce. It never says HOW a phase is done (tools, sessions, plugins): that is decided outside Blueprint when the stage opens. Read by the create-plan skill, the stage-opening step and the plan-guard hook. Claude never edits this file.",
+  "version": 2,
+  "about": "One loop per stage type: which phases a stage has and what each phase must produce. Every loop starts with the same mandatory phase, clarify: Claude must ask itself whether it has enough context to complete the stage on its own, and fill the gap with the user when it has not. It never says HOW a phase is done (tools, sessions, plugins): that is decided outside Blueprint when the stage opens. Read by the create-plan skill, the stage-opening step and the plan-guard hook. Claude never edits this file.",
   "types": {
     "discussion": {
       "purpose": "Decide. No production code.",
       "cycle": "per_step",
       "phases": [
-        { "id": "probe", "optional": true, "when": "a decision depends on something nobody knows yet (cost, feasibility, access)", "produces": "the missing information, e.g. a throwaway mockup or test" },
-        { "id": "proposal", "produces": "one combined proposal with the rejected alternatives" },
+        { "id": "clarify", "produces": "the context check for this topic: Claude asks itself whether it has enough context to take it on its own; if not, a short discussion with the user (or the user saying the context was misunderstood) fills the gap" },
+        { "id": "proposal", "produces": "a divergent proposal: many possible options first, then Claude's recommendation and why it wins", "back_to": "clarify" },
         { "id": "convergence", "user": true, "produces": "a choice; the user makes the hard-to-change ones" },
-        { "id": "decision", "produces": "the decision written down (vault or context card)" }
+        { "id": "decision", "produces": "the decision written down (blueprint/decisions/ or the context card)" }
       ],
       "done_when": "every topic has a written decision or is postponed with a reason"
     },
@@ -17,7 +17,7 @@
       "purpose": "Build and verify one or more parts.",
       "cycle": "per_stage",
       "phases": [
-        { "id": "clarify", "optional": true, "when": "the stage touches the foundations or decisions are missing", "produces": "the missing decisions" },
+        { "id": "clarify", "produces": "the context check: Claude asks itself whether it has enough context to carry out the stage on its own (decisions written, state of the code); if not, a short discussion with the user fills the gap" },
         { "id": "plan", "produces": "the implementation plan" },
         { "id": "build", "produces": "the parts built" },
         { "id": "test", "produces": "green tests", "back_to": "build" },
@@ -26,32 +26,23 @@
       ],
       "done_when": "green tests, review passed, work merged if planned"
     },
-    "verification": {
-      "purpose": "Check something that already exists (user test, load, security, accessibility).",
-      "cycle": "per_step",
-      "phases": [
-        { "id": "criterion", "produces": "what is checked and what 'passed' means" },
-        { "id": "run", "produces": "the result of the check" },
-        { "id": "outcome", "user": true, "produces": "the outcome shown to the user" },
-        { "id": "fix", "optional": true, "when": "the outcome is negative", "produces": "the problem fixed, or a new stage proposed in the plan" }
-      ],
-      "done_when": "every topic has an outcome; negative ones are fixed or became stages"
-    },
     "delivery": {
-      "purpose": "Show the work to someone: demo, presentation, document.",
+      "purpose": "Make something to show, quickly and at low risk: a mockup, a small demo on code or infrastructure that already exists, a presentation, a video, a document. Not new production features: those are implementation.",
       "cycle": "per_stage",
       "phases": [
-        { "id": "prepare", "produces": "what is delivered, consistent with the written decisions" },
-        { "id": "rehearse", "user": true, "produces": "a full run-through done; a plan B if needed" },
-        { "id": "deliver", "user": true, "produces": "delivered" },
+        { "id": "clarify", "produces": "the context check: Claude asks itself whether it has enough context to make it on its own (who it is for, format, message, limits); if not, a short discussion with the user fills the gap" },
+        { "id": "prepare", "produces": "the thing to show, consistent with the written decisions" },
+        { "id": "rehearse", "optional": true, "when": "it is shown live to someone other than the user (a demo, a presentation)", "user": true, "produces": "a full run-through done; a plan B if needed" },
+        { "id": "deliver", "user": true, "produces": "shown to the user, or handed to whom it is for" },
         { "id": "feedback", "produces": "the feedback recorded as notes or as proposed plan changes" }
       ],
       "done_when": "delivered and feedback recorded"
     },
     "quick_task": {
-      "purpose": "A short job of any nature: a mini discussion, a small implementation, a mockup, a check.",
+      "purpose": "A short, low-risk job: a mockup, find out an unknown (cost, feasibility, access), check something that already exists (load, security), a small fix.",
       "cycle": "per_stage",
       "phases": [
+        { "id": "clarify", "produces": "the context check: Claude asks itself whether it has enough context to do the job on its own (how the user wants it, parameters someone gave, limits); if not, a short (not hurried) discussion with the user fills the gap" },
         { "id": "do", "produces": "the job done" },
         { "id": "check", "produces": "the result verified" },
         { "id": "report", "user": true, "produces": "the result in a few lines; if something changes, a proposed plan change" }

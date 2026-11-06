@@ -1,6 +1,6 @@
 ---
 name: discovery
-description: "Read existing code Claude doesn't know yet and turn it into Blueprint material — records the git baseline, prefills the context answers the code already gives, and (when a vault is wanted) drafts foundation areas, contracts, sections and the decisions found in the code as unconfirmed, with one file per external system. Run on request (/blueprint:discovery) or when get-context proposes it and the user agrees."
+description: "Read existing code Claude doesn't know yet and turn it into Blueprint material — records the git baseline, prefills the context answers the code already gives, and (when a decisions folder is wanted) drafts foundation areas, contracts, sections and the decisions found in the code as unconfirmed, with one file per external system. Run on request (/blueprint:discovery) or when get-context proposes it and the user agrees."
 ---
 
 # Discovery
@@ -8,15 +8,15 @@ description: "Read existing code Claude doesn't know yet and turn it into Bluepr
 <!--
 Header comment: Blueprint v3's code-to-context bootstrap. Runs on existing code Claude doesn't
 know, only with the user's OK. It prefills the answers of the context questions that the code
-already gives (for blueprint:get-context) and, when the project keeps a vault, drafts it in
-blueprint/vault/ with decisions tagged needs-review and carrying `Decided by: discovery` or
+already gives (for blueprint:get-context) and, when the project keeps a decisions folder, drafts it in
+blueprint/decisions/ with decisions tagged needs-review and carrying `Decided by: discovery` or
 `Decided by: inherited`, the git baseline, and one file per external system. The schema it writes
 is defined in blueprint:docs-management.
 -->
 
 Use this skill on a repo with code that Claude doesn't know yet: when the user asks for it, or when
 `blueprint:get-context` proposes it and the user agrees. It turns what the code already decided
-into context answers and, if wanted, a draft vault. Nothing it writes counts as decided: every
+into context answers and, if wanted, a draft decisions folder. Nothing it writes counts as decided: every
 decision waits for **Ratification at contact** (see `blueprint:using-blueprint`).
 
 Load `blueprint:docs-management` first: it defines the folders, the block format and the templates
@@ -28,7 +28,7 @@ So Blueprint can tell inherited code from the user's own work:
 
 1. Find the default branch (`main`, else `master`, else the remote's HEAD) and its commit
    (`git rev-parse <branch>`).
-2. Keep it for the vault's `_architecture.md` (`## Baseline`: "`main` at `<sha>` on `<date>`") and
+2. Keep it for the decisions folder's `_architecture.md` (`## Baseline`: "`main` at `<sha>` on `<date>`") and
    for the `existing` answer of the card.
 3. The user's own work is `git log <branch>..HEAD` plus uncommitted changes. Describe it apart
    ("work in progress on your branch: …"), never as an inherited decision.
@@ -75,10 +75,10 @@ From what you found, propose in plain words:
 Who decides each area from now on is not asked here: it is the `roles` question of get-context,
 which uses this list.
 
-## 6. Write the drafts — only if the project keeps a vault
+## 6. Write the drafts — only if the project keeps a decisions folder
 
-If the user wants a vault (the card's `documentation` answer, or the user says so now), create
-`blueprint/vault/` with the scaffold in `blueprint:docs-management` §3, then write for each area,
+If the user wants a decisions folder (the card's `documentation` answer, or the user says so now), create
+`blueprint/decisions/` with the scaffold in `blueprint:docs-management` §3, then write for each area,
 contract and section its main file, tagged `needs-review` on top of its type tag. Write every
 decision the code already made as a block:
 
@@ -106,13 +106,16 @@ Then write:
 
 Read the `[Blueprint]` hook messages after the writes and explain any finding in plain words.
 
-Without a vault, keep the result in the card: the prefilled answers, and the inherited one-way
+Without a decisions folder, keep the result in the card: the prefilled answers, and the inherited one-way
 choices listed in the `existing` answer.
 
 ## 7. Hand off
 
 Discovery stops at drafting and goes back to `blueprint:get-context`, which shows the prefilled
-answers and asks the rest. Confirmation of the drafted decisions happens later, inside real work,
+answers and asks the rest. Write the points the code answered into the draft card
+(`blueprint/context.md`) and **end the Discovery report with one line** that says where you go
+next, for example: *"Back to the context: still open — timing, who decides hosting."* Then
+continue with get-context in the same turn. Confirmation of the drafted decisions happens later, inside real work,
 through Ratification at contact.
 
 ## What NOT to do
@@ -131,6 +134,6 @@ through Ratification at contact.
 
 - The baseline is recorded (or the note that there is no git repo).
 - get-context received the prefilled answers, each with its source.
-- With a vault: every drafted file carries `needs-review`; every block uses `discovery`,
+- With a decisions folder: every drafted file carries `needs-review`; every block uses `discovery`,
   `inherited` or `rule`; every external system has its own file with an explicit "Known unknowns"
   section.

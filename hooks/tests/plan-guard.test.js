@@ -71,7 +71,33 @@ test('topics: optional in per_stage types, required in per_step types', () => {
   expectDecision(writePlan(p, planOf([{ id: 'demo', name: 'Demo', type: 'delivery', status: 'todo', topics: [] }])), 'allow');
   expectDecision(writePlan(p, planOf([disc(undefined, { status: 'todo' })])), 'deny', /list at least one topic/);
   expectDecision(writePlan(p, planOf([disc([], { status: 'todo' })])), 'deny', /list at least one topic/);
-  expectDecision(writePlan(p, planOf([{ id: 'ux', name: 'UX check', type: 'verification', status: 'todo' }])), 'deny', /list at least one topic/);
+});
+
+test('v3 types: verification is gone (the end of implementation covers it); delivery may skip its rehearsal', () => {
+  const p = setup();
+  expectDecision(writePlan(p, planOf([{ id: 'ux', name: 'UX check', type: 'verification', status: 'todo', topics: [{ name: 'Test', done: false }] }])), 'deny', /verification/);
+  const mockup = (extra) => ({ id: 'mockup', name: 'Admin mockup', type: 'delivery', status: 'in_progress', ...extra });
+  const q = setup(planOf([mockup({ phase: 'prepare' })]));
+  expectDecision(writePlan(q, planOf([mockup({ phase: 'deliver' })])), 'deny', /optional phase "rehearse"/);
+  expectDecision(writePlan(q, planOf([mockup({ phase: 'deliver', skipped: [{ id: 'rehearse', reason: 'only the user looks at it' }] })])), 'allow');
+});
+
+test('discussion: a proposal can go back to clarify (the context was misunderstood), convergence cannot', () => {
+  const p = setup(planOf([disc([{ name: 'Stack', done: false, phase: 'proposal' }])]));
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'clarify' }])])), 'allow');
+  const q = setup(planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }])]));
+  expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: false, phase: 'clarify' }])])), 'deny', /can go back to no phase/);
+});
+
+test('clarify (the context check) is mandatory in every type: it can never be skipped', () => {
+  const firstAfter = { implementation: 'plan', delivery: 'prepare', quick_task: 'do' };
+  for (const type of ['discussion', 'implementation', 'delivery', 'quick_task']) {
+    const skipped = [{ id: 'clarify', reason: 'clear enough' }];
+    const stage = type === 'discussion'
+      ? disc([{ name: 'Stack', done: false, phase: 'proposal' }], { skipped })
+      : { id: 'x', name: 'X', type, status: 'in_progress', phase: firstAfter[type], skipped };
+    expectDecision(writePlan(setup(), planOf([stage])), 'deny', /"clarify" is mandatory and cannot be skipped/);
+  }
 });
 
 test('topics: the old "steps" field, phase names as topics, empty postponed, independent parts not among topics', () => {
@@ -92,37 +118,39 @@ test('a per_step stage is done only when every topic is done or postponed with a
   expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }, { name: 'Hosting', done: false, phase: 'proposal', postponed: 'needs the price list' }], { status: 'done' })])), 'allow');
 });
 
-test('opening a stage: skipping a mandatory phase is denied', () => {
+test('opening a stage: it starts at clarify; jumping a mandatory phase is denied', () => {
   const p = setup(planOf([impl()]));
-  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'build', skipped: [{ id: 'clarify', reason: 'decided' }] })])), 'deny', /mandatory phase "plan"/);
+  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'clarify' })])), 'allow');
+  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'plan' })])), 'deny', /mandatory phase "clarify"/);
 });
 
 test('an optional phase skipped without a reason is denied, with a reason it is allowed', () => {
-  const p = setup(planOf([impl()]));
-  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'plan' })])), 'deny', /optional phase "clarify".*without a reason/);
-  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'plan', skipped: [{ id: 'clarify', reason: '' }] })])), 'deny', /reason/);
-  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'plan', skipped: [{ id: 'clarify', reason: 'the foundations are decided' }] })])), 'allow');
-  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'plan', skipped: [{ id: 'build', reason: 'x' }] })])), 'deny', /mandatory and cannot be skipped/);
+  const demo = (extra) => ({ id: 'demo', name: 'Demo', type: 'delivery', status: 'in_progress', ...extra });
+  const p = setup(planOf([demo({ phase: 'prepare' })]));
+  expectDecision(writePlan(p, planOf([demo({ phase: 'deliver' })])), 'deny', /optional phase "rehearse".*without a reason/);
+  expectDecision(writePlan(p, planOf([demo({ phase: 'deliver', skipped: [{ id: 'rehearse', reason: '' }] })])), 'deny', /reason/);
+  expectDecision(writePlan(p, planOf([demo({ phase: 'deliver', skipped: [{ id: 'rehearse', reason: 'only the user looks at it' }] })])), 'allow');
+  expectDecision(writePlan(p, planOf([demo({ phase: 'prepare', skipped: [{ id: 'feedback', reason: 'x' }] })])), 'deny', /mandatory and cannot be skipped/);
 });
 
 test('an in_progress per_stage stage needs a phase; phases move one at a time', () => {
-  const p = setup(planOf([impl({ status: 'in_progress', phase: 'plan', skipped: [{ id: 'clarify', reason: 'r' }] })]));
-  const at = (phase) => planOf([impl({ status: 'in_progress', phase, skipped: [{ id: 'clarify', reason: 'r' }] })]);
+  const p = setup(planOf([impl({ status: 'in_progress', phase: 'plan' })]));
+  const at = (phase) => planOf([impl({ status: 'in_progress', phase })]);
   expectDecision(writePlan(p, planOf([impl({ status: 'in_progress' })])), 'deny', /phase/);
   expectDecision(writePlan(p, at('build')), 'allow');
   expectDecision(writePlan(p, at('test')), 'deny', /mandatory phase "build"/);
 });
 
 test('going back only to back_to', () => {
-  const p = setup(planOf([impl({ status: 'in_progress', phase: 'review', skipped: [{ id: 'clarify', reason: 'r' }] })]));
-  const at = (phase) => planOf([impl({ status: 'in_progress', phase, skipped: [{ id: 'clarify', reason: 'r' }] })]);
+  const p = setup(planOf([impl({ status: 'in_progress', phase: 'review' })]));
+  const at = (phase) => planOf([impl({ status: 'in_progress', phase })]);
   expectDecision(writePlan(p, at('build')), 'allow');
   expectDecision(writePlan(p, at('test')), 'deny', /only to "build"/);
   expectDecision(writePlan(p, at('plan')), 'deny', /only to "build"/);
 });
 
 test('a per_stage stage cannot be done before the last mandatory phase, nor with open topics', () => {
-  const sk = [{ id: 'clarify', reason: 'r' }];
+  const sk = undefined;
   const p = setup(planOf([impl({ status: 'in_progress', phase: 'test', skipped: sk })]));
   const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
   expectDecision(writePlan(p, planOf([impl({ status: 'done', phase: 'test', skipped: sk, topics: doneTopics })])), 'deny', /done before the phase "review"/);
@@ -132,19 +160,19 @@ test('a per_stage stage cannot be done before the last mandatory phase, nor with
   expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'review', skipped: sk, topics: doneTopics })])), 'allow');
 });
 
-test('per_step: a topic done before the decision phase is denied; stage-level skipped covers the topics', () => {
-  const sk = [{ id: 'probe', reason: 'nothing unknown' }];
+test('per_step: a topic done before the decision phase is denied; a new topic starts at clarify', () => {
+  const sk = undefined;
   const p = setup(planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }], { skipped: sk })]));
   expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: true, phase: 'convergence' }], { skipped: sk })])), 'deny', /topic "Stack".*done before the phase "decision"/);
   expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { skipped: sk })])), 'allow');
-  // a new topic starting at "proposal" needs the stage-level skip of "probe"
-  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }, { name: 'Hosting', done: false, phase: 'proposal' }])])), 'deny', /optional phase "probe"/);
-  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }, { name: 'Hosting', done: false, phase: 'proposal' }], { skipped: sk })])), 'allow');
+  // a new topic cannot start past the context check
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }, { name: 'Hosting', done: false, phase: 'proposal' }])])), 'deny', /mandatory phase "clarify"/);
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }, { name: 'Hosting', done: false, phase: 'clarify' }])])), 'allow');
   expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false }], { skipped: sk, phase: 'proposal' })])), 'deny', /put "phase" on each topic/);
 });
 
 test('editing or removing a done stage asks; a new stage created done is denied', () => {
-  const doneStage = disc([{ name: 'Stack', done: true, phase: 'decision' }], { status: 'done', skipped: [{ id: 'probe', reason: 'r' }] });
+  const doneStage = disc([{ name: 'Stack', done: true, phase: 'decision' }], { status: 'done' });
   const p = setup(planOf([doneStage, impl()]));
   expectDecision(writePlan(p, planOf([{ ...doneStage, name: 'Renamed' }, impl()])), 'ask', /done and would be changed/);
   expectDecision(writePlan(p, planOf([impl()])), 'ask', /done and would be removed/);
@@ -157,7 +185,7 @@ test('editing or removing a done stage asks; a new stage created done is denied'
 });
 
 test('Edit and MultiEdit are checked on the resulting file', () => {
-  const p = setup(planOf([impl({ status: 'in_progress', phase: 'plan', skipped: [{ id: 'clarify', reason: 'r' }] })]));
+  const p = setup(planOf([impl({ status: 'in_progress', phase: 'plan' })]));
   const edit = (old_string, new_string) => runHook('plan-guard.js', { tool_name: 'Edit', tool_input: { file_path: p.file, old_string, new_string }, cwd: p.dir });
   expectDecision(edit('"phase": "plan"', '"phase": "build"'), 'allow');
   expectDecision(edit('"phase": "plan"', '"phase": "review"'), 'deny', /mandatory phase "build"/);

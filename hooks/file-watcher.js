@@ -18,7 +18,7 @@
  *   Bash / PowerShell (no file_path)      -> cheap mtime check: re-read the vault when a shell
  *                                            command changed decision files
  *
- * The vault is blueprint/vault/ (legacy: vault-<project>/ at the root). No atoms.json and no
+ * The decisions folder (the "vault" in the code) is blueprint/decisions/ (legacy: vault-<project>/ at the root). No atoms.json and no
  * _full-context.md are written any more: the atoms live only in memory and in the index, and
  * git + _current-task.md keep the conversation record.
  *

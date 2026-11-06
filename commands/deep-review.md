@@ -1,18 +1,18 @@
 ---
-description: Opt-in, expensive semantic review of a foundation area, contract or section (or the whole vault) — catches meaning-level contradictions the free deterministic checks cannot see
+description: Opt-in, expensive semantic review of a foundation area, contract or section (or all the decisions) — catches meaning-level contradictions the free deterministic checks cannot see
 ---
 
 # /deep-review
 
 <!--
 Header comment: Blueprint's opt-in semantic review command (v3). It dispatches fresh-context
-agents that read the decision blocks of blueprint/vault/ and the surrounding prose together. The
+agents that read the decision blocks of blueprint/decisions/ and the surrounding prose together. The
 deterministic checks run by the file-watcher hook cover only structural issues; this covers
 meaning.
 -->
 
-Run an expensive semantic review of the decision vault (`blueprint/vault/`, or a legacy
-`vault-<project>/` folder) when certainty matters more than token cost. A project without a vault
+Run an expensive semantic review of the decisions folder (`blueprint/decisions/`, or a legacy
+`vault-<project>/` folder) when certainty matters more than token cost. A project without a decisions folder
 has nothing to review here: say so in one line.
 
 ## How to use
@@ -22,11 +22,11 @@ has nothing to review here: say so in one line.
 ```
 
 - **With a name:** reviews that one and everything it links to.
-- **Without a name:** reviews the whole vault (expensive — before a big milestone).
+- **Without a name:** reviews all the decisions (expensive — before a big milestone).
 
 ## What it checks
 
-Fresh-context agents read the decision blocks and the prose of `blueprint/vault/foundations/`,
+Fresh-context agents read the decision blocks and the prose of `blueprint/decisions/foundations/`,
 `contracts/` and `sections/` together, looking for:
 - **paraphrase-level contradictions:** a block says X, the prose says or implies Y;
 - **unsupported claims:** prose stating something no decision backs;

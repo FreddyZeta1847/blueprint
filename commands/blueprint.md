@@ -1,5 +1,5 @@
 ---
-description: Start Blueprint in a repository — creates the blueprint/ folder, offers Discovery when there is code Claude doesn't know, then starts get-context (the vault is created later, only if the context says so)
+description: Start Blueprint in a repository — creates the blueprint/ folder, offers Discovery when there is code Claude doesn't know, then starts get-context (the decisions folder is created later, only if the context says so)
 ---
 
 # /blueprint
@@ -7,7 +7,7 @@ description: Start Blueprint in a repository — creates the blueprint/ folder, 
 <!--
 Header comment: the start command of the Blueprint plugin (v3). It creates the project's
 blueprint/ folder (layout in blueprint:docs-management §1), offers Discovery when the repo holds
-code Claude doesn't know, and starts blueprint:get-context. It never creates the vault: the vault
+code Claude doesn't know, and starts blueprint:get-context. It never creates the decisions folder: it
 is created only when the confirmed context card asks for one. Idempotent: it never overwrites an
 existing file.
 -->
@@ -19,8 +19,8 @@ this command when nothing else has that name.
 ## 1. Check what is already there
 
 - **`blueprint/plan.json` exists** → Blueprint is already running here. Say in one line where the
-  plan stands (stage, phase) and ask what the user wants to do: go on, or start new work (then the
-  entry step of `blueprint:using-blueprint`).
+  plan stands (stage, phase) and ask what the user wants to do: go on, or start new work (then
+  `blueprint:get-context`).
 - **`blueprint/context.md` exists but no plan** → show the card briefly. If it is confirmed, go to
   `blueprint:create-plan`; if not, go on with `blueprint:get-context` to finish it.
 - **A legacy v2 vault** (`vault-<project>/` at the repo root) → tell the user in plain words that it
@@ -34,7 +34,7 @@ If `blueprint/` does not exist, create it by writing `blueprint/.gitkeep` with t
 and, on Windows, can write UTF-16 files.
 
 Create nothing else here: the card is written by get-context, the plan by create-plan, and the
-vault (`blueprint/vault/`) only when the confirmed card says the project needs one.
+decisions folder (`blueprint/decisions/`) only when the confirmed card says the project needs one.
 
 Say once, in plain words, that `blueprint/` is committed with the code so every branch sees the
 context, the plan and the decisions at its own version, and that a private project can opt out by

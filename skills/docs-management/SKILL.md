@@ -1,6 +1,6 @@
 ---
 name: docs-management
-description: "Blueprint's file schema — the blueprint/ folder (context card, plan, notes, vault), the vault layout and how to create it, the decision-block format, tags, how the hooks talk and the save sequence. Load before writing, reading or locating anything in blueprint/vault/."
+description: "Blueprint's file schema — the blueprint/ folder (context card, plan, notes, decisions), the decisions folder layout and how to create it, the decision-block format, tags, how the hooks talk and the save sequence. Load before writing, reading or locating anything in blueprint/decisions/."
 ---
 
 # Docs Management
@@ -27,7 +27,7 @@ Everything Blueprint keeps in a project sits in one folder at the repo root:
 | `blueprint/context.md` | Claude, after the user's yes | the context card: one answer per context question, with its source. Format in `blueprint:get-context` §7 |
 | `blueprint/plan.json` | the main session only, after the user's OK | stages, topics, current phase, how, deadlines, independent parts. Format in `blueprint:create-plan` §5; checked by the plan-guard hook |
 | `blueprint/notes.json` | the user (optional) | notes per stage: `{ "notes": [{ "stage": "<id>", "text": "...", "read": false }] }`. Read them when a stage opens; mark them `read` once told to the user |
-| `blueprint/vault/` | Claude, checked by the hooks | the decisions (foundations, contracts, sections) — **only when the card's `documentation` answer says a vault is needed** |
+| `blueprint/decisions/` | Claude, checked by the hooks | **only decisions**: those taken in discussions, and the corrections an implementation or a delivery forces on them — filed by shared area, contract and section. Created **only when the card's `documentation` answer says a decisions folder is needed** |
 
 Other folders that the execution of a stage may create inside `blueprint/` are not Blueprint's: never
 read them as decisions and never write them from a Blueprint step.
@@ -37,7 +37,7 @@ read them as decisions and never write them from a Blueprint step.
 - A legacy v2 vault (`vault-<project>/` at the repo root) is still read by the hooks; never create
   a new one there.
 
-## 2. The vault — hierarchy and structure
+## 2. The decisions folder — hierarchy and structure
 
 Three levels, kept visibly separate:
 1. **`_architecture.md`** — the entry point. Goal, global defaults, components and how they
@@ -52,7 +52,7 @@ Inside every area and section, decisions are split by who made them:
 - `AREA--details.md` / `SECTION--details.md` holds **only** two-way decisions Claude made on its own.
 
 ```
-blueprint/vault/
+blueprint/decisions/
 ├── .gitignore               derived files (§3)
 ├── _index.md                map of every file
 ├── _architecture.md         TOP: goal, defaults, components, graph, areas, contracts
@@ -79,11 +79,11 @@ blueprint/vault/
 └── _index/                  derived by the hooks, not versioned
 ```
 
-Who decides each area is not a vault file: it is the `roles` answer of the context card.
+Who decides each area is not a decisions file: it is the `roles` answer of the context card.
 
-## 3. Creating the vault
+## 3. Creating the decisions folder
 
-Create the vault only when the confirmed card asks for one (usually right after the plan is
+Create the decisions folder only when the confirmed card asks for one (usually right after the plan is
 confirmed). Write each file with `Write`; for an empty folder write a `.gitkeep` inside it.
 
 | File | Starting content |
@@ -108,7 +108,7 @@ _index/
   `no` out of the ignored values on purpose: a yes/no choice means a question was written wrong.
 - Not created here: `_audit.md` and `_index/` (the hooks create them), `_doc-rules.md` (only when
   the user gives rules on how to write the docs).
-- If the vault already exists, create only the missing files and never overwrite one.
+- If the decisions folder already exists, create only the missing files and never overwrite one.
 
 ## 4. Naming and versioning
 
@@ -131,15 +131,15 @@ private (someone else's repo, an NDA) ignores the folder in its own `.gitignore`
 parallel worktrees won't see it. Not versioned: what the hooks derive (`_index/`, `modules.json`) —
 rebuilt in a second. `_audit.md` is versioned: it is machine-written but not re-derivable.
 
-**The code and the vault live in the same repository.** Fixed, not a decision to discuss. If the
+**The code and the decisions live in the same repository.** Fixed, not a decision to discuss. If the
 user explicitly wants two repositories, it is a one-way decision: raise it, explain what is lost
 (parallel work no longer reads the foundations), and record it with `Decided by: user`.
 
 ## 5. Language
 
-**Write the card and the vault in the language the user speaks with you** — prose, headings, the
-questions in block headings, and the block keys. An Italian-speaking user gets an Italian vault.
-`_doc-rules.md` can override this ("write the vault in English").
+**Write the card and the decisions in the language the user speaks with you** — prose, headings, the
+questions in block headings, and the block keys. An Italian-speaking user gets Italian decisions.
+`_doc-rules.md` can override this ("write the decisions in English").
 
 What stays in English in every language, because tools read it: folder and file names, frontmatter
 tags, decision ids, stage ids, the context card's headings and question ids, and the values
@@ -221,7 +221,7 @@ written in full, never a bare noun: a noun like `db` invites two questions to co
 
 ## 7. Frontmatter tags and colours
 
-Every vault Markdown file begins with YAML frontmatter carrying exactly one type tag:
+Every Markdown file of the decisions folder begins with YAML frontmatter carrying exactly one type tag:
 
 | File | Tag |
 |---|---|
@@ -246,11 +246,11 @@ conversation, since it is the only writer.
 
 | Hook | Event | What it does |
 |---|---|---|
-| `orientation` | SessionStart | A few lines: current stage, phase, deadline, new notes; a discussion to resume |
+| `orientation` | SessionStart | A few lines: current stage, phase, deadline, new notes; a discussion to resume; a draft card to resume; with no plan, "new requests start with get-context" |
 | `plan-guard` | PreToolUse on `blueprint/plan.json` | Refuses a plan that breaks the shape (topics included), the loop order or a skip without a reason; asks before a done stage changes |
-| `one-way-guard` | PreToolUse on the vault | Refuses a `one-way` block with `Decided by: claude` |
+| `one-way-guard` | PreToolUse on the decisions folder | Refuses a `one-way` block with `Decided by: claude` |
 | `file-watcher` | PostToolUse | Reads the decision blocks and runs the checks (§10), keeps the audit |
-| `step-close` | Stop | At the end of a turn: is a phase finished, does the plan need updating, did the foundations change? |
+| `step-close` | Stop | At the end of a turn: is the context card still a draft, is a phase finished, did the work change a written decision? |
 
 **Findings are presented, never resolved alone.** Explain each finding to the user in plain words
 ("the database we picked for SIGNUP clashes with the one in DB"), conflicts first, and let the user
@@ -273,7 +273,7 @@ When a discussion settles:
    `blueprint/plan.json`; clear `_current-task.md` when the topic is done.
 6. **Only then** tell the user it is locked ("✓ Locked.").
 
-Before every vault write, read `_doc-rules.md` if it exists (and `~/.claude/blueprint/doc-rules.md`
+Before every write to the decisions folder, read `_doc-rules.md` if it exists (and `~/.claude/blueprint/doc-rules.md`
 for rules valid in every project; the project file wins on conflicts).
 
 ## 10. Checks, audit and the live log
@@ -468,7 +468,7 @@ Who to ask, and what.
 tags: [index]
 ---
 
-# Vault Index
+# Decisions Index
 
 ## Top
 - [[_architecture]] · [[_sections]] · [[_current-task]]
@@ -504,8 +504,8 @@ them.
 
 ### `_doc-rules.md`
 Plain Markdown, frontmatter `tags: [index]`, one rule per bullet ("every external API gets a table
-of its error codes", "write the vault in Italian"). Written by the user, or by you when the user
-says "from now on, always …" about the docs. Read before every vault write. Never turned into
+of its error codes", "write the decisions in Italian"). Written by the user, or by you when the user
+says "from now on, always …" about the docs. Read before every write to the decisions folder. Never turned into
 decisions.
 
 ### `Vocabulary/` — exact shapes

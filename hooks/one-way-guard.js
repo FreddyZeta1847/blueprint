@@ -46,7 +46,7 @@ function blockMarkdown(input, vaultRoot, projectDir, rel, ids) {
     'A decision that is hard to change later (Reversibility: one-way) always needs the user\'s clear OK — ' +
     'even in an area the user handed to Claude, and in every permission mode.\n\n' +
     'Nothing in this write was saved. Ask the user about this decision in plain words (what it is, why it is hard to undo, ' +
-    'what you recommend). When they agree, write the block again with `Decided by: user` (`Deciso da: utente` in an Italian vault). If it is really easy to change ' +
+    'what you recommend). When they agree, write the block again with `Decided by: user` (`Deciso da: utente` in Italian decisions). If it is really easy to change ' +
     'later, correct `Reversibility` as its own explained decision — never relabel it just to get past this check.'
   );
 }

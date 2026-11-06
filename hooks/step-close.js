@@ -8,10 +8,12 @@
  *      finished, record it in blueprint/plan.json (the plan-guard checks the order); tick the
  *      topics that are done";
  *   2. vault: the changes touch parts of the project with recorded decisions → ask the user
- *      "did this work change the foundations?" and update the vault if yes.
+ *      "did this work change a written decision?" and record the correction if yes.
  *      With ownership maps (modules.json in foundations/ / sections/ folders) only files owned
  *      by a part with at least one decision count; without any map, any changed source file
  *      counts as long as the vault holds at least one decision.
+ * Before both: a draft context card (no `Confirmed:` line) → remind once per version of the card
+ * that get-context is not finished (lib/card.js).
  * Nothing changed → no reminder. Each asked-about set is remembered by hash (vault:
  * _index/step-close.json; no vault: blueprint-step-close.json inside the git dir), so the same
  * set never blocks twice. `stop_hook_active` always exits.
@@ -28,6 +30,8 @@ const { execFileSync } = require('child_process');
 const { readStdinJson, projectDirOf, findVaultRoot, readPlan, relInside, readJson, writeJson } = require('./lib/common');
 const { isIgnoredSourcePath } = require('./lib/ignore');
 const vault = require('./lib/vault');
+const { readCard, openList } = require('./lib/card');
+const os = require('os');
 
 const MAX_REMEMBERED = 50;
 const MAX_LISTED = 5;
@@ -103,10 +107,40 @@ function vaultReason(files) {
   const more = files.length > MAX_LISTED ? ` and ${files.length - MAX_LISTED} more` : '';
   return (
     `This session changed files covered by recorded decisions (${listed}${more}). ` +
-    'Ask the user, in plain words: "Did this work change the foundations — a decision, a contract or the architecture?" ' +
-    'If yes, update the decision blocks in the vault (foundations/, contracts/ or sections/) before ending. ' +
+    'Ask the user, in plain words: "Did this work change something we decided — a shared choice, a contract or the architecture?" ' +
+    'If yes, write the correction in the decisions folder (foundations/, contracts/ or sections/) before ending; only the user can make a one-way correction. ' +
     'If no, say so briefly and end your turn.'
   );
+}
+
+/** Where the "asked once" memory lives: the decisions folder's index, else the git dir, else a temp file. */
+function stateFileFor(projectDir, vaultRoot) {
+  if (vaultRoot) return path.join(vaultRoot, '_index', 'step-close.json');
+  try {
+    return path.join(git(['rev-parse', '--absolute-git-dir'], projectDir).trim(), 'blueprint-step-close.json');
+  } catch {
+    const id = crypto.createHash('sha1').update(path.resolve(projectDir)).digest('hex').slice(0, 12);
+    return path.join(os.tmpdir(), `blueprint-step-close-${id}.json`);
+  }
+}
+
+/**
+ * A draft context card means get-context is not finished. After a Discovery, a search or a long
+ * detour Claude may forget it: remind once per version of the card. Returns true when it spoke.
+ */
+function draftCardReminder(projectDir, vaultRoot) {
+  const card = readCard(projectDir);
+  if (!card || card.confirmed) return false;
+  const hash = crypto.createHash('sha1').update(`card:\n${card.text}`).digest('hex');
+  if (alreadyAsked(stateFileFor(projectDir, vaultRoot), hash)) return false;
+  const open = openList(card);
+  const reason =
+    '[Blueprint] Before you finish: get-context is not finished — blueprint/context.md is still a draft' +
+    `${open ? ` (open points: ${open})` : ''}. If you just came back from Discovery, a search or another detour, ` +
+    'go back to `blueprint:get-context` now: fill the points the results answer, ask what is still missing, then draw the conclusions and ask for the confirmation. ' +
+    "If you are already waiting for the user's answer, just end your turn. This reminder appears only once for this version of the card.";
+  process.stdout.write(JSON.stringify({ decision: 'block', reason }));
+  return true;
 }
 
 function main() {
@@ -114,6 +148,7 @@ function main() {
   if (!input || input.stop_hook_active) return;
   const projectDir = projectDirOf(input);
   const vaultRoot = findVaultRoot(projectDir);
+  if (draftCardReminder(projectDir, vaultRoot)) return;
   const stage = activeStage(readPlan(projectDir));
   if (!vaultRoot && !stage) return;
 

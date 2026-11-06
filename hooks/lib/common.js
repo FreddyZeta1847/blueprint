@@ -1,6 +1,6 @@
 /*
- * Blueprint hooks — shared plumbing: reading the hook payload, finding the vault (blueprint/vault/
- * first, legacy vault-<project>/ second) and blueprint/plan.json, path helpers
+ * Blueprint hooks — shared plumbing: reading the hook payload, finding the decisions folder
+ * (blueprint/decisions/ first, legacy vault-<project>/ second) and blueprint/plan.json, path helpers
  * that behave on native Windows (backslashes, any drive-letter case), JSON/text I/O, the audit
  * identity and the `_audit.md` writer.
  *
@@ -33,13 +33,14 @@ function projectDirOf(input) {
 }
 
 /**
- * The decision vault, or null when the project has none.
- * Blueprint 3 keeps it in `blueprint/vault/`; a legacy v1/v2 `vault-<project>/` folder at the
- * project root is still accepted when the new one does not exist.
+ * The decisions folder, or null when the project has none.
+ * Blueprint 3 keeps it in `blueprint/decisions/`; a legacy v1/v2 `vault-<project>/` folder at the
+ * project root is still accepted when the new one does not exist. (In the code it is still
+ * called the "vault", its v1/v2 name: vaultRoot, findVaultRoot, lib/vault.js.)
  */
 function findVaultRoot(projectDir) {
   try {
-    const modern = path.join(projectDir, 'blueprint', 'vault');
+    const modern = path.join(projectDir, 'blueprint', 'decisions');
     if (fs.statSync(modern).isDirectory()) return modern;
   } catch { /* not there: try the legacy folder */ }
   try {
@@ -52,7 +53,7 @@ function findVaultRoot(projectDir) {
   }
 }
 
-/** `<project>/blueprint/` — the folder holding context.md, plan.json, notes.json and vault/. */
+/** `<project>/blueprint/` — the folder holding context.md, plan.json, notes.json and decisions/. */
 function blueprintDirOf(projectDir) {
   return path.join(projectDir, 'blueprint');
 }

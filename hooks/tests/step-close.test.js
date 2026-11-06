@@ -1,6 +1,6 @@
 /*
  * Integration tests for hooks/step-close.js (Stop, H11): the end-of-step question "did this work
- * change the foundations?". Asked once per set of changed source files, only when the changes
+ * change something we decided?". Asked once per set of changed source files, only when the changes
  * touch parts with recorded decisions (via modules.json, or any decision when there is no map),
  * never when stop_hook_active is set, never for docs / Markdown / vault-only changes.
  * v3: with an in_progress stage in blueprint/plan.json, the same once-only block also reminds
@@ -129,5 +129,21 @@ test('a todo-only plan does not nag; with a vault both reminders share one block
   write(path.join(dir, 'src', 'b.js'), 'y');
   reason = blocked(runHook('step-close.js', stop(dir)));
   assert.match(reason, /record it in blueprint\/plan\.json/);
-  assert.match(reason, /change the foundations/);
+  assert.match(reason, /change something we decided/);
+});
+
+test('a draft context card: reminds once per version of the card that get-context is not finished', () => {
+  const { dir } = makeProject({ vault: null });
+  const card = path.join(dir, 'blueprint', 'context.md');
+  const CARD = (...lines) => ['# Context — X', ...lines, ''].join('\n');
+  write(card, CARD('Pace: calm', '', '## Answers', '- **goal** · user — g', '- **timing** · open — ?'));
+  const first = blocked(runHook('step-close.js', stop(dir)));
+  assert.match(first, /get-context is not finished — blueprint\/context\.md is still a draft \(open points: timing\)/);
+  assert.match(first, /waiting for the user's answer, just end your turn/);
+  assert.equal(blocked(runHook('step-close.js', stop(dir))), null, 'same card: asked only once');
+  assert.equal(blocked(runHook('step-close.js', stop(dir, true))), null, 'never when stop_hook_active');
+  write(card, CARD('Pace: calm', '', '## Answers', '- **goal** · user — g', '- **timing** · user — none'));
+  assert.match(blocked(runHook('step-close.js', stop(dir))), /still a draft\./, 'a new version of the draft: reminded again');
+  write(card, CARD('Confirmed: 2026-11-06', 'Pace: calm', '', '## Answers', '- **goal** · user — g', '- **timing** · user — none'));
+  assert.equal(blocked(runHook('step-close.js', stop(dir))), null, 'confirmed: silent');
 });

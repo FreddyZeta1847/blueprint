@@ -3,7 +3,7 @@
  * compiled index, with no atoms.json on disk (H1), unreadable-block reports (H2), scoped Review
  * checks (H3), audit without the old profile flag (H4), Used-by check (H5), module-map ignore
  * list (H6), no _full-context.md mirror any more, the cheap Bash path (H8), the v3 Stage check
- * and the blueprint/vault/ location. Each test builds a temp project and runs the real hook.
+ * and the blueprint/decisions/ location. Each test builds a temp project and runs the real hook.
  *
  * Run: node --test hooks/tests/*.test.js
  */
@@ -198,11 +198,11 @@ test('Windows-style payload paths (backslashes, lower-case drive letter) are und
   assert.ok(read(path.join(vault, '_index', 'decisions.json')));
 });
 
-test('the v3 vault lives in blueprint/vault/ and wins over a legacy vault-*/ folder', () => {
+test('the v3 decisions folder lives in blueprint/decisions/ and wins over a legacy vault-*/ folder', () => {
   const { dir } = makeProject({ vault: null });
   const legacy = path.join(dir, 'vault-old');
   fs.mkdirSync(legacy, { recursive: true });
-  const vault = path.join(dir, 'blueprint', 'vault');
+  const vault = path.join(dir, 'blueprint', 'decisions');
   const md = write(path.join(vault, 'foundations', 'DB', 'DB.md'), block({ id: 'db-engine', choice: 'PG' }));
   runHook('file-watcher.js', writePayload(dir, md));
   assert.ok(read(path.join(vault, '_index', 'decisions.json')));

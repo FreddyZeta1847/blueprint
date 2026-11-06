@@ -1,7 +1,7 @@
 /*
  * Integration tests for hooks/orientation.js (SessionStart, v3): with blueprint/plan.json, a few
  * short lines (current stage i/n, type, phase and/or topics done — no counter without topics —,
- * deadline and "overdue", new notes, the "not opened yet" instruction for a todo stage); with a vault, the open discussion to resume
+ * deadline and "overdue", new notes, the "not opened yet" instruction for a todo stage); the context card (a draft → resume get-context; confirmed without a plan → create-plan; none and no plan → get-context); with a vault, the open discussion to resume
  * and a capped digest of confirmed one-way decisions (≤ 1.5 KB); with neither, silence.
  * Never fails a session.
  *
@@ -58,11 +58,11 @@ test('a todo current stage gets the "not opened yet" line; per_step shows topics
   const { dir } = makeProject({ vault: null });
   writePlan(dir, [
     FOUNDATIONS,
-    { id: 'ux-check', name: 'UX check', type: 'verification', status: 'todo', deadline: '2999-12-31',
-      topics: [{ name: 'Test with 3 users', done: false }] },
+    { id: 'admin-design', name: 'Admin design', type: 'discussion', status: 'todo', deadline: '2999-12-31',
+      topics: [{ name: 'Look of the admin area', done: false }] },
   ]);
   const ctx = contextOf(runHook('orientation.js', start(dir)));
-  assert.match(ctx, /stage 2\/2 «UX check» \(verification\) · topics 0\/1 · deadline 2999-12-31/);
+  assert.match(ctx, /stage 2\/2 «Admin design» \(discussion\) · topics 0\/1 · deadline 2999-12-31/);
   assert.doesNotMatch(ctx, /overdue/);
   assert.doesNotMatch(ctx.split('\n')[0], /phase/);
   assert.match(ctx, /Not opened yet: before starting, tell the user its topics \(if any\), phases and how you would do it, and wait for the OK\./);
@@ -89,9 +89,9 @@ test('every stage done: says so; an unreadable plan is reported', () => {
   assert.match(contextOf(res), /plan\.json is unreadable/);
 });
 
-test('a vault (blueprint/vault/) adds the discussion to resume and the one-way digest, within 1.5 KB', () => {
+test('a decisions folder (blueprint/decisions/) adds the discussion to resume and the one-way digest, within 1.5 KB', () => {
   const { dir } = makeProject({ vault: null });
-  const vault = path.join(dir, 'blueprint', 'vault');
+  const vault = path.join(dir, 'blueprint', 'decisions');
   writePlan(dir, [{ id: 'foundations', name: 'Foundations', type: 'discussion', status: 'in_progress', topics: [{ name: 'Stack', done: false }] }]);
   write(path.join(vault, '_current-task.md'), '---\ntags: [index]\n---\n# Now discussing — CLOUD\nhalf way\n');
   write(path.join(vault, '_index', 'decisions.json'), JSON.stringify(bigIndex(60)));
@@ -100,7 +100,7 @@ test('a vault (blueprint/vault/) adds the discussion to resume and the one-way d
   const ctx = contextOf(runHook('orientation.js', start(dir)));
   assert.ok(ctx.length <= 1500, `length ${ctx.length}`);
   assert.match(ctx, /stage 1\/1 «Foundations»/);
-  assert.match(ctx, /blueprint\/vault\/_current-task\.md \(Now discussing — CLOUD\)/);
+  assert.match(ctx, /blueprint\/decisions\/_current-task\.md \(Now discussing — CLOUD\)/);
   assert.match(ctx, /decision-number-0/);
   assert.match(ctx, /more/);
   assert.doesNotMatch(ctx, /OLD QUEUE ENTRY/);
@@ -118,9 +118,42 @@ test('a legacy vault-*/ folder without a plan still orients', () => {
   assert.match(ctx, /vault-demo\/_current-task\.md/);
 });
 
-test('no plan and no vault: silent', () => {
+test('no plan, no card, no decisions: one line — every new request starts with get-context', () => {
   const { dir } = makeProject({ vault: null });
   const res = runHook('orientation.js', start(dir));
   assert.equal(res.status, 0);
-  assert.equal(res.stdout, '');
+  const ctx = contextOf(res);
+  assert.match(ctx, /^\[Blueprint\] No plan here: every new request starts with `blueprint:get-context` \(a tiny one: one line of confirmation, no files\)\./);
+  assert.match(ctx, /blueprint:using-blueprint/);
+  assert.equal(ctx.split('\n').length, 1);
+});
+
+const CARD = (confirmed, points) =>
+  ['# Context — Gym bookings', ...(confirmed ? ['Confirmed: 2026-11-06'] : []), 'Pace: calm', '', '## Answers', ...points, ''].join('\n');
+
+test('a draft context card: resume get-context, with the open points (also with a plan)', () => {
+  const { dir } = makeProject({ vault: null });
+  write(path.join(dir, 'blueprint', 'context.md'), CARD(false, [
+    '- **goal** · user — booking site',
+    '- **timing** · open — no deadline yet',
+    '- **roles** · aperto — who decides hosting',
+  ]));
+  let ctx = contextOf(runHook('orientation.js', start(dir)));
+  assert.match(ctx, /Context in progress: blueprint\/context\.md is a draft\. Resume `blueprint:get-context` \(open points: timing, roles\)\./);
+  assert.doesNotMatch(ctx, /No plan here/);
+  writePlan(dir, [FOUNDATIONS, { id: 'demo', name: 'Demo', type: 'delivery', status: 'todo' }]);
+  ctx = contextOf(runHook('orientation.js', start(dir)));
+  assert.match(ctx, /stage 2\/2 «Demo»/);
+  assert.match(ctx, /Context in progress/);
+  assert.equal((ctx.match(/using-blueprint/g) || []).length, 1);
+});
+
+test('a confirmed card without a plan: go on with create-plan; with a plan: nothing about the card', () => {
+  const { dir } = makeProject({ vault: null });
+  write(path.join(dir, 'blueprint', 'context.md'), CARD(true, ['- **goal** · user — booking site']));
+  let ctx = contextOf(runHook('orientation.js', start(dir)));
+  assert.match(ctx, /Context confirmed, no plan yet: go on with `blueprint:create-plan`\./);
+  writePlan(dir, [FOUNDATIONS, { id: 'demo', name: 'Demo', type: 'delivery', status: 'todo' }]);
+  ctx = contextOf(runHook('orientation.js', start(dir)));
+  assert.doesNotMatch(ctx, /Context (confirmed|in progress)|No plan here/);
 });
