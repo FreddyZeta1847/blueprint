@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.0.0-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.0.1-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -309,6 +309,8 @@ TEST-FINDINGS.md  what the live test runs found, and what was fixed
 ```
 
 ## Status
+
+v3.0.1 — Discovery maps the code first with the user's code-mapping tool (a knowledge graph, a code index), then reads single files only where the map is not enough.
 
 v3.0.0 — the pipeline from the first message to a staged plan: a context derived before it is
 asked, a plan built on written best practices, a fixed loop for every stage type (each opening

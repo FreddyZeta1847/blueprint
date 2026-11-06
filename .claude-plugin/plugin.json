@@ -1,6 +1,6 @@
 {
   "name": "blueprint",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "From the first message to a staged plan: a context derived before it is asked, a plan built on written best practices, a fixed loop for every stage, and a decisions folder when the project needs one.",
   "author": { "name": "FreddyZeta1847" },
   "hooks": "./hooks/hooks.json"

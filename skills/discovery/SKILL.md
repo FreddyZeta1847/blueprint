@@ -43,6 +43,11 @@ the code, the README and any docs folder.
 
 ## 3. Read the code and the docs
 
+- **Map the code first.** If the user has a code-mapping tool (a knowledge graph of the codebase,
+  a code index — their `CLAUDE.md` or tool list says which), use it before reading files one by
+  one: build the map if the project has none, update it if it is old, then ask it the questions
+  below (the parts, how they talk, the entry points, the external systems). Read individual files
+  only where the map is not enough. Without such a tool, read as described next.
 - Read the README, any `docs/` folder and the key configuration files (package manifests, CI
   workflows, infrastructure files, Docker files). Facts written there are part of the result.
 - For a large codebase, fan out read-only exploration agents (one per module or major boundary)
