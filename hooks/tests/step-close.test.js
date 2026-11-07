@@ -147,3 +147,18 @@ test('a draft context card: reminds once per version of the card that get-contex
   write(card, CARD('Confirmed: 2026-11-06', 'Pace: calm', '', '## Answers', '- **goal** · user — g', '- **timing** · user — none'));
   assert.equal(blocked(runHook('step-close.js', stop(dir))), null, 'confirmed: silent');
 });
+
+test('a draft context card: no reminder while Claude has just asked the user something', () => {
+  const { dir } = makeProject({ vault: null });
+  write(path.join(dir, 'blueprint', 'context.md'), '# Context — X\nPace: calm\n\n## Answers\n- **timing** · open — ?\n');
+  const said = (text) => JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } });
+  const transcript = path.join(dir, 't.jsonl');
+  // last message ends with a question (markdown around it is ignored): waiting, so no duplicate message
+  write(transcript, [said('Ho salvato la bozza.'), said('**2. Ci sono scadenze?**')].join('\n'));
+  assert.equal(blocked(runHook('step-close.js', stop(dir))), null);
+  // the host may send the last message directly
+  assert.equal(blocked(runHook('step-close.js', { ...stop(dir), last_assistant_message: 'Per chi è il sito?' })), null);
+  // nothing was remembered: once Claude stops without asking, the reminder comes
+  write(transcript, said('Fatto, torno alla Discovery.'));
+  assert.match(blocked(runHook('step-close.js', stop(dir))), /get-context is not finished/);
+});

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.0.1-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.0.2-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -141,7 +141,7 @@ through and what each phase must produce. It never says how.
 | Type | For | Phases |
 |---|---|---|
 | `discussion` | deciding, no production code | context check → divergent proposal → convergence (you) → decision — for each topic |
-| `implementation` | building parts; tests and review close it | context check → plan → build → test → review → *integrate* (you) |
+| `implementation` | building parts; tests, review and the first-use check close it | context check → plan → build → test → review → **first use** (you see it working) → *integrate* (you) |
 | `delivery` | something to show, fast and low-risk: mockup, small demo on what exists, presentation, video, document | context check → prepare → *rehearse* (you) → deliver (you) → feedback |
 | `quick_task` | a short, low-risk job: a mockup, an unknown to find out, a check, a small fix | context check → do → check → report (you) |
 
@@ -309,6 +309,16 @@ TEST-FINDINGS.md  what the live test runs found, and what was fixed
 ```
 
 ## Status
+
+v3.0.2 — fixes from a full end-to-end run of a real project: implementation stages get a
+mandatory **first-use** phase (the work started with the user's own instructions, every way of
+starting it, a fresh empty store then sample data, the real clock, every action tried, screenshots
+to the user — green tests do not replace it); a third place for decisions (a single
+`blueprint/decisions.md` for light work), and every stage type records the choices it settles;
+anything the user judges by looking is shown as real images; a mockup stage is defended once when
+dropped from work where the look matters; a stage closes in one coherent write and its closing
+travels in its own PR; the draft-card reminder stays quiet while Claude is waiting for the user's
+answer.
 
 v3.0.1 — Discovery maps the code first with the user's code-mapping tool (a knowledge graph, a code index), then reads single files only where the map is not enough.
 

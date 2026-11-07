@@ -123,12 +123,16 @@ Show the plan in chat in plain words, one block per stage. Example:
 > Anything to change?
 
 - Say in one line why each stage sits where it is when it is not obvious.
-- Propose the decisions folder according to the card's `documentation` answer; the user
-  confirms.
+- Propose where the decisions live according to the card's `documentation` answer (decisions
+  folder, single decisions file `blueprint/decisions.md`, or the card); the user confirms.
 - Real alternatives (for example "demo first or backend first?") → a multiple-choice question,
   recommendation first.
 - Discuss until the user says OK. Push back once if they drop something you think is needed (say
-  what is traded away), then follow their call.
+  what is traded away), then follow their call. **Always push back once** when the user drops a
+  mockup / design-direction stage from work where the look matters (a website, an app, a
+  presentation): say concretely what is lost (the look is chosen without seeing it, and a bad one
+  is found only at the end), then follow their call — the implementation still shows real mockups
+  before building.
 
 ## 5. Write `blueprint/plan.json` — only after the OK
 
@@ -179,7 +183,9 @@ Show the plan in chat in plain words, one block per stage. Example:
   optional in implementation, delivery and quick task stages (the parts to do, when there are
   several). Each topic is `{ "name", "done" }`; `phase` and `postponed` are added while the stage
   runs (§7).
-- Only the main session writes this file, with `Write` or `Edit`.
+- Only the main session writes this file, with `Write` or `Edit` — never with the shell
+  (`cat >`, `printf >`, heredocs): the hooks check only Write and Edit. The same holds for every
+  file in `blueprint/`.
 
 **The plan-guard hook checks every write.** If it refuses, read its reason, fix the file and
 write again. Never work around it. If it asks for confirmation (a `done` stage being changed),
@@ -240,7 +246,7 @@ different tools serve different phases. Then wait for the OK.
 
 > Stage 2 "Frontend demo" (implementation). Topics: calendar, booking (independent).
 > Context: enough — the API contract and the stack are written in the decisions.
-> Phases: context check → plan → build → test → review → integrate.
+> Phases: context check → plan → build → test → review → first use (started with your own instructions, a fresh database, every action tried) → integrate.
 > How: the two parts in parallel on the fixed API contract. OK?
 
 The "how" is yours to propose with whatever the user has (their own skills, plugins, agents,
@@ -262,13 +268,27 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   says it `produces`;
 - a phase marked `user: true` needs the user (a choice, a delivery, an outcome to see): stop there
   and ask;
+- **`first_use` (implementation) is never a formality.** Green tests prove the code does what the
+  tests ask, not that the product works for the person who opens it. Start the work exactly with
+  the instructions you will give the user, in every way of starting it you offer (e.g. a single
+  server *and* a dev server + backend), on a fresh empty store (the page must say what is missing)
+  and then with sample data, with the real clock; try every action as a first-time user would
+  (every write, every page, the first screen they see); send the screenshots and the start-up
+  instructions to the user, who tries it too. Anything that fails goes back to `build`. Never give
+  the user start-up instructions you have not run yourself;
 - if a result is not good enough, go back to the phase in its `back_to`, nowhere else;
 - an optional phase is skipped only with a reason in `skipped`;
 - a phase, once set, is never removed;
 - if the work shows that a written decision is wrong (an implementation hits a limit, a delivery's
-  feedback rejects it), stop and tell the user. The correction is written in the decisions folder
-  like any decision, with this stage as its `Stage` (a one-way correction is the user's to make);
-  if it changes later stages, propose the re-planning (§6);
+  feedback rejects it), stop and tell the user. The correction is written where the card's
+  `documentation` answer keeps decisions, like any decision, with this stage as its `Stage` (a
+  one-way correction is the user's to make); if it changes later stages, propose the re-planning
+  (§6);
+- every stage type records the choices it settles (a quick task's parameters, the direction a
+  delivery's feedback rounds converge on) in the same place: decisions folder, single decisions file
+  or the card (`blueprint:docs-management` §1). A choice that lives only in the chat is lost;
+- anything the user must judge by looking (a mockup, a page, a design) is shown as **real images**
+  or a running page, never only described in words; the user's OK counts only on what they saw;
 - in a discussion stage, a topic that is postponed stays `done: false` and gets
   `"postponed": "<reason>"`: tell the user why, and move it to a later stage when you re-plan.
 
@@ -277,7 +297,11 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
 When the type's `done_when` holds: tick the finished topics `done: true` (all of them in a
 per-stage type; in a discussion stage every topic must be done or carry
 `"postponed": "<reason>"`, which the plan-guard checks), set `status: "done"`, and tell the
-user in one line what the stage produced. Then ask whether the rest of the plan still holds (a
+user in one line what the stage produced. Do it in **one coherent write** (topics, final phase and
+status together; the next stage's opening may go in the same write): two separate edits leave the
+plan inconsistent in between. In a project under git where `main` takes only approved PRs, the
+closing travels in the stage's own PR — for the **last** stage too, so no extra PR is needed for
+the plan alone. Then ask whether the rest of the plan still holds (a
 result can change later stages → re-planning, §6), and whether to open the next stage.
 
 ## What NOT to do

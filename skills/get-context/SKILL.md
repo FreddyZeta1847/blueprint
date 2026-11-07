@@ -85,9 +85,15 @@ Points that need care:
 - **`parts`** — name the parts (frontend, backend, app, documents…) and say which ones can be
   built **independently** once their shared contracts are fixed. This is what lets the plan work in
   parallel.
-- **`documentation`** — you propose, the user confirms. Propose a **decisions folder** for a
-  project, high risk, several areas of choices or client work; propose **the card alone** for small
-  and medium work. A "decisions folder" answer means the plan will create `blueprint/decisions/`.
+- **`documentation`** — you propose, the user confirms. Three answers:
+  - **decisions folder** — for a project, high risk, several areas of choices or client work; the
+    plan will create `blueprint/decisions/`;
+  - **a single decisions file** (`blueprint/decisions.md`) — for light work that still takes
+    choices worth keeping: a redesign or mockups (design direction, colours, "no dark
+    backgrounds"), a few quick tasks, a small feature;
+  - **the card alone** — for tiny or one-off work where nothing needs to outlive the session.
+  Whatever the answer, every stage type (discussion, implementation, delivery feedback, quick task)
+  writes the decisions it takes into that place (`blueprint:docs-management` §1).
 
 ## 4. Draw the conclusions
 

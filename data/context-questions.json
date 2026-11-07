@@ -11,6 +11,6 @@
     { "id": "constraints", "ask": "Budget, mandatory technologies, rules (personal data, NDA)?", "why": "choices already decided" },
     { "id": "roles", "ask": "What do you decide, and what do you leave to Claude?", "why": "who decides each area of choices" },
     { "id": "parts", "ask": "Which parts is the work made of (frontend, backend, app, documents...)?", "why": "parallel work: independent parts get their contracts discussed first" },
-    { "id": "documentation", "ask": "Do we keep the decisions in a decisions folder, or is the context card enough?", "why": "Claude proposes, the user confirms" }
+    { "id": "documentation", "ask": "Where do we keep the decisions: a decisions folder, a single decisions file, or the context card alone?", "why": "Claude proposes, the user confirms" }
   ]
 }

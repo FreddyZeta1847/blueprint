@@ -13,7 +13,8 @@
  *      by a part with at least one decision count; without any map, any changed source file
  *      counts as long as the vault holds at least one decision.
  * Before both: a draft context card (no `Confirmed:` line) → remind once per version of the card
- * that get-context is not finished (lib/card.js).
+ * that get-context is not finished (lib/card.js) — but not when Claude's last message already ends
+ * with a question to the user (it is waiting; the reminder would only cause a duplicate message).
  * Nothing changed → no reminder. Each asked-about set is remembered by hash (vault:
  * _index/step-close.json; no vault: blueprint-step-close.json inside the git dir), so the same
  * set never blocks twice. `stop_hook_active` always exits.
@@ -25,6 +26,7 @@
  */
 
 const crypto = require('crypto');
+const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { readStdinJson, projectDirOf, findVaultRoot, readPlan, relInside, readJson, writeJson } = require('./lib/common');
@@ -124,13 +126,38 @@ function stateFileFor(projectDir, vaultRoot) {
   }
 }
 
+/** Claude's last text in this turn: `last_assistant_message` when the host sends it, else the transcript's tail. */
+function lastAssistantText(input) {
+  if (typeof input.last_assistant_message === 'string') return input.last_assistant_message;
+  if (!input.transcript_path) return '';
+  try {
+    const lines = fs.readFileSync(input.transcript_path, 'utf8').trimEnd().split('\n').slice(-200).reverse();
+    for (const line of lines) {
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      const content = entry && entry.type === 'assistant' && entry.message && entry.message.content;
+      const texts = Array.isArray(content) ? content.filter((b) => b && b.type === 'text' && b.text.trim()) : [];
+      if (texts.length) return texts[texts.length - 1].text;
+    }
+  } catch { /* unreadable transcript: no text */ }
+  return '';
+}
+
+/** True when the text ends by asking the user something (markdown and closing quotes ignored). */
+function endsWithQuestion(text) {
+  return /\?\s*$/.test(String(text).replace(/[\s*_`»”"')\]]+$/u, ''));
+}
+
 /**
  * A draft context card means get-context is not finished. After a Discovery, a search or a long
- * detour Claude may forget it: remind once per version of the card. Returns true when it spoke.
+ * detour Claude may forget it: remind once per version of the card. Not while Claude has just asked
+ * the user something (it is waiting, the reminder would only produce a duplicate message): in that
+ * case nothing is remembered, so the reminder can still come on a later turn. Returns true when it spoke.
  */
-function draftCardReminder(projectDir, vaultRoot) {
+function draftCardReminder(projectDir, vaultRoot, input = {}) {
   const card = readCard(projectDir);
   if (!card || card.confirmed) return false;
+  if (endsWithQuestion(lastAssistantText(input))) return false;
   const hash = crypto.createHash('sha1').update(`card:\n${card.text}`).digest('hex');
   if (alreadyAsked(stateFileFor(projectDir, vaultRoot), hash)) return false;
   const open = openList(card);
@@ -148,7 +175,7 @@ function main() {
   if (!input || input.stop_hook_active) return;
   const projectDir = projectDirOf(input);
   const vaultRoot = findVaultRoot(projectDir);
-  if (draftCardReminder(projectDir, vaultRoot)) return;
+  if (draftCardReminder(projectDir, vaultRoot, input)) return;
   const stage = activeStage(readPlan(projectDir));
   if (!vaultRoot && !stage) return;
 

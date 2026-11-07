@@ -22,9 +22,10 @@
         { "id": "build", "produces": "the parts built" },
         { "id": "test", "produces": "green tests", "back_to": "build" },
         { "id": "review", "produces": "review passed", "back_to": "build" },
+        { "id": "first_use", "user": true, "produces": "the first-use check passed: the work started exactly with the instructions the user will get, in every way of starting it that is offered, on a fresh empty store and then with sample data, with the real clock; every action tried as a first-time user would (every write, every page); screenshots sent to the user. Green tests do not replace it", "back_to": "build" },
         { "id": "integrate", "optional": true, "when": "the work must be merged into a main line", "user": true, "produces": "work merged" }
       ],
-      "done_when": "green tests, review passed, work merged if planned"
+      "done_when": "green tests, review passed, first-use check passed, work merged if planned"
     },
     "delivery": {
       "purpose": "Make something to show, quickly and at low risk: a mockup, a small demo on code or infrastructure that already exists, a presentation, a video, a document. Not new production features: those are implementation.",

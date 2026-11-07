@@ -28,6 +28,13 @@ Everything Blueprint keeps in a project sits in one folder at the repo root:
 | `blueprint/plan.json` | the main session only, after the user's OK | stages, topics, current phase, how, deadlines, independent parts. Format in `blueprint:create-plan` §5; checked by the plan-guard hook |
 | `blueprint/notes.json` | the user (optional) | notes per stage: `{ "notes": [{ "stage": "<id>", "text": "...", "read": false }] }`. Read them when a stage opens; mark them `read` once told to the user |
 | `blueprint/decisions/` | Claude, checked by the hooks | **only decisions**: those taken in discussions, and the corrections an implementation or a delivery forces on them — filed by shared area, contract and section. Created **only when the card's `documentation` answer says a decisions folder is needed** |
+| `blueprint/decisions.md` | Claude | the **single decisions file**, when the card's `documentation` answer chose it: one `## <stage name>` section per stage, one bullet per decision (`- **<the choice>** — why; one-way/two-way; decided by user/Claude; date`). Every stage type writes here: discussions, implementation corrections, the choices a delivery's feedback rounds settle ("warmer colours, no dark backgrounds"), quick tasks. Not parsed by the hooks |
+
+**Where a stage writes its decisions**, by the card's `documentation` answer: decisions folder →
+`blueprint/decisions/`; single file → `blueprint/decisions.md`; card alone → the card's
+`## Decisions` section. This holds for **every** stage type, not only discussions: a choice settled
+in a quick task or in the feedback of a delivery is a decision too, and it must not live only in the
+chat.
 
 Other folders that the execution of a stage may create inside `blueprint/` are not Blueprint's: never
 read them as decisions and never write them from a Blueprint step.

@@ -30,8 +30,14 @@ The rules that matter most here:
 | **Section** | A piece of value for the end user | `sections/SEZ/SEZ.md` (+ `SEZ--details.md`) |
 | **Note** | A small decision inside an existing area or section | a block in that file |
 
-**No decisions folder** (the card says the card is enough): the decisions go in plain words into
-the context card, under a `## Decisions` section after the answers, with the one-way ones marked.
+**No decisions folder**: with the **single decisions file** answer the decisions go into
+`blueprint/decisions.md` (format in `blueprint:docs-management` §1); with **the card alone** they go
+in plain words into the context card, under a `## Decisions` section after the answers. Mark the
+one-way ones in both cases.
+
+**Form fixes the checks ask for** (a link to a section that does not exist yet, a missing
+registry entry, a misplaced block) are two-way bookkeeping: settle them yourself and say so in one
+line. Do not turn them into a question for the user.
 
 A section discussion is usually light: most of it is detail Claude settles. It becomes a real
 discussion only where it touches a shared area (then that part is an addition or a revision of

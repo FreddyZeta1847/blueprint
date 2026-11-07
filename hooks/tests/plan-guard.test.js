@@ -153,11 +153,22 @@ test('a per_stage stage cannot be done before the last mandatory phase, nor with
   const sk = undefined;
   const p = setup(planOf([impl({ status: 'in_progress', phase: 'test', skipped: sk })]));
   const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
-  expectDecision(writePlan(p, planOf([impl({ status: 'done', phase: 'test', skipped: sk, topics: doneTopics })])), 'deny', /done before the phase "review"/);
+  expectDecision(writePlan(p, planOf([impl({ status: 'done', phase: 'test', skipped: sk, topics: doneTopics })])), 'deny', /done before the phase "first_use"/);
 
-  const q = setup(planOf([impl({ status: 'in_progress', phase: 'review', skipped: sk })]));
-  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'review', skipped: sk })])), 'deny', /some topics are not/);
-  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'review', skipped: sk, topics: doneTopics })])), 'allow');
+  const q = setup(planOf([impl({ status: 'in_progress', phase: 'first_use', skipped: sk })]));
+  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'first_use', skipped: sk })])), 'deny', /some topics are not/);
+  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'first_use', skipped: sk, topics: doneTopics })])), 'allow');
+});
+
+test('implementation: the first-use check is mandatory — review cannot jump to integrate or done', () => {
+  const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
+  const r = setup(planOf([impl({ status: 'in_progress', phase: 'review' })]));
+  expectDecision(writePlan(r, planOf([impl({ status: 'in_progress', phase: 'integrate' })])), 'deny', /first_use/);
+  expectDecision(writePlan(r, planOf([impl({ status: 'done', phase: 'review', topics: doneTopics })])), 'deny', /done before the phase "first_use"/);
+  expectDecision(writePlan(r, planOf([impl({ status: 'in_progress', phase: 'first_use' })])), 'allow');
+  // a failed first-use check goes back to build
+  const f = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
+  expectDecision(writePlan(f, planOf([impl({ status: 'in_progress', phase: 'build' })])), 'allow');
 });
 
 test('per_step: a topic done before the decision phase is denied; a new topic starts at clarify', () => {
