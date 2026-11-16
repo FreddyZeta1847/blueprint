@@ -42,8 +42,10 @@ const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
 
 async function refresh($: any, options: any): Promise<void> {
   if (!main) return
-  summary = await sessionsSummary($, main, lastPlan).catch(() => summary)
-  const plan = await readPlan($, main, summary)
+  // plan first (the summary needs the current stage's parts), then the plan again with the summary
+  const bare = await readPlan($, main)
+  summary = await sessionsSummary($, main, bare ?? lastPlan).catch(() => summary)
+  const plan = bare && (await readPlan($, main, summary))
   const hasPlanFile = await $.fs.exists(`${main}/blueprint/plan.json`).catch(() => false)
   unreadable = !plan && hasPlanFile && !!lastPlan
   if (plan) lastPlan = plan
@@ -118,7 +120,11 @@ export const register: Register = (on, options) => {
     await read($, tick) // redraw on every refresh
     const current = await read($, view)
     if (!main || !lastPlan) return <Text dimColor>{tr(lang, 'noPlan')}</Text>
-    const ctx: ViewCtx = { el, lang, main, surface: String(e.surface) }
+    const ctx: ViewCtx = {
+      el, lang, main, surface: String(e.surface),
+      columns: Number((e as any).props?.bodyColumns ?? 48),
+      options: { notifyWhenWaiting: (options as any)?.notifyWhenWaiting === true },
+    }
     const choose = (v: PanelView) => () => void update($, view, () => v)
     return (
       <Box flexDirection="column" gap={1}>

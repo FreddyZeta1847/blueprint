@@ -4,7 +4,7 @@
  * command, and the one-shot push notification when it becomes the user's turn.
  * Hooks on `on` stand for the engine and record what the mod asked for.
  */
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 const MAIN = 'C:/proj'
 const LOOPS = JSON.stringify({ types: {
@@ -39,7 +39,7 @@ function engine(on: any, world: World) {
   on('ui.close', (_: any, e: any) => { seen.closed.push(e.id); return { value: undefined } })
   on('ui.panes', () => ({ value: (world.panes ?? []).map(id => ({ id, title: 'Blueprint', isShown: true, isFocused: false })) }))
   on('ui.status', (_: any, e: any) => { seen.status.push(e.text); return { value: undefined } })
-  on('clock.every', () => ({ value: { cancel() {} } }))
+  mock.clock(on, { now: 0 })
   on('tool.call', (_: any, e: any) => { if (e.tool === 'PushNotification') seen.pushes.push(e.message); return { result: {} } })
   on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
   return seen

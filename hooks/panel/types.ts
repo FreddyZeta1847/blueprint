@@ -20,6 +20,8 @@ export type StageModel = {
   /** The loop's phases with their state, for the phase rail of an open stage. */
   phases: { id: string; state: PhaseState }[]
   yourTurn: boolean
+  /** Child sessions of this stage (matched to its parts), from the sessions summary; 0 elsewhere. */
+  kids: number
   deadline?: string
   independentParts: string[]
   topics: TopicModel[]
@@ -33,6 +35,7 @@ export type PlanModel = {
   currentIndex: number
 }
 
+/** kids: child sessions matched to the current stage's parts (any state, files older than 7 days excluded). */
 export type SessionsSummary = { kids: number; blocked: { worktree: string; reason: string }[] }
 
 /**
@@ -46,4 +49,8 @@ export type ViewCtx = {
   /** The main checkout's absolute path, with forward slashes. */
   main: string
   surface: string
+  /** The pane's width in columns (props.bodyColumns), to cut long names. */
+  columns: number
+  /** The plugin options the views show (the notification switch). */
+  options: { notifyWhenWaiting: boolean }
 }

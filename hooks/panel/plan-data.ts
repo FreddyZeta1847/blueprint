@@ -68,6 +68,7 @@ function toStage(stage: RawStage, loops: Loops, isCurrent: boolean, sessions?: S
     id: stage.id, name: stage.name, type: stage.type, status: stage.status, phase: stage.phase,
     segments, phases: rail,
     yourTurn: stage.status === 'in_progress' && segments.includes('stopped'),
+    kids: isCurrent ? sessions?.kids ?? 0 : 0,
     deadline: stage.deadline, independentParts: stage.independent_parts ?? [], how: stage.how,
     topics: (stage.topics ?? []).map((t, i) => ({
       name: t.name, done: !!t.done,
