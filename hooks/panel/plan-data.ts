@@ -78,7 +78,7 @@ function toStage(stage: RawStage, loops: Loops, isCurrent: boolean, sessions?: S
 
 export async function readPlan($: any, main: string, sessions?: SessionsSummary): Promise<PlanModel | null> {
   const raw = await readJson($, `${main}/blueprint/plan.json`)
-  const loops: Loops | null = await readJson($, `${$.plugin?.root ?? ''}/data/loops.json`)
+  const loops: Loops | null = await readJson($, `${$.plugin.root}/data/loops.json`)
   if (!raw || !Array.isArray(raw.stages) || !loops?.types) return null
   const stages = raw.stages as RawStage[]
   let current = stages.findIndex(s => s.status === 'in_progress')

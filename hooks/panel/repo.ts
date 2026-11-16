@@ -11,8 +11,8 @@ export function slug(name: string): string {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
 
-export async function findRepo($: any): Promise<{ main: string; worktree: string | null } | null> {
-  let dir = norm(await $.session.cwd())
+export async function findRepo($: any, cwd?: string): Promise<{ main: string; worktree: string | null } | null> {
+  let dir = norm(cwd ?? (await $.session.cwd()))
   for (let i = 0; i < 12 && dir; i++, dir = parent(dir)) {
     const stat = await $.fs.stat(`${dir}/.git`).catch(() => null)
     if (!stat) continue

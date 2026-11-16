@@ -35,8 +35,11 @@ export type PlanModel = {
 
 export type SessionsSummary = { kids: number; blocked: { worktree: string; reason: string }[] }
 
+/**
+ * What every view receives besides `$`. The engine forbids putting `$` in an object:
+ * views take it as their first parameter, e.g. renderPlanView($, ctx, plan).
+ */
 export type ViewCtx = {
-  $: any
   /** The surface's element table: $.ui.resolve(e). */
   el: any
   lang: Lang
