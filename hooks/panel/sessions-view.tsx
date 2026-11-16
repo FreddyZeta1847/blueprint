@@ -33,7 +33,7 @@ function ContextCell(ctx: ViewCtx, key: string, percent: number) {
   const { Box, Text, Svg } = ctx.el
   const p = Math.round(percent)
   const bar = Svg
-    ? <Svg key={`ctx:${key}`} source={contextBarSvg(p)} alt={`${tr(ctx.lang, 'context')} ${p}%`} />
+    ? <Box key={`ctx:${key}`}><Svg source={contextBarSvg(p)} alt={`${tr(ctx.lang, 'context')} ${p}%`} /></Box>
     : <Text color={p > 70 ? C.amber : C.muted}>{'█'.repeat(Math.round(p / 20)) + '░'.repeat(5 - Math.round(p / 20))}</Text>
   return <Box flexDirection="row" gap={1}>{bar}<Text dimColor>{`${p}%`}</Text></Box>
 }
