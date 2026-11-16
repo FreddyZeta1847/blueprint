@@ -97,9 +97,13 @@ export function engine(on: any, world: World = {}): Seen {
   })
   on('fs.list', (_: any, e: any) => {
     const dir = (rel(e.path) ?? '').replace(/\/$/, '') + '/'
-    const names = Object.keys(files).filter(k => files[k] !== undefined && k.startsWith(dir) && !k.slice(dir.length).includes('/'))
-    if (names.length === 0) throw new Error(`ENOENT ${e.path}`)
-    return { value: names.map(k => ({ name: k.slice(dir.length), kind: 'file', size: files[k]!.length, mtimeMs: NOW })) }
+    const below = Object.keys(files).filter(k => files[k] !== undefined && k.startsWith(dir))
+    if (below.length === 0) throw new Error(`ENOENT ${e.path}`)
+    const entries = below.filter(k => !k.slice(dir.length).includes('/'))
+      .map(k => ({ name: k.slice(dir.length), kind: 'file', size: files[k]!.length, mtimeMs: NOW, isLink: false }))
+    const dirs = [...new Set(below.map(k => k.slice(dir.length)).filter(r => r.includes('/')).map(r => r.split('/')[0]!))]
+      .map(name => ({ name, kind: 'dir', size: 0, mtimeMs: NOW, isLink: false }))
+    return { value: [...entries, ...dirs] }
   })
   on('fs.stat', (_: any, e: any) => {
     const n = norm(e.path)
