@@ -57,8 +57,18 @@ function toggle(list: string[], id: string, plan: PlanModel): string[] {
   return resolved.includes(id) ? resolved.filter(x => x !== id) : [...resolved, id]
 }
 
+/** The terminal hands out Svg too, but as an empty fragment: it gets text instead. */
+const hasSvg = (ctx: ViewCtx) => ctx.surface !== 'terminal'
+
+/** Svg and Text take no `key`: the key goes on a Box around them, which tests and presses find. */
+function Keyed(ctx: ViewCtx, key: string, child: unknown) {
+  const { Box } = ctx.el
+  return <Box key={key}>{child}</Box>
+}
+
 function Pills(ctx: ViewCtx, stage: StageModel) {
   const { Box, Text, Svg } = ctx.el
+  const vector = hasSvg(ctx)
   const pills: { key: string; label: string; tone: 'amber' | 'accent' | 'muted' }[] = []
   if (stage.yourTurn) pills.push({ key: `pill:turn:${stage.id}`, label: tr(ctx.lang, 'yourTurn'), tone: 'amber' })
   if (stage.kids > 0) pills.push({ key: `pill:kids:${stage.id}`, label: tr(ctx.lang, 'kids', { n: stage.kids }), tone: 'accent' })
@@ -67,9 +77,9 @@ function Pills(ctx: ViewCtx, stage: StageModel) {
   const color = { amber: C.amber, accent: C.accent, muted: C.muted }
   return (
     <Box flexDirection="row" gap={1}>
-      {pills.map(p => Svg
-        ? <Svg key={p.key} source={pillSvg(p.label, p.tone)} alt={p.label} />
-        : <Text key={p.key} color={color[p.tone]}>{`[${p.label}]`}</Text>)}
+      {pills.map(p => Keyed(ctx, p.key, vector
+        ? <Svg source={pillSvg(p.label, p.tone)} alt={p.label} />
+        : <Text color={color[p.tone]}>{`[${p.label}]`}</Text>))}
     </Box>
   )
 }
@@ -78,9 +88,9 @@ function Bar(ctx: ViewCtx, stage: StageModel) {
   const { Text, Svg } = ctx.el
   const done = stage.status === 'done'
   const alt = `${barText(stage.segments)}${done ? ` ${GLYPH.done}` : ''}`
-  return Svg
-    ? <Svg key={`bar:${stage.id}`} source={barSvg(stage.segments, 120, done)} alt={alt} />
-    : <Text key={`bar:${stage.id}`} dimColor>{alt}</Text>
+  return Keyed(ctx, `bar:${stage.id}`, hasSvg(ctx)
+    ? <Svg source={barSvg(stage.segments, 120, done)} alt={alt} />
+    : <Text dimColor>{alt}</Text>)
 }
 
 function Row($: any, ctx: ViewCtx, plan: PlanModel, stage: StageModel, index: number, open: boolean) {
@@ -91,7 +101,7 @@ function Row($: any, ctx: ViewCtx, plan: PlanModel, stage: StageModel, index: nu
   const press = () => void update($, expanded, list => toggle(list, stage.id, plan))
   return (
     <Box flexDirection="row" justifyContent="space-between" gap={1}>
-      <Button key={`stage:${stage.id}`} variant="plain" onPress={press}>{label}</Button>
+      <Button key={`stage:${stage.id}`} onPress={press}>{label}</Button>
       {!open && pills}
     </Box>
   )
@@ -130,7 +140,7 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
       </Box>
       {phase && (
         <Box flexDirection="column">
-          {Svg && <Svg key={`rail:${stage.id}`} source={railSvg(stage.phases, phase.label)} alt={phase.label} />}
+          {hasSvg(ctx) && Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, phase.label)} alt={phase.label} />)}
           <Text color={phase.stopped ? C.amber : C.accent}>{tr(ctx.lang, 'phaseNow', { phase: phase.label })}</Text>
         </Box>
       )}
