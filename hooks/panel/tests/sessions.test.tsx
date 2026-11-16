@@ -9,14 +9,14 @@
  */
 import { expect, test } from 'claude-code/testing'
 import { cut, duration, money } from '../sessions-view'
-import { readSessions, sessionsSummary } from '../sessions-data'
+import { readSessions, sessionsSummary, toRow } from '../sessions-data'
 import type { PlanModel } from '../types'
 
 const NOW = Date.parse('2026-11-16T10:00:00Z')
 
 const plan = (parts: string[]): PlanModel => ({
   project: 'p', currentIndex: 0,
-  stages: [{ id: 'fb', name: 'FB', type: 'implementation', status: 'in_progress', segments: [], phases: [], yourTurn: false, kids: 0, independentParts: parts, topics: [] }],
+  stages: [{ id: 'fb', name: 'FB', type: 'implementation', status: 'in_progress', segments: [], phases: [], yourTurn: false, kids: 0, waitingOn: [], independentParts: parts, topics: [] }],
 })
 
 const status = (wt: string, sid: string, extra: Record<string, unknown> = {}) => JSON.stringify({
@@ -105,4 +105,14 @@ test('no sessions folder yet: no rows, no throw', async () => {
   const s = await readSessions($, 'C:/r5', plan(['Area admin']))
   expect(s.kids).toEqual([])
   expect(s.others).toEqual([])
+})
+
+test('a session left «blocked» for days is ended, not waiting; a recent one waits', async () => {
+  const now = Date.parse('2026-11-16T10:00:00Z')
+  const file = (ageMs: number) => ({ sessionId: 's1', worktree: 'area-admin', startedAt: '2026-11-10T00:00:00Z',
+    updatedAt: new Date(now - ageMs).toISOString(), tool: null, since: null, context: { percent: 10 }, costUsd: 1 })
+  const agents = [{ id: 's1', sessionId: 's1', state: 'blocked', cwd: 'C:/proj/.claude/worktrees/area-admin' }]
+  expect(toRow(file(2 * 86_400_000), agents, now, 'C:/proj').state).toBe('ended')
+  expect(toRow(file(5 * 60_000), agents, now, 'C:/proj').state).toBe('blocked')
+  expect(money('it', Number.NaN)).toBe('0,00 $')
 })

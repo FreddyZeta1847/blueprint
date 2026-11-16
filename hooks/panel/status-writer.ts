@@ -96,6 +96,12 @@ export function registerStatusWriter(on: any): void {
   w = fresh()
   on('session.start', { isInteractive: true }, onStart)
   on('session.start', { isInteractive: false }, onStart)
+  // one write per finished turn too (turns and context change between tool calls)
+  on('turn.complete', async ($: any, e: any, next: any) => {
+    const result = await next(e)
+    if (w.target) await schedule($)
+    return result
+  })
   on('tool.call', async ($: any, e: any, next: any) => {
     if (!w.target) return next(e)
     const name = String(e.tool)

@@ -16,7 +16,8 @@ import { tr } from './text'
 const MARK: Record<RowState, PhaseState> = { running: 'running', blocked: 'stopped', done: 'done', ended: 'skipped' }
 const WORD: Record<RowState, string> = { running: 'st_running', blocked: 'st_blocked', done: 'st_done', ended: 'st_ended' }
 
-export function money(lang: Lang, usd: number): string {
+export function money(lang: Lang, value: number): string {
+  const usd = Number.isFinite(value) ? value : 0
   return lang === 'it' ? `${usd.toFixed(2).replace('.', ',')} $` : `$${usd.toFixed(2)}`
 }
 
@@ -31,8 +32,9 @@ export function cut(text: string, max: number): string {
 
 function ContextCell(ctx: ViewCtx, key: string, percent: number) {
   const { Box, Text, Svg } = ctx.el
-  const p = Math.round(percent)
-  const bar = Svg
+  const p = Number.isFinite(percent) ? Math.min(Math.max(Math.round(percent), 0), 100) : 0
+  // the terminal's table still holds an (empty) Svg: decide by surface
+  const bar = ctx.surface !== 'terminal'
     ? <Box key={`ctx:${key}`}><Svg source={contextBarSvg(p)} alt={`${tr(ctx.lang, 'context')} ${p}%`} /></Box>
     : <Text color={p > 70 ? C.amber : C.muted}>{'█'.repeat(Math.round(p / 20)) + '░'.repeat(5 - Math.round(p / 20))}</Text>
   return <Box flexDirection="row" gap={1}>{bar}<Text dimColor>{`${p}%`}</Text></Box>

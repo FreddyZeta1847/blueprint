@@ -14,6 +14,7 @@ test('the parallel stage carries «2 figlie» and turns amber when a child is bl
     else expect(JSON.stringify(await ui.findAll({ type: 'Svg' }))).toContain('2 figlie')
     expect((await ui.find({ key: 'stage:fb' }))?.text).toMatch(/!\s*3\./)
     expect(await ui.find({ text: /costruzione · ferma/ })).toBeDefined()
+    expect(await ui.find({ text: /area-clienti aspetta te/ })).toBeDefined() // the wait line names the child
     await ui.unmount()
   }
 })

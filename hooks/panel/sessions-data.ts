@@ -43,9 +43,10 @@ const LIST_CACHE_MS = 5_000
 const STALE_MS = 60_000
 const IGNORE_MS = 7 * 86_400_000
 const STUCK_TOOL_MS = 10 * 60_000
+const BLOCKED_FRESH_MS = 24 * 3_600_000
 
 // shortcut: one cache per module (one project per session); keyed by main to stay correct anyway
-let listCache: { main: string; at: number; agents: Agent[] } | null = null
+let listCache: { main: string; at: number; agents: Promise<Agent[]> } | null = null
 const lastGood = new Map<string, StatusFile>()
 
 export function currentParts(plan: PlanModel | null): string[] {
@@ -53,15 +54,19 @@ export function currentParts(plan: PlanModel | null): string[] {
 }
 
 async function listAgents($: any, main: string, now: number): Promise<Agent[]> {
+  // the promise is cached too, so a refresh and a redraw never run two lists at once
   if (listCache && listCache.main === main && now - listCache.at < LIST_CACHE_MS) return listCache.agents
-  let agents: Agent[] = []
-  try {
-    const out = await $.process.run(['claude', 'agents', '--json', '--all'])
-    const parsed = JSON.parse(out?.stdout ?? '[]')
-    if (Array.isArray(parsed)) agents = parsed
-  } catch { /* no list: rows keep their file data, stale ones show «terminata» */ }
+  const agents = runList($, main)
   listCache = { main, at: now, agents }
   return agents
+}
+
+async function runList($: any, main: string): Promise<Agent[]> {
+  try {
+    const out = await $.process.run(['claude', 'agents', '--json', '--all', '--cwd', main], { timeoutMs: 10_000 })
+    const parsed = JSON.parse(out?.stdout ?? '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch { return [] } // no list: rows keep their file data, stale ones show «terminata»
 }
 
 async function readStatus($: any, path: string): Promise<StatusFile | null> {
@@ -88,14 +93,26 @@ async function readStatusFiles($: any, main: string): Promise<StatusFile[]> {
 const isRunning = (a?: Agent) => a?.state === 'working' || a?.state === 'running'
 const worktreeOf = (cwd?: string) => /\/worktrees\/([^/]+)\/?$/.exec((cwd ?? '').replace(/\\/g, '/'))?.[1]
 
-export function toRow(file: StatusFile, agents: Agent[], now: number): SessionRow {
-  const agent = agents.find(a => a.sessionId === file.sessionId) ?? agents.find(a => worktreeOf(a.cwd) === file.worktree)
+/** The list's session for a file: same session id, else the newest session in the same worktree path. */
+function agentFor(file: StatusFile, agents: Agent[], main?: string): Agent | undefined {
+  const byId = agents.find(a => a.sessionId === file.sessionId)
+  if (byId) return byId
+  const here = (a: Agent) => main
+    ? (a.cwd ?? '').replace(/\\/g, '/').replace(/\/$/, '') === `${main}/.claude/worktrees/${file.worktree}`
+    : worktreeOf(a.cwd) === file.worktree
+  return agents.filter(here).sort((a, b) => Number((b as any).startedAt ?? 0) - Number((a as any).startedAt ?? 0))[0]
+}
+
+export function toRow(file: StatusFile, agents: Agent[], now: number, main?: string): SessionRow {
+  const agent = agentFor(file, agents, main)
   const updatedAt = Date.parse(file.updatedAt)
   const toolFor = file.tool && file.since ? now - Date.parse(file.since) : 0
+  // a session left «blocked» for days is dead, not waiting: only a recent file can wait for you
+  const recent = now - updatedAt <= BLOCKED_FRESH_MS
   let state: RowState = 'running'
   if (agent?.state === 'done') state = 'done'
-  else if (now - updatedAt > STALE_MS && !isRunning(agent) && agent?.state !== 'blocked') state = 'ended'
-  else if (agent?.state === 'blocked' || toolFor > STUCK_TOOL_MS) state = 'blocked'
+  else if (now - updatedAt > STALE_MS && !isRunning(agent) && !(agent?.state === 'blocked' && recent)) state = 'ended'
+  else if ((agent?.state === 'blocked' && recent) || toolFor > STUCK_TOOL_MS) state = 'blocked'
   return {
     worktree: file.worktree,
     name: agent?.name || file.worktree,
@@ -117,7 +134,7 @@ export async function readSessions($: any, main: string, plan: PlanModel | null)
   const files = (await readStatusFiles($, main)).filter(f => now - Date.parse(f.updatedAt) <= IGNORE_MS)
   const agents = await listAgents($, main, now)
   const wanted = new Set(parts.map(slug))
-  const rows = files.map(f => toRow(f, agents, now)).sort((a, b) => a.startedAt - b.startedAt)
+  const rows = files.map(f => toRow(f, agents, now, main)).sort((a, b) => a.startedAt - b.startedAt)
   return { parts, kids: rows.filter(r => wanted.has(r.worktree)), others: rows.filter(r => !wanted.has(r.worktree)) }
 }
 

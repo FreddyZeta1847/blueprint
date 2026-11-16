@@ -65,7 +65,7 @@ export function progressSvg(done: number, total: number, stopped: boolean, width
 }
 
 export function contextBarSvg(percent: number, width = 60): string {
-  const p = Math.min(Math.max(percent, 0), 100)
+  const p = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) : 0
   return doc(width, 6, `<rect x="0" y="1" width="${width}" height="4" rx="2" fill="${C.line}"/><rect x="0" y="1" width="${width * p / 100}" height="4" rx="2" fill="${p > 70 ? C.amber : C.muted}"/>`)
 }
 

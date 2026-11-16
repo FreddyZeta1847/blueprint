@@ -28,9 +28,9 @@ export function decisionsFromFile(text: string, name: string): string[] {
 export function decisionsFromBlocks(text: string, stageId: string): string[] {
   return text.split(/^###\s+/m).slice(1).flatMap(block => {
     const title = block.split(/\r?\n/)[0] ?? ''
-    const stage = /^\s*-\s+\*\*Stage:\*\*\s*(\S+)/m.exec(block)?.[1]
+    const stage = /^\s*-\s+\*\*(?:Stage|Tappa):\*\*\s*(\S+)/m.exec(block)?.[1]
     if (stage !== stageId) return []
-    return [title.split(/\s+[—–]\s+/).slice(1).join(' — ').trim() || title.trim()]
+    return [title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim()]
   })
 }
 

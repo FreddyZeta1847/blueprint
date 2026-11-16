@@ -66,13 +66,23 @@ function Keyed(ctx: ViewCtx, key: string, child: unknown) {
   return <Box key={key}>{child}</Box>
 }
 
-function Pills(ctx: ViewCtx, stage: StageModel) {
-  const { Box, Text, Svg } = ctx.el
-  const vector = hasSvg(ctx)
-  const pills: { key: string; label: string; tone: 'amber' | 'accent' | 'muted' }[] = []
+type Pill = { key: string; label: string; tone: 'amber' | 'accent' | 'muted' }
+
+function pillList(ctx: ViewCtx, stage: StageModel): Pill[] {
+  const pills: Pill[] = []
   if (stage.yourTurn) pills.push({ key: `pill:turn:${stage.id}`, label: tr(ctx.lang, 'yourTurn'), tone: 'amber' })
   if (stage.kids > 0) pills.push({ key: `pill:kids:${stage.id}`, label: tr(ctx.lang, 'kids', { n: stage.kids }), tone: 'accent' })
   if (stage.deadline) pills.push({ key: `pill:due:${stage.id}`, label: shortDate(ctx.lang, stage.deadline), tone: 'muted' })
+  return pills
+}
+
+/** Columns the pills take on a row: each label plus its brackets and the gap. */
+const pillColumns = (pills: Pill[]) => pills.reduce((n, p) => n + p.label.length + 3, 0)
+
+function Pills(ctx: ViewCtx, stage: StageModel) {
+  const { Box, Text, Svg } = ctx.el
+  const vector = hasSvg(ctx)
+  const pills = pillList(ctx, stage)
   if (pills.length === 0) return null
   const color = { amber: C.amber, accent: C.accent, muted: C.muted }
   return (
@@ -96,7 +106,7 @@ function Bar(ctx: ViewCtx, stage: StageModel) {
 function Row($: any, ctx: ViewCtx, plan: PlanModel, stage: StageModel, index: number, open: boolean) {
   const { Box, Button } = ctx.el
   const pills = Pills(ctx, stage)
-  const room = ctx.columns - 4 - (pills ? 14 : 0)
+  const room = ctx.columns - 4 - (open ? 0 : pillColumns(pillList(ctx, stage)))
   const label = cut(`${glyphOf(stage)} ${index + 1}. ${stage.name}`, room)
   const press = () => void update($, expanded, list => toggle(list, stage.id, plan))
   return (
@@ -128,7 +138,9 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
   const decisions = await stageDecisions($, ctx.main, stage)
   const mine = notes.filter(n => n.stage === stage.id).map(n => `· ${n.text}`)
   const submit = async (value: string) => {
-    if (!(await addNote($, ctx.main, stage.id, value))) return
+    const saved = await addNote($, ctx.main, stage.id, value).catch(() => null)
+    if (saved === null) return void (await $.ui.toast(tr(ctx.lang, 'noteNotSaved')))
+    if (!saved) return
     await $.ui.toast(tr(ctx.lang, 'noteSaved'))
     void update($, expanded, list => [...list]) // same value, new array: redraws with the new note
   }
@@ -142,6 +154,7 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
         <Box flexDirection="column">
           {hasSvg(ctx) && Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, phase.label)} alt={phase.label} />)}
           <Text color={phase.stopped ? C.amber : C.accent}>{tr(ctx.lang, 'phaseNow', { phase: phase.label })}</Text>
+          {phase.stopped && <Text color={C.amber} wrap="wrap">{waitLine(ctx, stage)}</Text>}
         </Box>
       )}
       {stage.topics.length > 0 && Section(ctx, tr(ctx.lang, 'topics'), stage.topics.map(topicLine))}
@@ -154,6 +167,13 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
       </Box>
     </Box>
   )
+}
+
+/** Why the stage is stopped: the children that wait for the user, or a phase that needs the user. */
+function waitLine(ctx: ViewCtx, stage: StageModel): string {
+  if (stage.waitingOn.length > 0) return `${GLYPH.stopped} ${tr(ctx.lang, 'waitChild', { who: stage.waitingOn.join(', ') })}`
+  const at = stage.phases.find(p => p.state === 'stopped')
+  return `${GLYPH.stopped} ${tr(ctx.lang, 'waitPhase', { phase: tr(ctx.lang, `ph_${at?.id ?? ''}`) })}`
 }
 
 function Legend(ctx: ViewCtx) {
