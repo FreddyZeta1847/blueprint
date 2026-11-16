@@ -19,7 +19,9 @@ export async function findRepo($: any, cwd?: string): Promise<{ main: string; wo
     if (stat.kind === 'dir') return { main: dir, worktree: null }
     const text: string = await $.fs.read(`${dir}/.git`).catch(() => '')
     const m = /gitdir:\s*(.+?)\/\.git\/worktrees\/([^/\s]+)/.exec(norm(text.trim()))
-    return m?.[1] && m[2] ? { main: m[1], worktree: m[2] } : { main: dir, worktree: null }
+    // the worktree's name is its folder: git's own entry may carry a suffix ("area-admin1")
+    // when an earlier worktree of the same name was removed
+    return m?.[1] ? { main: m[1], worktree: dir.slice(dir.lastIndexOf('/') + 1) } : { main: dir, worktree: null }
   }
   return null
 }

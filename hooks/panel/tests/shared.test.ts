@@ -71,6 +71,10 @@ test('findRepo: a .git folder is the main checkout, a .git file is a worktree', 
   const child = fake({ 'area-admin/.git': `gitdir: ${MAIN}/.git/worktrees/area-admin\n` },
     { cwd: `${MAIN}/.claude/worktrees/area-admin`, kinds: { 'area-admin/.git': 'file' } })
   expect(await findRepo(child)).toEqual({ main: MAIN, worktree: 'area-admin' })
+  // git names its entry "area-admin1" when an earlier worktree of that name was removed: the folder wins
+  const reused = fake({ 'area-admin/.git': `gitdir: ${MAIN}/.git/worktrees/area-admin1\n` },
+    { cwd: `${MAIN}/.claude/worktrees/area-admin`, kinds: { 'area-admin/.git': 'file' } })
+  expect(await findRepo(reused)).toEqual({ main: MAIN, worktree: 'area-admin' })
   const mother = fake({}, { cwd: `${MAIN}/src`, kinds: { 'proj/.git': 'dir' } })
   expect(await findRepo(mother)).toEqual({ main: MAIN, worktree: null })
   expect(await findRepo(fake({}, { cwd: 'C:/nowhere' }))).toBeNull()
