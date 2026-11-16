@@ -22,6 +22,8 @@ export type StageModel = {
   yourTurn: boolean
   /** Child sessions of this stage (matched to its parts), from the sessions summary; 0 elsewhere. */
   kids: number
+  /** Worktrees of this stage's children that wait for the user (current stage only). */
+  waitingOn: string[]
   deadline?: string
   independentParts: string[]
   topics: TopicModel[]

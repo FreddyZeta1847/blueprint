@@ -9,7 +9,8 @@ import { tr } from './text'
 
 export function Header(ctx: ViewCtx, plan: PlanModel) {
   const { Box, Text } = ctx.el
-  const Svg = ctx.el.Svg
+  // the terminal's table still holds an (empty) Svg: decide by surface, not by the element
+  const Svg = ctx.surface === 'terminal' ? undefined : ctx.el.Svg
   const total = plan.stages.length
   const done = plan.stages.filter(s => s.status === 'done').length
   const current = plan.stages[plan.currentIndex]
