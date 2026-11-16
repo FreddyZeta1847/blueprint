@@ -1,7 +1,8 @@
 /*
  * Static test for hooks/hooks.json: valid JSON, the four expected events, the matchers the spec
  * requires (H8: shell tools on PostToolUse; H9: MultiEdit on PreToolUse; H11: Stop; v3: the
- * plan-guard on PreToolUse), and every referenced script exists and starts with a header comment.
+ * plan-guard on PreToolUse), and every referenced script exists and starts with a header comment;
+ * the panel mod (hooks/panel.tsx) is listed under `modules`.
  *
  * Run: node --test hooks/tests/*.test.js
  */
@@ -21,6 +22,11 @@ test('hooks.json is valid and wires every v3 hook', () => {
   assert.match(h.PostToolUse[0].matcher, /PowerShell/);
   assert.match(h.PreToolUse[0].matcher, /MultiEdit/);
   assert.ok(h.PreToolUse[0].hooks.some((x) => /plan-guard\.js/.test(x.command)), 'plan-guard is registered');
+
+  assert.deepEqual(config.modules, ['./panel.tsx'], 'the panel mod is listed under modules');
+  const panel = path.join(HOOKS_DIR, 'panel.tsx');
+  assert.ok(fs.existsSync(panel), panel);
+  assert.ok(fs.readFileSync(panel, 'utf8').startsWith('/*'), 'panel.tsx has no header comment');
 
   for (const groups of Object.values(h)) {
     for (const group of groups) {
