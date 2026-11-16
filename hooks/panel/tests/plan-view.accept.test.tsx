@@ -1,7 +1,7 @@
 /*
  * Acceptance tests of the Piano view (Tasks A1–A3 of the panel plan), written by the mother
  * before the child «vista-piano» starts: the child makes them pass and does not edit them.
- * Contract of element keys: Button `stage:<id>` per stage row; Svg `bar:<id>`, `rail:<id>`,
+ * Contract of element keys: Button `stage:<id>` per stage row; a Box wrapping each Svg (Svg takes no key): `bar:<id>`, `rail:<id>`,
  * `pill:turn:<id>`; Input `note:<id>`. The open stage's phase is also a Text line
  * («Fase: …»), so it reads on every surface. Checked on the terminal and the desktop.
  * The «N figlie» pill needs the sessions part too: it is in integration.accept.test.tsx.
@@ -27,8 +27,8 @@ test('A1: one row per stage with its glyph; done stages ticked, no word «fatta�
     expect((await ui.find({ key: 'stage:sec' }))?.text).toMatch(/○\s*4\. Controllo di sicurezza/)
     expect(await ui.find({ text: /\bfatta\b/ })).toBeUndefined()
     if (surface === 'desktop') {
-      expect(String((await ui.find({ key: 'bar:repo' }))?.props.source)).toContain('<path') // ticked circle
-      expect(String((await ui.find({ key: 'bar:sec' }))?.props.source)).not.toContain('<path') // to do: no tick
+      expect(JSON.stringify(await ui.find({ key: 'bar:repo' }))).toContain('<path') // ticked circle
+      expect(JSON.stringify(await ui.find({ key: 'bar:sec' }))).not.toContain('<path') // to do: no tick
     }
     await ui.unmount()
   }
@@ -100,7 +100,7 @@ test('A2: stopped at a phase that needs the user — «… · ferma» and «tocc
   for (const surface of SURFACES) {
     const ui = await $.ui.mount(PANE(surface))
     expect(await ui.find({ text: /prova primo utente · ferma/ })).toBeDefined()
-    if (surface === 'desktop') expect(String((await ui.find({ key: 'pill:turn:fb' }))?.props.source)).toContain('tocca a te')
+    if (surface === 'desktop') expect(JSON.stringify(await ui.find({ key: 'pill:turn:fb' }))).toContain('tocca a te')
     else expect(await ui.find({ text: /tocca a te/ })).toBeDefined()
     await ui.unmount()
   }

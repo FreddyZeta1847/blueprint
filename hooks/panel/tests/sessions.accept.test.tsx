@@ -2,7 +2,7 @@
  * Acceptance tests of the Sessioni view and the status writer (Tasks B1–B3 of the panel
  * plan), written by the mother before the child «vista-sessioni» starts: the child makes them
  * pass and does not edit them. Contract of element keys: Button `tab:sessioni` (entry),
- * Button `enter:<worktree>` per child, Button `notify-switch`; Svg `ctx:<worktree>`.
+ * Button `enter:<worktree>` per child, Button `notify-switch`; a Box `ctx:<worktree>` wrapping the context-bar Svg (Svg takes no key).
  */
 import { expect, test } from 'claude-code/testing'
 import { engine, defaultFiles, MAIN, NOW, PANE, sessionsWorld } from './harness'
