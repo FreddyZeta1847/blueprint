@@ -22,7 +22,7 @@ async function readJson($: any, path: string): Promise<any | null> {
 /** "Size: project — un sito" → "project": the first part of a card line, before the dash. */
 function cardLine(text: string, key: string): string | undefined {
   const m = new RegExp(`^${key}:\\s*(.+)$`, 'mi').exec(text)
-  return m ? m[1].split(/\s+[—–-]\s+/)[0].trim() : undefined
+  return m?.[1]?.split(/\s+[—–-]\s+/)[0]?.trim()
 }
 
 async function readCard($: any, main: string): Promise<PlanModel['card']> {

@@ -19,7 +19,7 @@ export async function findRepo($: any): Promise<{ main: string; worktree: string
     if (stat.kind === 'dir') return { main: dir, worktree: null }
     const text: string = await $.fs.read(`${dir}/.git`).catch(() => '')
     const m = /gitdir:\s*(.+?)\/\.git\/worktrees\/([^/\s]+)/.exec(norm(text.trim()))
-    return m ? { main: m[1], worktree: m[2] } : { main: dir, worktree: null }
+    return m?.[1] && m[2] ? { main: m[1], worktree: m[2] } : { main: dir, worktree: null }
   }
   return null
 }

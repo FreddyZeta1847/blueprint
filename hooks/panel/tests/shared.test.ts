@@ -81,28 +81,28 @@ test('readPlan builds segments, the current stage and the card summary', async (
   expect(plan?.project).toBe('sito-parrucchiere')
   expect(plan?.currentIndex).toBe(2)
   expect(plan?.card).toEqual({ size: 'project', difficulty: 'difficile', pace: 'calma' })
-  expect(plan?.stages[2].segments).toEqual(['done', 'done', 'running', 'todo', 'todo', 'todo', 'todo'])
-  expect(plan?.stages[2].yourTurn).toBe(false)
-  expect(plan?.stages[2].topics.map(t => t.current)).toEqual([false, true])
-  expect(plan?.stages[1].segments).toEqual(['done', 'done'])
-  expect(plan?.stages[3].segments).toEqual(['todo', 'todo', 'todo'])
-  expect(plan?.stages[0].segments.every(s => s === 'done')).toBe(true)
-  expect(plan?.stages[4].deadline).toBe('2026-11-20')
+  expect(plan?.stages[2]!.segments).toEqual(['done', 'done', 'running', 'todo', 'todo', 'todo', 'todo'])
+  expect(plan?.stages[2]!.yourTurn).toBe(false)
+  expect(plan?.stages[2]!.topics.map(t => t.current)).toEqual([false, true])
+  expect(plan?.stages[1]!.segments).toEqual(['done', 'done'])
+  expect(plan?.stages[3]!.segments).toEqual(['todo', 'todo', 'todo'])
+  expect(plan?.stages[0]!.segments.every(s => s === 'done')).toBe(true)
+  expect(plan?.stages[4]!.deadline).toBe('2026-11-20')
 })
 
 test('a blocked child stops the running phase and makes it your turn', async () => {
   const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(PLAN), 'data/loops.json': LOOPS }), MAIN,
     { kids: 2, blocked: [{ worktree: 'frontend', reason: 'permission' }] })
-  expect(plan?.stages[2].segments[2]).toBe('stopped')
-  expect(plan?.stages[2].yourTurn).toBe(true)
+  expect(plan?.stages[2]!.segments[2]).toBe('stopped')
+  expect(plan?.stages[2]!.yourTurn).toBe(true)
   expect(plan?.card).toBeUndefined()
 })
 
 test('a phase that needs the user is stopped: your turn', async () => {
   const atFirstUse = { ...PLAN, stages: PLAN.stages.map(s => (s.id === 'fb' ? { ...s, phase: 'first_use' } : s)) }
   const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(atFirstUse), 'data/loops.json': LOOPS }), MAIN)
-  expect(plan?.stages[2].segments[5]).toBe('stopped')
-  expect(plan?.stages[2].yourTurn).toBe(true)
+  expect(plan?.stages[2]!.segments[5]).toBe('stopped')
+  expect(plan?.stages[2]!.yourTurn).toBe(true)
 })
 
 test('an unreadable plan gives null, not a throw', async () => {
