@@ -106,7 +106,7 @@ function Bar(ctx: ViewCtx, stage: StageModel) {
 function Row($: any, ctx: ViewCtx, plan: PlanModel, stage: StageModel, index: number, open: boolean) {
   const { Box, Button } = ctx.el
   const pills = Pills(ctx, stage)
-  const room = ctx.columns - 4 - (open ? 0 : pillColumns(pillList(ctx, stage)))
+  const room = ctx.columns - 8 - (open ? 0 : pillColumns(pillList(ctx, stage))) // 4 for the frame and its padding
   const label = cut(`${glyphOf(stage)} ${index + 1}. ${stage.name}`, room)
   const press = () => void update($, expanded, list => toggle(list, stage.id, plan))
   return (
@@ -117,11 +117,12 @@ function Row($: any, ctx: ViewCtx, plan: PlanModel, stage: StageModel, index: nu
   )
 }
 
+/** A titled list: the title is bold and bright, so the lists stand out from the stage's own line. */
 function Section(ctx: ViewCtx, title: string, lines: string[]) {
   const { Box, Text } = ctx.el
   return (
     <Box flexDirection="column">
-      <Text dimColor bold>{title}</Text>
+      <Text bold color={C.ink}>{title}</Text>
       {lines.map(line => <Text wrap="wrap">{line}</Text>)}
     </Box>
   )
@@ -132,11 +133,50 @@ function topicLine(t: StageModel['topics'][number]): string {
   return `${GLYPH[state]} ${t.name}`
 }
 
+/** The stage's phases, always the same for its type: a rail of marks (text list on the terminal). */
+function Phases(ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeof currentPhase>) {
+  const { Box, Text, Svg } = ctx.el
+  if (stage.phases.length === 0) return null
+  const idle = tr(ctx.lang, stage.status === 'done' ? 'stageDone' : stage.status === 'postponed' ? 'stageParked' : 'stageTodo')
+  const label = phase?.label ?? idle
+  return (
+    <Box flexDirection="column">
+      {hasSvg(ctx)
+        ? Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, label)} alt={label} />)
+        : Section(ctx, tr(ctx.lang, 'phases'), stage.phases.map(p => `${GLYPH[p.state]} ${tr(ctx.lang, `ph_${p.id}`)}`))}
+      {phase && <Text color={phase.stopped ? C.amber : C.accent}>{tr(ctx.lang, 'phaseNow', { phase: phase.label })}</Text>}
+      {phase?.stopped && <Text color={C.amber} wrap="wrap">{waitLine(ctx, stage)}</Text>}
+    </Box>
+  )
+}
+
+/**
+ * Discussion stages only: the files that hold the stage's decisions, one button per file (its path
+ * relative to the project; a press copies the full path). With none yet, where they will go.
+ */
+async function Decisions($: any, ctx: ViewCtx, stage: StageModel) {
+  const { Box, Text, Button } = ctx.el
+  if (stage.type !== 'discussion') return null
+  const { files, home } = await stageDecisions($, ctx.main, stage)
+  const relative = (path: string) => path.startsWith(`${ctx.main}/`) ? path.slice(ctx.main.length + 1) : path
+  const copy = (path: string) => async () => {
+    await $.ui.copy({ text: path })
+    await $.ui.toast(tr(ctx.lang, 'decisionsFileCopied', { path }))
+  }
+  return (
+    <Box flexDirection="column">
+      <Text bold color={C.ink}>{tr(ctx.lang, 'decisionsWhere')}</Text>
+      {files.length > 0
+        ? files.map((path, i) => <Button key={`decfile:${stage.id}:${i}`} plain dimColor onPress={copy(path)}>{`⧉ ${relative(path)}`}</Button>)
+        : <Text dimColor wrap="wrap">{tr(ctx.lang, 'decisionsNone', { path: home })}</Text>}
+    </Box>
+  )
+}
+
 async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[]) {
-  const { Box, Text, Svg, Input } = ctx.el
+  const { Box, Text, Input } = ctx.el
   const phase = currentPhase(ctx, stage)
-  const decisions = await stageDecisions($, ctx.main, stage)
-  const mine = notes.filter(n => n.stage === stage.id).map(n => `· ${n.text}`)
+  const mine = notes.filter(n => n.stage === stage.id).map(n => `• ${n.text}`)
   const submit = async (value: string) => {
     const saved = await addNote($, ctx.main, stage.id, value).catch(() => null)
     if (saved === null) return void (await $.ui.toast(tr(ctx.lang, 'noteNotSaved')))
@@ -150,18 +190,14 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
         <Text dimColor>{tr(ctx.lang, `type_${stage.type}`)}</Text>
         {Pills(ctx, stage)}
       </Box>
-      {phase && (
-        <Box flexDirection="column">
-          {hasSvg(ctx) && Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, phase.label)} alt={phase.label} />)}
-          <Text color={phase.stopped ? C.amber : C.accent}>{tr(ctx.lang, 'phaseNow', { phase: phase.label })}</Text>
-          {phase.stopped && <Text color={C.amber} wrap="wrap">{waitLine(ctx, stage)}</Text>}
-        </Box>
-      )}
-      {stage.topics.length > 0 && Section(ctx, tr(ctx.lang, 'topics'), stage.topics.map(topicLine))}
-      {decisions.length > 0 && Section(ctx, tr(ctx.lang, 'decisions'), decisions.map(d => `· ${d}`))}
+      {Phases(ctx, stage, phase)}
+      {Section(ctx, tr(ctx.lang, 'topics'), stage.topics.length > 0
+        ? stage.topics.map(topicLine)
+        : [tr(ctx.lang, 'noTopics', { purpose: tr(ctx.lang, `purpose_${stage.type}`) })])}
+      {await Decisions($, ctx, stage)}
       {stage.how && Section(ctx, tr(ctx.lang, 'how'), [stage.how])}
       <Box flexDirection="column">
-        <Text dimColor bold>{tr(ctx.lang, 'notes')}</Text>
+        <Text bold color={C.ink}>{tr(ctx.lang, 'notes')}</Text>
         {mine.map(line => <Text wrap="wrap">{line}</Text>)}
         <Input key={`note:${stage.id}`} placeholder={tr(ctx.lang, 'addNote')} onSubmit={submit} />
       </Box>
@@ -197,15 +233,17 @@ export async function renderPlanView($: any, ctx: ViewCtx, plan: PlanModel | nul
   const rows = []
   for (const [i, stage] of plan.stages.entries()) {
     const open = isOpen(list, stage, plan)
+    // one framed card per stage: the current one has an accent frame (amber when it waits for you)
+    const frame = i === plan.currentIndex ? (stage.yourTurn ? C.amber : C.accent) : C.line
     rows.push(
-      <Box flexDirection="column">
+      <Box flexDirection="column" borderStyle="round" borderColor={frame} paddingX={1}>
         {Row($, ctx, plan, stage, i, open)}
         {open ? await OpenStage($, ctx, stage, notes) : Bar(ctx, stage)}
       </Box>,
     )
   }
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column">
       {rows}
       {Legend(ctx)}
     </Box>

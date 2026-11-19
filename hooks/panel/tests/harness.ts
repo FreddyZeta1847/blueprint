@@ -11,7 +11,7 @@ import { mock } from 'claude-code/testing'
 export const MAIN = 'C:/proj'
 
 export const LOOPS = JSON.stringify({ types: {
-  discussion: { cycle: 'per_step', phases: [{ id: 'clarify' }, { id: 'proposal' }, { id: 'convergence', user: true }, { id: 'decision' }] },
+  discussion: { cycle: 'per_step', phases: [{ id: 'clarify' }, { id: 'proposal' }, { id: 'convergence', user: true }, { id: 'decision' }, { id: 'recap', user: true }] },
   implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan' }, { id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use', user: true }, { id: 'integrate', optional: true }] },
   delivery: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'prepare' }, { id: 'rehearse', optional: true }, { id: 'deliver', user: true }, { id: 'feedback', user: true }] },
   quick_task: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'do' }, { id: 'check' }, { id: 'report' }] },
@@ -34,7 +34,7 @@ export function planJson(opts: { phase?: string; longName?: boolean } = {}): str
 
 export const CARD = '# Context — sito-parrucchiere\nConfirmed: 2026-11-06\nSize: project — un sito\nDifficulty: difficile — dati personali\nPace: calma — nessuna scadenza\n'
 
-export const DECISIONS = '# Decisioni\n\n## Frontend e backend in parallelo\n\n- **Le figlie usano le porte 3001 e 3002** — una per figlia; facile da cambiare; Claude; 2026-11-07\n\n### Grafica\n\n- **Grafica: direzione «salone chiaro»** — scelta guardando; Federico; 2026-11-07\n\n## Chiusura\n\n- **Rilascio il venerdì** — x\n'
+export const DECISIONS = '# Decisioni\n\n## Frontend e backend in parallelo\n\n- **Le figlie usano le porte 3001 e 3002** — una per figlia; facile da cambiare; Claude; 2026-11-07\n\n### Grafica\n\n- **Grafica: direzione «salone chiaro»** — scelta guardando; difficile da cambiare; Federico; 2026-11-07\n\n## Chiusura\n\n- **Rilascio il venerdì** — x\n'
 
 export const NOTES = JSON.stringify({ notes: [{ stage: 'fb', text: 'Provarlo anche sul telefono', read: false }] })
 
@@ -58,6 +58,8 @@ export type Seen = {
   commands: string[]; opened: string[]; closed: string[]; status: (string | undefined)[]; pushes: string[]
   writes: { path: string; text: string }[]; copies: string[]; toasts: string[]; config: { key: string; value: unknown }[]
   agentRuns: number
+  /** where the session works now (what $.session.cwd() answers); a test may move it */
+  cwd: string
   /** the mock clock: `await seen.clock.advance(ms)` moves time and fires due timers */
   clock: { advance: (ms: number) => Promise<void> }
 }
@@ -73,7 +75,7 @@ const norm = (p: string) => p.replace(/\\/g, '/')
 
 export function engine(on: any, world: World = {}): Seen {
   const clock = mock.clock(on, { now: NOW })
-  const seen: Seen = { commands: [], opened: [], closed: [], status: [], pushes: [], writes: [], copies: [], toasts: [], config: [], agentRuns: 0, clock }
+  const seen: Seen = { commands: [], opened: [], closed: [], status: [], pushes: [], writes: [], copies: [], toasts: [], config: [], agentRuns: 0, clock, cwd: world.cwd ?? MAIN }
   const files: Record<string, string | undefined> = { ...defaultFiles(), ...(world.files ?? {}) }
   // exact paths under MAIN; the plugin's loops.json and a worktree's .git by their ending
   const rel = (p: string): string | undefined => {
@@ -138,7 +140,9 @@ export function engine(on: any, world: World = {}): Seen {
     return { value: { exitCode: 1, stdout: '', stderr: 'not stubbed', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('tool.call', (_: any, e: any) => { if (e.tool === 'PushNotification') seen.pushes.push(e.message); return { result: {} } })
-  on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
+  // where the session works: the folder it started in, or the one the test moves it to
+  on('session.cwd', () => ({ value: seen.cwd }))
+  on('session.start', (_: any, e: any) => { seen.cwd = e.cwd ?? seen.cwd; return { cwd: e.cwd } })
   return seen
 }
 

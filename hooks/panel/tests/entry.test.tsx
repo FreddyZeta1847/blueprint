@@ -20,13 +20,15 @@ const plan = (phase: string) => JSON.stringify({ version: 3, project: 'demo', st
 type World = { cwd?: string; gitFile?: string; plan?: string | null; panes?: string[] }
 
 function engine(on: any, world: World) {
-  const seen = { commands: [] as string[], opened: [] as string[], closed: [] as string[], status: [] as (string | undefined)[], pushes: [] as string[] }
+  const seen = { cwd: world.cwd ?? MAIN, clock: undefined as any, commands: [] as string[], opened: [] as string[], closed: [] as string[], status: [] as (string | undefined)[], pushes: [] as string[] }
   const files: Record<string, string | undefined> = {
     'blueprint/plan.json': world.plan === undefined ? plan('build') : (world.plan ?? undefined),
     'data/loops.json': LOOPS,
     '.git': world.gitFile,
   }
-  const find = (p: string) => Object.entries(files).find(([k, v]) => v !== undefined && p.replace(/\\/g, '/').endsWith(k))
+  // the plan exists only under MAIN (a spare session's folder has none)
+  const find = (p: string) => Object.entries(files).find(([k, v]) => v !== undefined && p.replace(/\\/g, '/').endsWith(k)
+    && (k !== 'blueprint/plan.json' || p.replace(/\\/g, '/').startsWith(MAIN)))
   on('fs.read', (_: any, e: any) => { const hit = find(e.path); if (!hit) throw new Error(`ENOENT ${e.path}`); return { value: hit[1] } })
   on('fs.exists', (_: any, e: any) => ({ value: !!find(e.path) }))
   on('fs.stat', (_: any, e: any) => {
@@ -39,16 +41,16 @@ function engine(on: any, world: World) {
   on('ui.close', (_: any, e: any) => { seen.closed.push(e.id); return { value: undefined } })
   on('ui.panes', () => ({ value: (world.panes ?? []).map(id => ({ id, title: 'Blueprint', isShown: true, isFocused: false })) }))
   on('ui.status', (_: any, e: any) => { seen.status.push(e.text); return { value: undefined } })
-  mock.clock(on, { now: 0 })
+  seen.clock = mock.clock(on, { now: 0 })
   on('tool.call', (_: any, e: any) => { if (e.tool === 'PushNotification') seen.pushes.push(e.message); return { result: {} } })
-  on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
+  on('session.cwd', () => ({ value: seen.cwd }))
+  on('session.start', (_: any, e: any) => { seen.cwd = e.cwd ?? seen.cwd; return { cwd: e.cwd } })
   return seen
 }
 
-test('a child session (worktree) shows nothing: no command, no pane, no status line', async ($, on) => {
+test('a child session (worktree) shows nothing: no pane, no status line', async ($, on) => {
   const seen = engine(on, { gitFile: `gitdir: ${MAIN}/.git/worktrees/area-admin\n` })
   await $.session.start({ cwd: `${MAIN}/.claude/worktrees/area-admin`, surface: 'terminal', isInteractive: true })
-  expect(seen.commands).toEqual([])
   expect(seen.opened).toEqual([])
   expect(seen.status.filter(Boolean)).toEqual([])
 })
@@ -95,4 +97,14 @@ test('/blueprint-panel closes an open pane, and with "sessioni" switches view in
   expect(seen.closed).toEqual([])
   await $.command.run({ command: 'blueprint-panel', args: '' } as any)
   expect(seen.closed).toEqual(['blueprint'])
+})
+
+test('a spare session moved into the project later: the panel finds the plan and opens by itself', async ($, on) => {
+  const seen = engine(on, { cwd: 'C:/Users/me/.claude/spares/spare-1' })
+  await $.session.start({ cwd: 'C:/Users/me/.claude/spares/spare-1', surface: 'desktop', isInteractive: true })
+  expect(seen.opened).toEqual([]) // no plan in the spare folder
+  seen.cwd = MAIN // the app moves the session into the project
+  await seen.clock.advance(5000)
+  expect(seen.opened).toEqual(['blueprint'])
+  expect(seen.status.at(-1)).toMatch(/2\/3/)
 })

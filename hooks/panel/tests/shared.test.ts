@@ -88,8 +88,9 @@ test('readPlan builds segments, the current stage and the card summary', async (
   expect(plan?.stages[2]!.segments).toEqual(['done', 'done', 'running', 'todo', 'todo', 'todo', 'todo'])
   expect(plan?.stages[2]!.yourTurn).toBe(false)
   expect(plan?.stages[2]!.topics.map(t => t.current)).toEqual([false, true])
-  expect(plan?.stages[1]!.segments).toEqual(['done', 'done'])
-  expect(plan?.stages[3]!.segments).toEqual(['todo', 'todo', 'todo'])
+  // a discussion's bar is its four phases too, whatever the number of topics
+  expect(plan?.stages[1]!.segments).toEqual(['done', 'done', 'done', 'done'])
+  expect(plan?.stages[3]!.segments).toEqual(['todo', 'todo', 'todo', 'todo'])
   expect(plan?.stages[0]!.segments.every(s => s === 'done')).toBe(true)
   expect(plan?.stages[4]!.deadline).toBe('2026-11-20')
 })

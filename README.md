@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.0.2-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.1.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -140,7 +140,7 @@ through and what each phase must produce. It never says how.
 
 | Type | For | Phases |
 |---|---|---|
-| `discussion` | deciding, no production code | context check → divergent proposal → convergence (you) → decision — for each topic |
+| `discussion` | deciding, no production code | context check → divergent proposal → convergence (you) → decision → **recap** (you: the question, the choice and the rejected options, read back from what was written) — for each topic |
 | `implementation` | building parts; tests, review and the first-use check close it | context check → plan → build → test → review → **first use** (you see it working) → *integrate* (you) |
 | `delivery` | something to show, fast and low-risk: mockup, small demo on what exists, presentation, video, document | context check → prepare → *rehearse* (you) → deliver (you) → feedback |
 | `quick_task` | a short, low-risk job: a mockup, an unknown to find out, a check, a small fix | context check → do → check → report (you) |
@@ -308,7 +308,30 @@ PROGRESS.md       public, sanitized log of design milestones
 TEST-FINDINGS.md  what the live test runs found, and what was fixed
 ```
 
+## The panel
+
+In a project with a plan, Blueprint opens a pane beside the chat (desktop app, terminal and
+Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three screens:
+
+- **Plan** — one card per stage with a bar of its phases (grey done, blue in progress, yellow
+  waiting for you, dark to do). Open a stage to see its phases, its content, how it is done, its
+  notes (you can add one), and, in discussion stages, the files that hold its decisions (a click
+  copies the path).
+- **Sessions** — during a stage built in parallel: the mother session and one child per part,
+  with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
+- **Legend** — every stage type with its phases, how Claude moves through them, and how the
+  Sessions screen works.
+
+`/blueprint-panel` opens or closes it (`/blueprint-panel piano | sessioni | legenda` picks the
+screen). Two options in the plugin settings: `autoOpen` (on: the pane opens by itself where there
+is a plan) and `notifyWhenWaiting` (off: a phone notification when a stage or a child waits for
+you). The panel follows Claude Code's language setting (Italian or English).
+
 ## Status
+
+v3.1.0 — the panel (Plan, Sessions and Legend screens beside the chat); discussion topics get a
+fifth phase, **recap**: Claude reads back the question, the choice and the rejected options from
+what it wrote, and the topic is ticked only after your yes. Plans written before it stay valid.
 
 v3.0.2 — fixes from a full end-to-end run of a real project: implementation stages get a
 mandatory **first-use** phase (the work started with the user's own instructions, every way of

@@ -21,6 +21,7 @@ import { C } from './panel/marks'
 import { Header } from './panel/header'
 import { renderPlanView } from './panel/plan-view'
 import { renderSessionsView } from './panel/sessions-view'
+import { renderLegendView } from './panel/legend-view'
 import { sessionsSummary } from './panel/sessions-data'
 import { registerStatusWriter } from './panel/status-writer'
 
@@ -40,19 +41,57 @@ let summary: SessionsSummary = { kids: 0, blocked: [] }
 
 const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
 
+// Why there is no plan, when there should be: shown under the «no plan» line (a diagnosis aid).
+let why = ''
+async function explain($: any, dir: string): Promise<string> {
+  const attempt = async (label: string, path: string) =>
+    $.fs.read(path).then(() => `${label} ok`, (e: unknown) => `${label}: ${String((e as any)?.message ?? e).slice(0, 120)}`)
+  return [`main=${dir}`, await attempt('plan', `${dir}/blueprint/plan.json`), await attempt('loops', `${$.plugin.root}/data/loops.json`)].join(' · ')
+}
+
+// The app starts spare sessions in ~/.claude/spares/… and moves them to the real folder later:
+// where the session works is asked again on every refresh, never taken from session.start alone.
+let cwdSeen = ''
+let isChild = false
+async function locate($: any): Promise<boolean> {
+  const cwd = norm(await $.session.cwd())
+  if (cwd === cwdSeen) return false
+  cwdSeen = cwd
+  const repo = await findRepo($, cwd)
+  isChild = !!repo?.worktree // a child session: only the status writer works there
+  main = isChild ? null : repo?.main ?? cwd
+  lastPlan = null
+  return true
+}
+
 async function refresh($: any, options: any): Promise<void> {
+  const moved = await locate($).catch(() => false)
   if (!main) return
   // plan first (the summary needs the current stage's parts), then the plan again with the summary
-  const bare = await readPlan($, main)
+  const bare = await readPlan($, main).catch((e: unknown) => { why = `readPlan threw: ${String(e).slice(0, 160)}`; return null })
+  if (!bare && !why.startsWith('readPlan threw')) why = await explain($, main)
+  if (bare) why = ''
   summary = await sessionsSummary($, main, bare ?? lastPlan).catch(() => summary)
   const plan = bare && (await readPlan($, main, summary))
   const hasPlanFile = await $.fs.exists(`${main}/blueprint/plan.json`).catch(() => false)
   unreadable = !plan && hasPlanFile && !!lastPlan
   if (plan) lastPlan = plan
   else if (!hasPlanFile) lastPlan = null
+  if (moved && lastPlan && options?.autoOpen !== false) openTries = 24
   await updateStatus($)
   await notifyIfYourTurn($, options)
+  await tryAutoOpen($)
   void update($, tick, n => (n + 1) % 1_000_000)
+}
+
+// The window may not be attached yet when the session starts: the first open can fail with
+// «no surface». Retry on each refresh (every 5 s) for about two minutes, until it is placed once.
+let openTries = 0
+async function tryAutoOpen($: any): Promise<void> {
+  if (openTries <= 0) return
+  openTries--
+  const opened = await $.ui.open({ id: PANE, title: 'Blueprint' }).catch(() => null)
+  if (opened?.isPlaced !== false && opened !== null) openTries = 0
 }
 
 async function updateStatus($: any): Promise<void> {
@@ -81,6 +120,7 @@ function wantedView(args: string): PanelView | null {
   const a = args.trim().toLowerCase()
   if (a === 'sessioni' || a === 'sessions') return 'sessioni'
   if (a === 'piano' || a === 'plan') return 'piano'
+  if (a === 'legenda' || a === 'legend') return 'legenda'
   return null
 }
 
@@ -89,15 +129,11 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    const repo = await findRepo($, e.cwd)
-    if (repo?.worktree) return result // a child session: only the status writer works here
-    main = repo?.main ?? norm(e.cwd)
     lang = langFrom(await $.settings.read({ key: 'language' }).catch(() => undefined))
     await $.command.register({
-      name: 'blueprint-panel', description: tr(lang, 'cmdDescription'), argumentHint: 'piano | sessioni', immediate: true,
+      name: 'blueprint-panel', description: tr(lang, 'cmdDescription'), argumentHint: 'piano | sessioni | legenda', immediate: true,
     })
-    await refresh($, options)
-    if (lastPlan && (options as any)?.autoOpen !== false) void $.ui.open({ id: PANE, title: 'Blueprint' })
+    await refresh($, options) // finds where the session works, reads the plan, opens the pane if wanted
     $.clock.every(REFRESH_MS, () => void refresh($, options))
     return result
   })
@@ -119,7 +155,14 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button } = el
     await read($, tick) // redraw on every refresh
     const current = await read($, view)
-    if (!main || !lastPlan) return <Text dimColor>{tr(lang, 'noPlan')}</Text>
+    if (!main || !lastPlan) {
+      return (
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>{tr(lang, 'noPlan')}</Text>
+          {why ? <Text dimColor>{why}</Text> : null}
+        </Box>
+      )
+    }
     const ctx: ViewCtx = {
       el, lang, main, surface: String(e.surface),
       columns: Number((e as any).props?.bodyColumns ?? 48),
@@ -130,11 +173,15 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column" gap={1}>
         {Header(ctx, lastPlan)}
         {unreadable && <Text color={C.amber}>{tr(lang, 'planUnreadable')}</Text>}
-        <Box flexDirection="row" gap={1}>
-          <Button key="tab:piano" hotkey="p" variant={current === 'piano' ? 'primary' : 'secondary'} onPress={choose('piano')}>{tr(lang, 'piano')}</Button>
-          <Button key="tab:sessioni" hotkey="s" variant={current === 'sessioni' ? 'primary' : 'secondary'} onPress={choose('sessioni')}>{tr(lang, 'sessioni')}</Button>
+        {/* a navigation bar: one frame holds both tabs, the open one is the filled button, the other is dim text */}
+        <Box flexDirection="row" gap={1} borderStyle="round" borderColor={C.line} paddingX={1}>
+          <Button key="tab:piano" hotkey="p" variant={current === 'piano' ? 'primary' : 'secondary'} dimColor={current !== 'piano'} onPress={choose('piano')}>{tr(lang, 'piano')}</Button>
+          <Button key="tab:sessioni" hotkey="s" variant={current === 'sessioni' ? 'primary' : 'secondary'} dimColor={current !== 'sessioni'} onPress={choose('sessioni')}>{tr(lang, 'sessioni')}</Button>
+          <Button key="tab:legenda" hotkey="l" variant={current === 'legenda' ? 'primary' : 'secondary'} dimColor={current !== 'legenda'} onPress={choose('legenda')}>{tr(lang, 'legenda')}</Button>
         </Box>
-        {current === 'sessioni' ? await renderSessionsView($, ctx, lastPlan) : await renderPlanView($, ctx, lastPlan)}
+        {current === 'sessioni' ? await renderSessionsView($, ctx, lastPlan)
+          : current === 'legenda' ? await renderLegendView($, ctx)
+          : await renderPlanView($, ctx, lastPlan)}
       </Box>
     )
   })

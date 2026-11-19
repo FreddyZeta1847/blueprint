@@ -33,15 +33,15 @@ test('shortDate: ISO day → «20 nov» / «20 Nov»; other text as it is', asyn
 })
 
 test('decisions.md: bold bullets of the stage section and its subsections only', async () => {
-  const text = '## A\n- **uno** — x\n### Sub\n- **due**\n## B\n- **tre**\n'
-  expect(decisionsFromFile(text, 'A')).toEqual(['uno', 'due'])
-  expect(decisionsFromFile(text, 'B')).toEqual(['tre'])
+  const text = '## A\n- **uno** — x; one-way\n### Sub\n- **due** — facile da cambiare\n- **quattro** — difficile da cambiare\n## B\n- **tre**\n'
+  expect(decisionsFromFile(text, 'A')).toEqual([{ text: 'uno', oneWay: true }, { text: 'due', oneWay: false }, { text: 'quattro', oneWay: true }])
+  expect(decisionsFromFile(text, 'B')).toEqual([{ text: 'tre', oneWay: false }])
   expect(decisionsFromFile(text, 'C')).toEqual([])
 })
 
 test('decision blocks: the question of blocks whose Stage is the stage id', async () => {
-  const text = '# Area\n### db — Quale database?\n- **Stage:** fb\n### x — Altro?\n- **Stage:** db\n'
-  expect(decisionsFromBlocks(text, 'fb')).toEqual(['Quale database?'])
+  const text = '# Area\n### db — Quale database?\n- **Reversibility:** one-way\n- **Stage:** fb\n### x — Altro?\n- **Stage:** db\n'
+  expect(decisionsFromBlocks(text, 'fb')).toEqual([{ text: 'Quale database?', oneWay: true }])
   expect(decisionsFromBlocks(text, 'zz')).toEqual([])
 })
 

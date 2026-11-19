@@ -2,7 +2,7 @@
  * State contract of Blueprint's panel mod: the values it keeps in $.state, so they survive a
  * reload of the module (a plugin option change reloads it).
  */
-export type PanelView = 'piano' | 'sessioni'
+export type PanelView = 'piano' | 'sessioni' | 'legenda'
 
 declare module 'claude-code' {
   interface PluginState {

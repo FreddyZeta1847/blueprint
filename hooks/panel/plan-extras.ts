@@ -11,26 +11,32 @@ import type { StageModel } from './types'
 
 export type Note = { stage: string; text: string; read: boolean }
 
-/** Bold bullet texts under `## <name>` until the next `## ` heading. */
-export function decisionsFromFile(text: string, name: string): string[] {
-  const out: string[] = []
+export type Decision = { text: string; oneWay: boolean }
+
+/** A bullet of the single decisions file says it is hard to change: «one-way», «difficile da cambiare». */
+const hardToChange = (line: string) => /one-way|difficile da cambiare|irreversibil|hard to change/i.test(line) && !/two-way/i.test(line)
+
+/** Bold bullet texts under `## <name>` until the next `## ` heading; one-way when the bullet says so. */
+export function decisionsFromFile(text: string, name: string): Decision[] {
+  const out: Decision[] = []
   let inside = false
   for (const line of text.split(/\r?\n/)) {
     const h2 = /^##\s+(.+?)\s*$/.exec(line)
     if (h2) { inside = h2[1] === name; continue }
     const bold = inside ? /^\s*[-*]\s+\*\*(.+?)\*\*/.exec(line) : null
-    if (bold?.[1]) out.push(bold[1])
+    if (bold?.[1]) out.push({ text: bold[1], oneWay: hardToChange(line) })
   }
   return out
 }
 
-/** Questions of the `### id — question` blocks whose Stage line names the stage id. */
-export function decisionsFromBlocks(text: string, stageId: string): string[] {
+/** Questions of the `### id — question` blocks whose Stage line names the stage id; one-way by `Reversibility`. */
+export function decisionsFromBlocks(text: string, stageId: string): Decision[] {
   return text.split(/^###\s+/m).slice(1).flatMap(block => {
     const title = block.split(/\r?\n/)[0] ?? ''
     const stage = /^\s*-\s+\*\*(?:Stage|Tappa):\*\*\s*(\S+)/m.exec(block)?.[1]
     if (stage !== stageId) return []
-    return [title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim()]
+    const oneWay = /^\s*-\s+\*\*(?:Reversibility|Reversibilità):\*\*\s*one-way/im.test(block)
+    return [{ text: title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim(), oneWay }]
   })
 }
 
@@ -47,14 +53,23 @@ async function markdownFiles($: any, dir: string, depth = 0): Promise<string[]> 
   return found
 }
 
-export async function stageDecisions($: any, main: string, stage: StageModel): Promise<string[]> {
-  const single: string = await $.fs.read(`${main}/blueprint/decisions.md`).catch(() => '')
-  const fromFolder: string[] = []
-  for (const path of await markdownFiles($, `${main}/blueprint/decisions`)) {
+/**
+ * The stage's decisions, the files that hold them (absolute paths), and where the project keeps
+ * decisions at all (relative: the decisions folder, the single file, or the context card).
+ */
+export async function stageDecisions($: any, main: string, stage: StageModel): Promise<{ list: Decision[]; files: string[]; home: string }> {
+  const singlePath = `${main}/blueprint/decisions.md`
+  const single: string | null = await $.fs.read(singlePath).catch(() => null)
+  const list = decisionsFromFile(single ?? '', stage.name)
+  const files = list.length > 0 ? [singlePath] : []
+  const folder = await markdownFiles($, `${main}/blueprint/decisions`)
+  for (const path of folder) {
     const text: string = await $.fs.read(path).catch(() => '')
-    fromFolder.push(...decisionsFromBlocks(text, stage.id))
+    const found = decisionsFromBlocks(text, stage.id)
+    if (found.length > 0) { list.push(...found); files.push(path) }
   }
-  return [...decisionsFromFile(single, stage.name), ...fromFolder]
+  const home = folder.length > 0 ? 'blueprint/decisions/' : single !== null ? 'blueprint/decisions.md' : 'blueprint/context.md'
+  return { list, files, home }
 }
 
 const notesPath = (main: string) => `${main}/blueprint/notes.json`

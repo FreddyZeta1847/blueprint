@@ -47,13 +47,19 @@ export function pillSvg(label: string, tone: 'amber' | 'accent' | 'muted'): stri
 /** Phase rail of an open stage; the current phase is labelled under its mark. */
 export function railSvg(phases: { state: PhaseState }[], label: string, width = 300): string {
   const n = Math.max(phases.length, 2); const x0 = 10; const step = (width - 20) / (n - 1)
-  const at = Math.max(phases.findIndex(p => p.state === 'running' || p.state === 'stopped'), 0)
+  const live = phases.findIndex(p => p.state === 'running' || p.state === 'stopped')
+  const at = Math.max(live, 0)
   const stopped = phases[at]?.state === 'stopped'
-  const lx = Math.min(Math.max(x0 + step * at, 50), width - 50)
+  // the label sits under the current phase, but never runs out of the picture: it is anchored
+  // at its start or end near an edge; a stage with no current phase gets it centred, muted
+  const half = (label.length * 6.8) / 2
+  const cx = live < 0 ? width / 2 : x0 + step * at
+  const [x, anchor] = cx - half < 2 ? [2, 'start'] : cx + half > width - 2 ? [width - 2, 'end'] : [cx, 'middle']
+  const fill = live < 0 ? C.muted : stopped ? C.amber : C.accent
   return doc(width, 46,
     `<line x1="${x0}" y1="12" x2="${x0 + step * (n - 1)}" y2="12" stroke="${C.line}" stroke-width="1.5"/>` +
     phases.map((p, i) => markShape(x0 + step * i, 12, p.state, p.state === 'running' || p.state === 'stopped' ? 7 : 5)).join('') +
-    `<text x="${lx}" y="38" font-size="12" font-weight="600" fill="${stopped ? C.amber : C.accent}" text-anchor="middle" ${FONT}>${esc(label)}</text>`)
+    `<text x="${x}" y="38" font-size="12" font-weight="600" fill="${fill}" text-anchor="${anchor}" ${FONT}>${esc(label)}</text>`)
 }
 
 /** Header progress: done stages muted, the current one blue (amber when stopped). */
