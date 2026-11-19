@@ -1,4 +1,4 @@
-﻿.
+.
 ├── .claude-plugin/
 │   ├── marketplace.json
 │   └── plugin.json
@@ -19,6 +19,28 @@
 │   │   ├── ignore.js
 │   │   ├── plan.js
 │   │   └── vault.js
+│   ├── panel/
+│   │   ├── tests/
+│   │   │   ├── entry.test.tsx
+│   │   │   ├── harness.ts
+│   │   │   ├── integration.accept.test.tsx
+│   │   │   ├── plan-view.accept.test.tsx
+│   │   │   ├── plan-view.test.tsx
+│   │   │   ├── sessions.accept.test.tsx
+│   │   │   ├── sessions.test.tsx
+│   │   │   └── shared.test.ts
+│   │   ├── header.tsx
+│   │   ├── legend-view.tsx
+│   │   ├── marks.ts
+│   │   ├── plan-data.ts
+│   │   ├── plan-extras.ts
+│   │   ├── plan-view.tsx
+│   │   ├── repo.ts
+│   │   ├── sessions-data.ts
+│   │   ├── sessions-view.tsx
+│   │   ├── status-writer.ts
+│   │   ├── text.ts
+│   │   └── types.ts
 │   ├── tests/
 │   │   ├── decisions.test.js
 │   │   ├── file-watcher.test.js
@@ -32,6 +54,7 @@
 │   ├── hooks.json
 │   ├── one-way-guard.js
 │   ├── orientation.js
+│   ├── panel.tsx
 │   ├── plan-guard.js
 │   └── step-close.js
 ├── skills/
@@ -47,8 +70,10 @@
 │   │   └── SKILL.md
 │   └── using-blueprint/
 │       └── SKILL.md
+├── types/
+│   └── index.d.ts
 ├── .gitignore
 ├── PROGRESS.md
 ├── README.md
 ├── TEST-FINDINGS.md
-└── tree.md
+├── tree.md

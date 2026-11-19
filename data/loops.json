@@ -9,9 +9,10 @@
         { "id": "clarify", "produces": "the context check for this topic: Claude asks itself whether it has enough context to take it on its own; if not, a short discussion with the user (or the user saying the context was misunderstood) fills the gap" },
         { "id": "proposal", "produces": "a divergent proposal: many possible options first, then Claude's recommendation and why it wins", "back_to": "clarify" },
         { "id": "convergence", "user": true, "produces": "a choice; the user makes the hard-to-change ones" },
-        { "id": "decision", "produces": "the decision written down (blueprint/decisions/ or the context card)" }
+        { "id": "decision", "produces": "the decision written down (blueprint/decisions/ or the context card)" },
+        { "id": "recap", "user": true, "produces": "the written decision shown back to the user before the next topic: the question, the choice, the rejected options with why; the user confirms it or sends it back", "back_to": "convergence" }
       ],
-      "done_when": "every topic has a written decision or is postponed with a reason"
+      "done_when": "every topic has a written decision reviewed with the user, or is postponed with a reason"
     },
     "implementation": {
       "purpose": "Build and verify one or more parts.",

@@ -113,9 +113,9 @@ test('topics: the old "steps" field, phase names as topics, empty postponed, ind
 test('a per_step stage is done only when every topic is done or postponed with a reason', () => {
   const p = setup(planOf([disc([{ name: 'Stack', done: false }, { name: 'Hosting', done: false }], { status: 'todo' })]));
   expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false }, { name: 'Hosting', done: false }], { status: 'done' })])), 'deny', /neither done nor postponed/);
-  const onDisk = planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }, { name: 'Hosting', done: false, phase: 'proposal' }])]);
+  const onDisk = planOf([disc([{ name: 'Stack', done: false, phase: 'decision' }, { name: 'Hosting', done: false, phase: 'proposal' }])]);
   const q = setup(onDisk);
-  expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }, { name: 'Hosting', done: false, phase: 'proposal', postponed: 'needs the price list' }], { status: 'done' })])), 'allow');
+  expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: true, phase: 'recap' },{ name: 'Hosting', done: false, phase: 'proposal', postponed: 'needs the price list' }], { status: 'done' })])), 'allow');
 });
 
 test('opening a stage: it starts at clarify; jumping a mandatory phase is denied', () => {
@@ -171,11 +171,15 @@ test('implementation: the first-use check is mandatory — review cannot jump to
   expectDecision(writePlan(f, planOf([impl({ status: 'in_progress', phase: 'build' })])), 'allow');
 });
 
-test('per_step: a topic done before the decision phase is denied; a new topic starts at clarify', () => {
+test('per_step: a topic done before the recap phase is denied; a new topic starts at clarify', () => {
   const sk = undefined;
   const p = setup(planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }], { skipped: sk })]));
-  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: true, phase: 'convergence' }], { skipped: sk })])), 'deny', /topic "Stack".*done before the phase "decision"/);
-  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { skipped: sk })])), 'allow');
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: true, phase: 'convergence' }], { skipped: sk })])), 'deny', /topic "Stack".*done before the phase "recap"/);
+  // the decision is written, but the topic is done only after the user has reviewed it (recap)
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'decision' }], { skipped: sk })])), 'allow');
+  const d = setup(planOf([disc([{ name: 'Stack', done: false, phase: 'decision' }], { skipped: sk })]));
+  expectDecision(writePlan(d, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { skipped: sk })])), 'deny', /done before the phase "recap"/);
+  expectDecision(writePlan(d, planOf([disc([{ name: 'Stack', done: true, phase: 'recap' }], { skipped: sk })])), 'allow');
   // a new topic cannot start past the context check
   expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }, { name: 'Hosting', done: false, phase: 'proposal' }])])), 'deny', /mandatory phase "clarify"/);
   expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }, { name: 'Hosting', done: false, phase: 'clarify' }])])), 'allow');
@@ -221,4 +225,21 @@ test('other files, Windows paths and bad input', () => {
     assert.equal(res.status, 0);
     assert.equal(res.stdout, '');
   }
+});
+
+test('recap: a reviewed decision the user rejects goes back to convergence', () => {
+  const p = setup(planOf([disc([{ name: 'Stack', done: false, phase: 'recap' }])]));
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'convergence' }])])), 'allow');
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: false, phase: 'proposal' }])])), 'deny', /only to "convergence"/);
+});
+
+test('plans written before the recap phase stay valid: a topic already done at "decision" is left alone', () => {
+  // an older plan: one topic finished at decision (the last phase back then), one still open
+  const old = planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }, { name: 'Hosting', done: false, phase: 'proposal' }])]);
+  const p = setup(old);
+  expectDecision(writePlan(p, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }, { name: 'Hosting', done: false, phase: 'convergence' }])])), 'allow');
+  // and its done stages too
+  const closed = planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { status: 'done' }), impl()]);
+  const q = setup(closed);
+  expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { status: 'done' }), impl({ status: 'in_progress', phase: 'clarify' })])), 'allow');
 });

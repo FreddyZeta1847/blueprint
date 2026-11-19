@@ -257,7 +257,7 @@ boundary"). After the yes, write in `plan.json`:
 - `phase: "clarify"` (the context check is the first phase recorded, even when it took one line),
   then forward one phase at a time — on the stage only for per-stage types, on each topic only for
   discussion (never both);
-- `skipped`: every optional phase skipped, each with its `reason`;
+- `skipped`: every optional phase skipped, each written as `{ "id": "<phase id>", "reason": "..." }`;
 - `how`: one line with what the user confirmed.
 
 ### Phases (not Blueprint)

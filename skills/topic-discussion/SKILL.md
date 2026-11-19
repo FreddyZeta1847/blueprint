@@ -1,15 +1,16 @@
 ---
 name: topic-discussion
-description: "Blueprint's discussion engine. Runs the phases of every topic of a discussion stage in blueprint/plan.json — context check, divergent proposal, convergence, decision — for a shared area, contract, section or note. Specialists first, one proposal that opens many options and then recommends, a plain one-way/two-way summary, then you write the decisions yourself and lock."
+description: "Blueprint's discussion engine. Runs the phases of every topic of a discussion stage in blueprint/plan.json — context check, divergent proposal, convergence, decision, recap — for a shared area, contract, section or note. Specialists first, one proposal that opens many options and then recommends, a plain one-way/two-way summary, then you write the decisions yourself, lock, and review what was written with the user before the next topic."
 ---
 
 # Topic-Discussion
 
 <!--
 Header comment: the only "how" Blueprint keeps. It runs the phases of a discussion stage's topics
-(data/loops.json, type `discussion`: clarify → proposal → convergence → decision): the context
-check, specialists, one divergent proposal, the user's choice, then the decision written to the
-decisions folder (or the context card when there is none). The block format and the save sequence are defined in
+(data/loops.json, type `discussion`: clarify → proposal → convergence → decision → recap): the
+context check, specialists, one divergent proposal, the user's choice, the decision written to the
+decisions folder (or the context card when there is none), then the recap of what was written,
+confirmed by the user before the next topic. The block format and the save sequence are defined in
 blueprint:docs-management; the one-way/two-way test and the hard rules in blueprint:using-blueprint.
 -->
 
@@ -46,11 +47,13 @@ the area, below).
 ## The phases and the plan
 
 The loop of a discussion stage is in `data/loops.json`: `clarify` (the context check) →
-`proposal` (divergent) → `convergence` (the user) → `decision`. Each topic of the stage moves
-through them, and you record every move in `blueprint/plan.json` as described in
-`blueprint:create-plan` §7: one phase at a time, none skipped. If the user says the proposal
-misread the context (yours or a specialist's), the topic goes back from `proposal` to `clarify`.
-A topic is done when its decision is written, or postponed with a reason told to the user.
+`proposal` (divergent) → `convergence` (the user) → `decision` → `recap` (the user). Each topic
+of the stage moves through them, and you record every move in `blueprint/plan.json` as described
+in `blueprint:create-plan` §7: one phase at a time, none skipped. If the user says the proposal
+misread the context (yours or a specialist's), the topic goes back from `proposal` to `clarify`;
+if the recap shows a decision the user does not recognise, it goes back to `convergence`.
+A topic is done when its decision is written and reviewed with the user (§7), or postponed with a
+reason told to the user. Topics finished at `decision` before Blueprint 3.1.0 stay as they are.
 
 ## Entry
 
@@ -203,9 +206,32 @@ In short, each decision is one block:
    - **a check found something** (a clash with another area, the same answer to two questions, a
      dangling link, a `Used by` name that doesn't exist): explain it in plain words with the
      options and let the user decide before changing anything.
-5. **Record the topic in `blueprint/plan.json`:** its phase at `decision`, `done: true`.
-6. **Only then speak:** "✓ Locked." plus one line on what was saved, and name the next topic of the
-   stage. When the stage's last topic is done, close the stage (`blueprint:create-plan` §7).
+5. **Record the topic in `blueprint/plan.json`:** its phase at `decision` (not done yet).
+6. **Only then speak:** "✓ Locked." plus one line on what was saved, and go straight to the recap
+   (§7) in the same message.
+
+### 7. Recap (recap phase): show back what was written, then the next topic
+
+Move the topic to `recap` in `plan.json`, then show the user, **read from the files you just
+wrote** (not from memory of the chat), for each decision of the topic:
+
+> **Recap — DB**
+> - **Question:** which database engine does the system use?
+> - **Chosen:** PostgreSQL, managed by the provider — orders and users are relational.
+> - **Rejected:** MongoDB (the data is relational) · SQLite (no concurrent access).
+> - **Hard to change later.**
+>
+> Is this what we agreed? If yes, I tick the topic and move on to «Hosting».
+
+- Every decision of the topic, the easy-to-change details too (one line each, under "Details").
+- Plain words, the same ones the user used; no field names.
+- **Yes** → tick the topic `done: true` (phase `recap`) and open the next topic at `clarify`.
+  When it was the last topic, close the stage (`blueprint:create-plan` §7).
+- **Not what we agreed** → back to `convergence`: talk it through again, rewrite the block, recap
+  again. A wrong word in the file (a typo, a missing rejected option) is fixed in place and
+  recapped again, without going back.
+- Never tick a topic before the user's yes on its recap; never skip the recap because the summary
+  of step 4 looked the same: the recap checks what was **written**.
 
 ## Additions and revisions (a locked area needs to change)
 
@@ -227,7 +253,8 @@ locked:
 - the context check was answered, the specialists produced alternatives and one divergent
   proposal reached the user;
 - the user agreed (or, in a Claude-owned area, only the two-way decisions locked without them);
-- the blocks are written, the hooks' messages are handled, the topic is recorded in `plan.json`;
+- the blocks are written, the hooks' messages are handled, the user confirmed the recap of what was
+  written, and the topic is recorded done in `plan.json`;
 - every one-way decision lists the alternatives it beat (`Rejected`).
 
 ## What NOT to do

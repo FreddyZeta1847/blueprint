@@ -1,7 +1,26 @@
 {
   "name": "blueprint",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "description": "From the first message to a staged plan: a context derived before it is asked, a plan built on written best practices, a fixed loop for every stage, and a decisions folder when the project needs one.",
-  "author": { "name": "FreddyZeta1847" },
-  "hooks": "./hooks/hooks.json"
+  "author": {
+    "name": "FreddyZeta1847"
+  },
+  "hooks": "./hooks/hooks.json",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open the panel on start",
+      "description": "Open the Blueprint panel beside the chat when a session starts in a project that has a plan.",
+      "required": false,
+      "default": true
+    },
+    "notifyWhenWaiting": {
+      "type": "boolean",
+      "title": "Notify me when it is my turn",
+      "description": "Send a push notification (phone, via Remote Control) once when a stage or a child session starts waiting for you. Skipped while you are looking at the session.",
+      "required": false,
+      "default": false
+    }
+  }
 }

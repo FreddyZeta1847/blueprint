@@ -16,7 +16,9 @@
  *   3. a phase moves only to the next phase (optional ones in between must be in `skipped`) or
  *      back to the old phase's `back_to`; it is never cleared; in_progress per_stage stages
  *      have a phase. New stages/topics are checked as if they started before the first phase;
- *   4. done (stage, or a per_step topic) only at or after the last mandatory phase; a done
+ *   4. done (stage, or a per_step topic) only at or after the last mandatory phase (a topic
+ *      already done at the same phase in the plan on disk is left alone, so plans written
+ *      before a loop grew a phase stay valid); a done
  *      per_step stage has every topic done or postponed with a reason; a done per_stage stage
  *      has every topic done;
  *   5. a stage that was done cannot be changed or removed → ask (the user may have asked);
@@ -202,11 +204,20 @@ function lastMandatory(loop) {
   return last;
 }
 
-function checkDone(stage, loop, deny) {
+/** Topics already done, at the same phase, in the plan on disk: a loop that grew a phase later
+ * (discussion's `recap`, 3.1.0) must not turn the plans written before it into errors. */
+function alreadyDone(stage, before) {
+  if (!before || before.type !== stage.type || !Array.isArray(before.topics)) return new Set();
+  return new Set(before.topics.filter((t) => isObject(t) && t.done === true).map((t) => `${t.name}\u0000${t.phase}`));
+}
+
+function checkDone(stage, before, loop, deny) {
   const ids = loop.phases.map((p) => p.id);
   const need = loop.phases[lastMandatory(loop)].id;
   if (loop.cycle === 'per_step') {
+    const kept = alreadyDone(stage, before);
     for (const topic of stage.topics || []) {
+      if (topic.done && kept.has(`${topic.name}\u0000${topic.phase}`)) continue;
       if (topic.done && ids.indexOf(topic.phase) < lastMandatory(loop)) {
         deny.push(`rule 4: topic "${topic.name}" of ${label(stage)} is done before the phase "${need}"; record "${need}" first.`);
       }
@@ -266,7 +277,7 @@ function validatePlan(next, previous, loops) {
   for (const stage of next.stages) {
     const loop = loops.types[stage.type];
     checkMoves(stage, before.get(stage.id), loop, deny);
-    checkDone(stage, loop, deny);
+    checkDone(stage, before.get(stage.id), loop, deny);
   }
   checkHistory(next, before, ask, deny);
   return { deny, ask };

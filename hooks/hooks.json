@@ -1,5 +1,5 @@
 {
-  "description": "Blueprint v3: short session orientation (plan stage, phase, deadline), the plan-guard on blueprint/plan.json, the file-watcher (Markdown decisions → checks), the one-way floor, and the end-of-step question.",
+  "description": "Blueprint v3: short session orientation (plan stage, phase, deadline), the plan-guard on blueprint/plan.json, the file-watcher (Markdown decisions → checks), the one-way floor, and the end-of-step question; plus the panel mod (hooks/panel.tsx): the plan and the parallel sessions beside the chat.",
   "hooks": {
     "SessionStart": [
       {
@@ -47,5 +47,8 @@
         ]
       }
     ]
-  }
+  },
+  "modules": [
+    "./panel.tsx"
+  ]
 }
