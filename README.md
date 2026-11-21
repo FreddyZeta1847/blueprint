@@ -316,7 +316,9 @@ Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three 
 - **Plan** — one card per stage with a bar of its phases (grey done, blue in progress, yellow
   waiting for you, dark to do). Open a stage to see its phases, its content, how it is done, its
   notes (you can add one), and, in discussion stages, the files that hold its decisions (a click
-  copies the path).
+  copies the path). An implementation stage also shows its **steps**: the plain plan Claude writes
+  in `blueprint/plans/<stage>.md` next to the technical one, as a column of marks per session (teal
+  line for a child, white for the main session), ticked as each step finishes.
 - **Sessions** — during a stage built in parallel: the mother session and one child per part,
   with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
 - **Legend** — every stage type with its phases, how Claude moves through them, and how the

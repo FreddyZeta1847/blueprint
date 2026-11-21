@@ -7,9 +7,37 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { PhaseState, PlanModel, StageModel, ViewCtx } from './types'
-import { C, GLYPH, barSvg, barText, pillSvg, railSvg } from './marks'
+import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepsSvg } from './marks'
 import { tr } from './text'
 import { addNote, readNotes, stageDecisions, type Note } from './plan-extras'
+import { readSteps } from './plan-steps'
+
+/**
+ * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
+ * the other, its name above; the line is teal for a child, muted for the mother. Text on the terminal.
+ */
+async function Steps($: any, ctx: ViewCtx, stage: StageModel) {
+  const { Box, Text, Svg } = ctx.el
+  const sections = await readSteps($, ctx.main, stage)
+  if (sections.length === 0) return null
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text bold color={C.ink}>{tr(ctx.lang, 'steps')}</Text>
+      {sections.map((s, i) => {
+        const color = s.role === 'child' ? C.teal : C.muted
+        const lines = s.steps.map(st => `${GLYPH[st.state]} ${st.text}`)
+        return (
+          <Box flexDirection="column">
+            {s.role !== 'single' && <Text bold color={color}>{s.name}</Text>}
+            {hasSvg(ctx)
+              ? Keyed(ctx, `steps:${stage.id}:${i}`, <Svg source={stepsSvg(s.steps, color)} alt={lines.join(' · ')} />)
+              : lines.map(line => <Text color={color} wrap="wrap">{`│ ${line}`}</Text>)}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
 
 const CURRENT = '*'
 const expanded = atom({ plugin: 'blueprint', key: 'expanded' } as const, [CURRENT] as string[], { shape: 'expanded-1' })
@@ -191,6 +219,7 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
         {Pills(ctx, stage)}
       </Box>
       {Phases(ctx, stage, phase)}
+      {await Steps($, ctx, stage)}
       {Section(ctx, tr(ctx.lang, 'topics'), stage.topics.length > 0
         ? stage.topics.map(topicLine)
         : [tr(ctx.lang, 'noTopics', { purpose: tr(ctx.lang, `purpose_${stage.type}`) })])}

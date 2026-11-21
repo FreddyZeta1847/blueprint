@@ -47,7 +47,7 @@ export async function renderLegendView($: any, ctx: ViewCtx) {
   const marks = [
     `${GLYPH.done} ${tr(ctx.lang, 'lgMarkDone')}`, `${GLYPH.running} ${tr(ctx.lang, 'lgMarkRunning')}`,
     `${GLYPH.stopped} ${tr(ctx.lang, 'lgMarkStopped')}`, `${GLYPH.todo} ${tr(ctx.lang, 'lgMarkTodo')}`,
-    `${GLYPH.skipped} ${tr(ctx.lang, 'lgMarkSkipped')}`, tr(ctx.lang, 'lgFrames'),
+    `${GLYPH.skipped} ${tr(ctx.lang, 'lgMarkSkipped')}`, tr(ctx.lang, 'lgFrames'), tr(ctx.lang, 'lgSteps'),
   ]
   const flow = ['lgFlow1', 'lgFlow2', 'lgFlow3', 'lgFlow4'].map(k => `• ${tr(ctx.lang, k)}`)
   const sessions = ['lgSes1', 'lgSes2', 'lgSes3', 'lgSes4', 'lgSes5', 'lgSes6', 'lgSes7'].map(k => `• ${tr(ctx.lang, k)}`)

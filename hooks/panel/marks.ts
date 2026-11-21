@@ -8,6 +8,8 @@ import type { PhaseState } from './types'
 export const C = {
   ink: '#ECEBE8', muted: '#A9A7A0', faint: '#5E5C57', line: '#3A3936', surface: '#2E2D2A',
   accent: '#6AA5FA', accentSoft: '#22324A', amber: '#E5AC52', amberSoft: '#3D2F18', hole: '#1B1B1A',
+  /** the line of a child session's steps (the mother's is `muted`): never a state colour */
+  teal: '#4FB8A8',
 }
 const FONT = 'font-family="system-ui, -apple-system, Segoe UI, sans-serif"'
 
@@ -60,6 +62,24 @@ export function railSvg(phases: { state: PhaseState }[], label: string, width = 
     `<line x1="${x0}" y1="12" x2="${x0 + step * (n - 1)}" y2="12" stroke="${C.line}" stroke-width="1.5"/>` +
     phases.map((p, i) => markShape(x0 + step * i, 12, p.state, p.state === 'running' || p.state === 'stopped' ? 7 : 5)).join('') +
     `<text x="${x}" y="38" font-size="12" font-weight="600" fill="${fill}" text-anchor="${anchor}" ${FONT}>${esc(label)}</text>`)
+}
+
+/**
+ * A column of steps: marks joined by a vertical line in the session's colour, each step's text on
+ * its right, cut to one line (the full text is in the alt).
+ */
+export function stepsSvg(steps: { state: PhaseState; text: string }[], line: string, width = 300): string {
+  const row = 24; const x = 9; const room = Math.floor((width - 28) / 6.6)
+  const h = Math.max(steps.length, 1) * row
+  const join = steps.length > 1 ? `<line x1="${x}" y1="${row / 2}" x2="${x}" y2="${h - row / 2}" stroke="${line}" stroke-width="2"/>` : ''
+  const marks = steps.map((s, i) => {
+    const cy = row / 2 + i * row
+    const text = s.text.length > room ? `${s.text.slice(0, room - 1).trimEnd()}…` : s.text
+    const fill = s.state === 'done' ? C.muted : s.state === 'todo' ? C.faint : C.ink
+    return `<circle cx="${x}" cy="${cy}" r="7" fill="${C.hole}"/>` + markShape(x, cy, s.state, s.state === 'running' || s.state === 'stopped' ? 7 : 6) +
+      `<text x="24" y="${cy + 4}" font-size="12" fill="${fill}" ${FONT}>${esc(text)}</text>`
+  }).join('')
+  return doc(width, h, join + marks)
 }
 
 /** Header progress: done stages muted, the current one blue (amber when stopped). */
