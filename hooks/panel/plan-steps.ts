@@ -42,7 +42,7 @@ export async function readSteps($: any, main: string, stage: StageModel): Promis
   const sections = parseSteps(text)
   const parts = new Set(stage.independentParts.map(slug))
   const running = stage.status === 'in_progress'
-  const out: StepSection[] = []
+  const read: { raw: RawSection; role: StepRole }[] = []
   for (const section of sections) {
     const wt = slug(section.name)
     const child = parts.has(wt) && !isMother(section.name)
@@ -52,7 +52,9 @@ export async function readSteps($: any, main: string, stage: StageModel): Promis
       const copy: string | null = await $.fs.read(`${main}/.claude/worktrees/${wt}/${file}`).catch(() => null)
       raw = (copy && parseSteps(copy).find(s => s.name === section.name)) || section
     }
-    out.push(toSection(raw, sections.length === 1 ? 'single' : child ? 'child' : 'mother', running))
+    read.push({ raw, role: sections.length === 1 ? 'single' : child ? 'child' : 'mother' })
   }
-  return out
+  // the mother's own steps (merge, checks) start only once every child has finished its section
+  const childrenDone = read.every(r => r.role !== 'child' || r.raw.steps.every(s => s.done))
+  return read.map(({ raw, role }) => toSection(raw, role, running && (role !== 'mother' || childrenDone)))
 }

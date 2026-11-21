@@ -5,6 +5,7 @@
  */
 import { expect, test } from 'claude-code/testing'
 import { parseSteps } from '../plan-steps'
+import { wrapWords } from '../marks'
 import { engine, MAIN, PANE, defaultFiles } from './harness'
 
 const PLAN = '# Piano — Frontend e backend\n\n## Area admin\n- [x] 1. Corsi e iscritti.\n- [ ] 2. Chiusure.\n- Test: un corso chiuso non si prenota.\n\n## Area clienti\n- [ ] 1. Calendario.\n- [ ] 2. Prenotazione.\n\n## Madre\n- [ ] Unione, test d\'integrazione, prova, PR.\n'
@@ -26,8 +27,8 @@ test('the open stage shows one column of steps per session; a child\'s ticks com
   expect(await terminal.find({ text: /^│ ✓ 1\. Corsi e iscritti\.$/ })).toBeDefined()
   expect(await terminal.find({ text: /^│ ● 2\. Chiusure\.$/ })).toBeDefined() // the first open step is in progress
   expect(await terminal.find({ text: /^│ ✓ 1\. Calendario\.$/ })).toBeDefined() // ticked in the child's own copy
-  expect(await terminal.find({ text: /^│ ○ Unione/ })).toBeUndefined() // the mother's first open step is in progress, not todo
-  expect(await terminal.find({ text: /^│ ● Unione/ })).toBeDefined()
+  expect(await terminal.find({ text: /^│ ○ Unione/ })).toBeDefined() // the mother starts only after the children
+  expect(await terminal.find({ text: /^│ ● Unione/ })).toBeUndefined()
   expect(await terminal.find({ text: /Test: un corso chiuso/ })).toBeUndefined()
   await terminal.unmount()
   const desktop = await $.ui.mount(PANE('desktop'))
@@ -44,4 +45,18 @@ test('no plain plan: no steps part', async ($, on) => {
   const ui = await $.ui.mount(PANE('terminal'))
   expect(await ui.find({ text: /^Passi$/ })).toBeUndefined()
   await ui.unmount()
+})
+
+test('once every child has finished its section, the mother\'s first step is in progress', async ($, on) => {
+  const all = PLAN.replace(/- \[ \] (1\. Calendario|2\. Prenotazione|2\. Chiusure)/g, '- [x] $1')
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plans/fb.md': all } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('terminal'))
+  expect(await ui.find({ text: /^│ ● Unione/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('wrapWords: lines of at most the room, a long word alone', async () => {
+  expect(wrapWords('Calendario della settimana e prenotazione', 20)).toEqual(['Calendario della', 'settimana e', 'prenotazione'])
+  expect(wrapWords('supercalifragilistico breve', 10)).toEqual(['supercalifragilistico', 'breve'])
 })

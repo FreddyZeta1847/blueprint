@@ -64,22 +64,38 @@ export function railSvg(phases: { state: PhaseState }[], label: string, width = 
     `<text x="${x}" y="38" font-size="12" font-weight="600" fill="${fill}" text-anchor="${anchor}" ${FONT}>${esc(label)}</text>`)
 }
 
+/** Words into lines of at most `room` characters (a longer word gets a line of its own). */
+export function wrapWords(text: string, room: number): string[] {
+  const lines: string[] = []
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const last = lines[lines.length - 1]
+    if (last !== undefined && last.length + 1 + word.length <= room) lines[lines.length - 1] = `${last} ${word}`
+    else lines.push(word)
+  }
+  return lines.length > 0 ? lines : ['']
+}
+
 /**
  * A column of steps: marks joined by a vertical line in the session's colour, each step's text on
- * its right, cut to one line (the full text is in the alt).
+ * its right, wrapped over as many lines as it needs.
  */
-export function stepsSvg(steps: { state: PhaseState; text: string }[], line: string, width = 300): string {
-  const row = 24; const x = 9; const room = Math.floor((width - 28) / 6.6)
-  const h = Math.max(steps.length, 1) * row
-  const join = steps.length > 1 ? `<line x1="${x}" y1="${row / 2}" x2="${x}" y2="${h - row / 2}" stroke="${line}" stroke-width="2"/>` : ''
-  const marks = steps.map((s, i) => {
-    const cy = row / 2 + i * row
-    const text = s.text.length > room ? `${s.text.slice(0, room - 1).trimEnd()}…` : s.text
+export function stepsSvg(steps: { state: PhaseState; text: string }[], line: string, width = 320): string {
+  const x = 9; const lineH = 16; const pad = 8; const room = Math.floor((width - 30) / 6.4)
+  let y = 0
+  const rows = steps.map(s => {
+    const lines = wrapWords(s.text, room)
+    const row = { s, lines, cy: y + pad / 2 + lineH / 2 }
+    y += lines.length * lineH + pad
+    return row
+  })
+  const first = rows[0]?.cy ?? 0; const last = rows[rows.length - 1]?.cy ?? 0
+  const join = rows.length > 1 ? `<line x1="${x}" y1="${first}" x2="${x}" y2="${last}" stroke="${line}" stroke-width="2"/>` : ''
+  const marks = rows.map(({ s, lines, cy }) => {
     const fill = s.state === 'done' ? C.muted : s.state === 'todo' ? C.faint : C.ink
-    return `<circle cx="${x}" cy="${cy}" r="7" fill="${C.hole}"/>` + markShape(x, cy, s.state, s.state === 'running' || s.state === 'stopped' ? 7 : 6) +
-      `<text x="24" y="${cy + 4}" font-size="12" fill="${fill}" ${FONT}>${esc(text)}</text>`
+    const text = lines.map((l, k) => `<text x="26" y="${cy + 4 + k * lineH}" font-size="12" fill="${fill}" ${FONT}>${esc(l)}</text>`).join('')
+    return `<circle cx="${x}" cy="${cy}" r="7" fill="${C.hole}"/>` + markShape(x, cy, s.state, s.state === 'running' || s.state === 'stopped' ? 7 : 6) + text
   }).join('')
-  return doc(width, h, join + marks)
+  return doc(width, Math.max(y, 1), join + marks)
 }
 
 /** Header progress: done stages muted, the current one blue (amber when stopped). */
