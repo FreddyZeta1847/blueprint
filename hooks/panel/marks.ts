@@ -47,55 +47,47 @@ export function pillSvg(label: string, tone: 'amber' | 'accent' | 'muted'): stri
 }
 
 /** Phase rail of an open stage; the current phase is labelled under its mark. */
-export function railSvg(phases: { state: PhaseState }[], label: string, width = 300): string {
+export function railSvg(phases: { state: PhaseState }[], label: string, width = 300, chosen?: number): string {
   const n = Math.max(phases.length, 2); const x0 = 10; const step = (width - 20) / (n - 1)
   const live = phases.findIndex(p => p.state === 'running' || p.state === 'stopped')
-  const at = Math.max(live, 0)
-  const stopped = phases[at]?.state === 'stopped'
-  // the label sits under the current phase, but never runs out of the picture: it is anchored
-  // at its start or end near an edge; a stage with no current phase gets it centred, muted
+  const at = chosen ?? Math.max(live, 0)
+  const state = phases[at]?.state
+  const centred = chosen === undefined && live < 0
+  // the label sits under the current phase (or the one the user looks at, which gets a dashed
+  // ring), but never runs out of the picture: it is anchored at its start or end near an edge;
+  // a stage with no current phase gets it centred, muted
   const half = (label.length * 6.8) / 2
-  const cx = live < 0 ? width / 2 : x0 + step * at
+  const cx = centred ? width / 2 : x0 + step * at
   const [x, anchor] = cx - half < 2 ? [2, 'start'] : cx + half > width - 2 ? [width - 2, 'end'] : [cx, 'middle']
-  const fill = live < 0 ? C.muted : stopped ? C.amber : C.accent
+  const fill = centred ? C.muted : state === 'stopped' ? C.amber : state === 'running' ? C.accent : C.ink
+  const ring = chosen === undefined ? ''
+    : `<circle cx="${x0 + step * at}" cy="12" r="10.5" fill="none" stroke="${C.ink}" stroke-width="1.2" stroke-dasharray="2 2"/>`
   return doc(width, 46,
     `<line x1="${x0}" y1="12" x2="${x0 + step * (n - 1)}" y2="12" stroke="${C.line}" stroke-width="1.5"/>` +
-    phases.map((p, i) => markShape(x0 + step * i, 12, p.state, p.state === 'running' || p.state === 'stopped' ? 7 : 5)).join('') +
+    phases.map((p, i) => markShape(x0 + step * i, 12, p.state, p.state === 'running' || p.state === 'stopped' ? 7 : 5)).join('') + ring +
     `<text x="${x}" y="38" font-size="12" font-weight="600" fill="${fill}" text-anchor="${anchor}" ${FONT}>${esc(label)}</text>`)
 }
 
-/** Words into lines of at most `room` characters (a longer word gets a line of its own). */
-export function wrapWords(text: string, room: number): string[] {
-  const lines: string[] = []
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    const last = lines[lines.length - 1]
-    if (last !== undefined && last.length + 1 + word.length <= room) lines[lines.length - 1] = `${last} ${word}`
-    else lines.push(word)
-  }
-  return lines.length > 0 ? lines : ['']
+/**
+ * The rest of a step's line, under its mark: a Box placed from the second text row to the row's
+ * bottom stretches it, so the line goes on however many lines the text takes.
+ */
+export function stepLineSvg(line: string): string {
+  // a plain stroke that may be stretched to any height (preserveAspectRatio none)
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="20" viewBox="0 0 18 20" preserveAspectRatio="none">` +
+    `<line x1="9" y1="0" x2="9" y2="20" stroke="${line}" stroke-width="2"/></svg>`
 }
 
 /**
- * A column of steps: marks joined by a vertical line in the session's colour, each step's text on
- * its right, wrapped over as many lines as it needs.
+ * The step's mark (18×20) with the line's pieces above and below it, stopping at its edge: the
+ * first row has no piece above, the last none below. Below this picture the line goes on in
+ * stepLineSvg, which never reaches the mark.
  */
-export function stepsSvg(steps: { state: PhaseState; text: string }[], line: string, width = 320): string {
-  const x = 9; const lineH = 16; const pad = 8; const room = Math.floor((width - 30) / 6.4)
-  let y = 0
-  const rows = steps.map(s => {
-    const lines = wrapWords(s.text, room)
-    const row = { s, lines, cy: y + pad / 2 + lineH / 2 }
-    y += lines.length * lineH + pad
-    return row
-  })
-  const first = rows[0]?.cy ?? 0; const last = rows[rows.length - 1]?.cy ?? 0
-  const join = rows.length > 1 ? `<line x1="${x}" y1="${first}" x2="${x}" y2="${last}" stroke="${line}" stroke-width="2"/>` : ''
-  const marks = rows.map(({ s, lines, cy }) => {
-    const fill = s.state === 'done' ? C.muted : s.state === 'todo' ? C.faint : C.ink
-    const text = lines.map((l, k) => `<text x="26" y="${cy + 4 + k * lineH}" font-size="12" fill="${fill}" ${FONT}>${esc(l)}</text>`).join('')
-    return `<circle cx="${x}" cy="${cy}" r="7" fill="${C.hole}"/>` + markShape(x, cy, s.state, s.state === 'running' || s.state === 'stopped' ? 7 : 6) + text
-  }).join('')
-  return doc(width, Math.max(y, 1), join + marks)
+export function stepMarkSvg(state: PhaseState, line: string, first: boolean, last: boolean): string {
+  const x = 9; const cy = 10; const r = 8
+  const seg = (y1: number, y2: number) => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${line}" stroke-width="2"/>`
+  return doc(18, 20, (first ? '' : seg(0, cy - r)) + (last ? '' : seg(cy + r, 20)) +
+    markShape(x, cy, state, state === 'running' || state === 'stopped' ? 7 : 6))
 }
 
 /** Header progress: done stages muted, the current one blue (amber when stopped). */

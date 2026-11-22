@@ -61,25 +61,29 @@ test('A2: the current stage starts open; a press toggles a stage', async ($, on)
   await open($, on)
   for (const surface of SURFACES) {
     const ui = await $.ui.mount(PANE(surface))
+    expect(await ui.find({ text: /costruzione/ })).toBeDefined()
+    expect(await ui.find({ text: /^Contenuto$/ })).toBeUndefined() // the topics belong to the context phase
+    for (let i = 0; i < 2; i++) await ui.press({ key: 'phase-prev:fb' })
     expect(await ui.find({ text: /^Contenuto$/ })).toBeDefined()
     expect(await ui.find({ text: /Area clienti/ })).toBeDefined()
-    expect(await ui.find({ text: /costruzione/ })).toBeDefined()
+    for (let i = 0; i < 2; i++) await ui.press({ key: 'phase-next:fb' })
     if (surface === 'desktop') expect(await ui.find({ key: 'rail:fb' })).toBeDefined()
-    expect(await ui.find({ text: /git init e repository privato/ })).toBeUndefined()
+    expect(await ui.find({ key: 'phase-next:repo' })).toBeUndefined()
     await ui.press({ key: 'stage:repo' })
-    expect(await ui.find({ text: /git init e repository privato/ })).toBeDefined()
+    expect(await ui.find({ key: 'phase-next:repo' })).toBeDefined()
     await ui.press({ key: 'stage:repo' })
-    expect(await ui.find({ text: /git init e repository privato/ })).toBeUndefined()
+    expect(await ui.find({ key: 'phase-next:repo' })).toBeUndefined()
     await ui.unmount()
   }
 })
 
-test('A2: an open implementation stage shows how and notes, and no decisions part', async ($, on) => {
+test('A2: an open implementation stage shows notes, and no decisions part and no «Come»', async ($, on) => {
   await open($, on)
   const ui = await $.ui.mount(PANE('terminal'))
   expect(await ui.find({ text: /I file che contengono le decisioni/ })).toBeUndefined() // only discussion stages have it
   expect(await ui.find({ text: /Grafica: direzione «salone chiaro»/ })).toBeUndefined() // no list of decisions any more
-  expect(await ui.find({ text: /madre \+ 2 figlie/ })).toBeDefined()
+  expect(await ui.find({ text: /^Come$/ })).toBeUndefined()
+  expect(await ui.find({ text: /madre \+ 2 figlie/ })).toBeUndefined()
   expect(await ui.find({ text: /Provarlo anche sul telefono/ })).toBeDefined()
   await ui.unmount()
 })
@@ -122,7 +126,7 @@ test('A2: no card, no decisions, no notes — no summary line, no decisions head
   const ui = await $.ui.mount(PANE('terminal'))
   expect(await ui.find({ text: /I file che contengono le decisioni/ })).toBeUndefined()
   expect(await ui.find({ text: /ritmo|calma|Progetto ·/ })).toBeUndefined()
-  expect(await ui.find({ text: /Contenuto/ })).toBeDefined()
+  expect(await ui.find({ text: /costruzione · in corso/ })).toBeDefined()
   expect(await ui.find({ text: /^Note$/ })).toBeDefined()
   await ui.unmount()
 })
@@ -130,7 +134,9 @@ test('A2: no card, no decisions, no notes — no summary line, no decisions head
 test('A2: English labels when the language setting is English', async ($, on) => {
   await open($, on, { language: 'en' })
   const ui = await $.ui.mount(PANE('terminal'))
+  for (let i = 0; i < 2; i++) await ui.press({ key: 'phase-prev:fb' }) // the topics are in the context phase
   expect(await ui.find({ text: /^Content$/ })).toBeDefined()
+  expect(await ui.find({ text: /^context · done$/ })).toBeDefined()
   expect(await ui.find({ text: /^Contenuto$/ })).toBeUndefined()
   await ui.unmount()
 })
@@ -148,6 +154,39 @@ test('A3: a note typed in the open stage is saved and shown at once', async ($, 
   expect(await ui.find({ text: /Controllare il login sul telefono/ })).toBeDefined()
   await ui.input({ key: 'note:fb', text: '   ' })
   expect(seen.writes.filter(w => w.path === `${MAIN}/blueprint/notes.json`).length).toBe(1)
+  await ui.unmount()
+})
+
+const savedNotes = (seen: { writes: { path: string; text: string }[] }) =>
+  JSON.parse(seen.writes.filter(w => w.path === `${MAIN}/blueprint/notes.json`).pop()!.text).notes
+
+test('A3: ✎ turns a note into a field holding its text; Enter saves it, unread again', async ($, on) => {
+  const seen = await open($, on)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount(PANE(surface))
+    await ui.press({ key: 'note-edit:fb:0' })
+    expect((await ui.find({ key: 'note-text:fb:0' }))?.props?.value).toBe(surface === 'terminal' ? 'Provarlo anche sul telefono' : 'Provarlo su telefono e tablet')
+    await ui.input({ key: 'note-text:fb:0', text: surface === 'terminal' ? 'Provarlo su telefono e tablet' : 'Provarlo sul tablet' })
+    expect(await ui.find({ key: 'note-text:fb:0' })).toBeUndefined()
+    expect(savedNotes(seen)).toEqual([{ stage: 'fb', text: surface === 'terminal' ? 'Provarlo su telefono e tablet' : 'Provarlo sul tablet', read: false }])
+    expect(seen.toasts).toContain('nota modificata')
+    await ui.unmount()
+  }
+  expect(await (await $.ui.mount(PANE('terminal'))).find({ text: /• Provarlo sul tablet/ })).toBeDefined()
+})
+
+test('A3: ✕ deletes a note at once; nothing is written when the note changed meanwhile', async ($, on) => {
+  const seen = await open($, on)
+  const ui = await $.ui.mount(PANE('terminal'))
+  seen.files['blueprint/notes.json'] = JSON.stringify({ notes: [{ stage: 'fb', text: 'Un altro testo', read: true }] })
+  await ui.press({ key: 'note-del:fb:0' }) // the panel still shows «Provarlo anche sul telefono»
+  expect(seen.writes.filter(w => w.path.endsWith('notes.json'))).toEqual([])
+  expect(seen.toasts).toContain('la nota è cambiata nel frattempo: niente è stato toccato')
+  await seen.clock.advance(5000)
+  await ui.press({ key: 'note-del:fb:0' })
+  expect(savedNotes(seen)).toEqual([])
+  expect(seen.toasts).toContain('nota cancellata')
+  expect(await ui.find({ text: /Un altro testo/ })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -172,6 +211,96 @@ test('every stage shows its phases when opened — done, current and to do', asy
   expect(await terminal.find({ text: /^Fasi$/ })).toBeDefined()
   expect(await terminal.find({ text: /○ resoconto/ })).toBeDefined() // the quick task's last phase, still to do
   await terminal.unmount()
+})
+
+test('the arrows under the rail move the view between the phases, without touching the plan', async ($, on) => {
+  const seen = await open($, on)
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount(PANE(surface))
+    expect(await ui.find({ text: /^costruzione · in corso$/ })).toBeDefined() // starts on the running phase
+    await ui.press({ key: 'phase-prev:fb' })
+    expect(await ui.find({ text: /^piano · fatta$/ })).toBeDefined()
+    expect(await ui.find({ text: /^il piano di costruzione\.$/ })).toBeDefined()
+    if (surface === 'desktop') expect(JSON.stringify(await ui.find({ key: 'rail:fb' }))).toContain('stroke-dasharray') // the ring on the dot looked at
+    for (let i = 0; i < 9; i++) await ui.press({ key: 'phase-next:fb' }) // past the last phase it stays there
+    expect(await ui.find({ text: /^unione · da fare$/ })).toBeDefined()
+    for (let i = 0; i < 9; i++) await ui.press({ key: 'phase-prev:fb' })
+    expect(await ui.find({ text: /^contesto · fatta$/ })).toBeDefined()
+    await ui.press({ key: 'phase-next:fb' }); await ui.press({ key: 'phase-next:fb' }) // back to «costruzione» for the next surface
+    await ui.unmount()
+  }
+  expect(seen.writes.filter(w => w.path.endsWith('plan.json'))).toEqual([])
+})
+
+test('the content follows the phase looked at: topics, plan, steps, tests, done-when; the notes always', async ($, on) => {
+  const plain = '# Piano\n\n## Area admin\n- [x] 1. Corsi.\n- Test: un corso chiuso non si prenota.\n- Finita quando: la reception crea un corso.\n\n## Area clienti\n- [ ] 1. Calendario.\n'
+  const seen = await open($, on, { files: { ...defaultFiles(), 'blueprint/plans/fb.md': plain } })
+  const ui = await $.ui.mount(PANE('terminal'))
+  const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
+  const go = async (key: string, times: number) => { for (let i = 0; i < times; i++) await ui.press({ key: `${key}:fb` }) }
+  // costruzione: the steps with their ticks
+  expect([await has(/^Passi$/), await has(/^│ ✓ 1\. Corsi\.$/), await has(/^Contenuto$/), await has(/Provarlo anche sul telefono/)]).toEqual([true, true, false, true])
+  await go('phase-prev', 1) // piano: the same steps as a plan, unticked, and the file to copy
+  expect([await has(/^Piano spiegato$/), await has(/^│ ○ 1\. Corsi\.$/), await has(/^Passi$/)]).toEqual([true, true, false])
+  await ui.press({ key: 'plan-file:fb' })
+  expect(seen.copies).toContain(`${MAIN}/blueprint/plans/fb.md`)
+  await go('phase-prev', 1) // contesto: the topics
+  expect([await has(/^Contenuto$/), await has(/^Piano spiegato$/)]).toEqual([true, false])
+  await go('phase-next', 3) // test: the «Test:» lines
+  expect([await has(/^Test$/), await has(/un corso chiuso non si prenota/), await has(/la reception crea un corso/)]).toEqual([true, true, false])
+  await go('phase-next', 1) // revisione: the «Finita quando:» lines
+  expect([await has(/^Finita quando$/), await has(/la reception crea un corso/), await has(/un corso chiuso/)]).toEqual([true, true, false])
+  await go('phase-next', 1) // prova primo utente: only what the phase is, and the notes
+  expect([await has(/^Passi$/), await has(/^Contenuto$/), await has(/^Test$/), await has(/^Finita quando$/), await has(/Provarlo anche sul telefono/)])
+    .toEqual([false, false, false, false, true])
+  await ui.unmount()
+})
+
+test('a discussion: the topics in every phase, the decision files only in decision and recap', async ($, on) => {
+  await open($, on)
+  const ui = await $.ui.mount(PANE('terminal'))
+  await ui.press({ key: 'stage:db' }) // done: it opens on its last phase, the recap
+  expect(await ui.find({ text: /^I file che contengono le decisioni di questa tappa sono:$/ })).toBeDefined()
+  expect(await ui.find({ text: /^✓ Tabelle e campi$/ })).toBeDefined()
+  await ui.press({ key: 'phase-prev:db' }); await ui.press({ key: 'phase-prev:db' }); await ui.press({ key: 'phase-prev:db' }) // proposta
+  expect(await ui.find({ text: /^I file che contengono le decisioni/ })).toBeUndefined()
+  expect(await ui.find({ text: /^✓ Tabelle e campi$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a finished implementation stage opens on its context phase, with its topics', async ($, on) => {
+  const done = JSON.parse(planJson())
+  done.stages[2] = { ...done.stages[2], status: 'done', phase: 'integrate', topics: [{ name: 'Area admin', done: true }, { name: 'Area clienti', done: true }] }
+  done.stages[3].status = 'in_progress'
+  await open($, on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(done) } })
+  const ui = await $.ui.mount(PANE('terminal'))
+  await ui.press({ key: 'stage:fb' })
+  expect(await ui.find({ text: /^contesto · fatta$/ })).toBeDefined()
+  expect(await ui.find({ text: /^✓ Area clienti$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a note is changed only if it is still the same note of the same stage', async ($, on) => {
+  const notes = JSON.stringify({ notes: [{ stage: 'fb', text: 'Uguale', read: false }] })
+  const seen = await open($, on, { files: { ...defaultFiles(), 'blueprint/notes.json': notes } })
+  const ui = await $.ui.mount(PANE('terminal'))
+  seen.files['blueprint/notes.json'] = JSON.stringify({ notes: [{ stage: 'db', text: 'Uguale', read: false }] }) // same text, another stage
+  await ui.press({ key: 'note-del:fb:0' })
+  expect(seen.writes.filter(w => w.path.endsWith('notes.json'))).toEqual([])
+  await ui.unmount()
+})
+
+test('when the stage moves to another phase, the view goes back to the running one', async ($, on) => {
+  const seen = await open($, on)
+  const ui = await $.ui.mount(PANE('terminal'))
+  await ui.press({ key: 'phase-prev:fb' })
+  expect(await ui.find({ text: /^piano · fatta$/ })).toBeDefined()
+  await ui.unmount()
+  seen.files['blueprint/plan.json'] = planJson({ phase: 'test' })
+  await seen.clock.advance(5000) // the next refresh reads the plan again
+  const again = await $.ui.mount(PANE('terminal'))
+  expect(await again.find({ text: /^test · in corso$/ })).toBeDefined()
+  await again.unmount()
 })
 
 test('a stage without topics still has content: a line saying what its type is for', async ($, on) => {

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.1.0-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.2.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -314,11 +314,14 @@ In a project with a plan, Blueprint opens a pane beside the chat (desktop app, t
 Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three screens:
 
 - **Plan** — one card per stage with a bar of its phases (grey done, blue in progress, yellow
-  waiting for you, dark to do). Open a stage to see its phases, its content, how it is done, its
-  notes (you can add one), and, in discussion stages, the files that hold its decisions (a click
-  copies the path). An implementation stage also shows its **steps**: the plain plan Claude writes
-  in `blueprint/plans/<stage>.md` next to the technical one, as a column of marks per session (teal
-  line for a child, white for the main session), ticked as each step finishes.
+  waiting for you, dark to do). Open a stage to see its phases; ◀ ▶ under them move the view from
+  phase to phase (the plan itself does not change) and the stage shows what belongs to that phase:
+  its topics, the files that hold a discussion's decisions (a click copies the path) and, in an
+  implementation stage, its **steps** — the plain plan Claude writes in `blueprint/plans/<stage>.md`
+  next to the technical one, a column of marks per session (teal line for a child, grey for the
+  main session), unticked in the plan phase, ticked as each step finishes in the build phase, its
+  `Test:` lines in the test phase and its `Finita quando:` lines in the review phase. The notes are
+  always there: add one, edit it (✎) or delete it (✕).
 - **Sessions** — during a stage built in parallel: the mother session and one child per part,
   with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
 - **Legend** — every stage type with its phases, how Claude moves through them, and how the
@@ -330,6 +333,12 @@ is a plan) and `notifyWhenWaiting` (off: a phone notification when a stage or a 
 you). The panel follows Claude Code's language setting (Italian or English).
 
 ## Status
+
+v3.2.0 — the plain plan: in the plan phase of an implementation stage Claude also writes
+`blueprint/plans/<stage>.md`, a few numbered steps per session in plain words, with their tests and
+when they are finished; each session ticks its own steps. The panel shows them as a column per
+session, lets you look at each phase of a stage with ◀ ▶ (the content follows the phase), and lets
+you edit or delete notes.
 
 v3.1.0 — the panel (Plan, Sessions and Legend screens beside the chat); discussion topics get a
 fifth phase, **recap**: Claude reads back the question, the choice and the rejected options from

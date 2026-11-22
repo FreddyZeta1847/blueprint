@@ -4,7 +4,7 @@
  *   bullets under `## <stage name>`, its `###` subsections included) and from the decisions
  *   folder blueprint/decisions/**.md (the question of each `### id — question` block whose
  *   `- **Stage:** <id>` is the stage).
- * - readNotes / addNote: blueprint/notes.json `{ "notes": [{ stage, text, read }] }`.
+ * - readNotes / addNote / changeNote: blueprint/notes.json `{ "notes": [{ stage, text, read }] }`.
  * `$` is the mod's engine interface, always passed as a parameter.
  */
 import type { StageModel } from './types'
@@ -82,14 +82,39 @@ export async function readNotes($: any, main: string): Promise<Note[]> {
   } catch { return [] }
 }
 
+/** The notes to change; a file that exists but does not parse throws: never overwrite the user's notes. */
+async function loadNotes($: any, main: string): Promise<Note[]> {
+  const existing: string | null = await $.fs.read(notesPath(main)).catch(() => null)
+  return existing === null ? [] : (JSON.parse(existing).notes ?? [])
+}
+
+async function saveNotes($: any, main: string, notes: Note[]): Promise<void> {
+  await $.fs.write(notesPath(main), JSON.stringify({ notes }, null, 2) + '\n')
+}
+
 /** Appends one unread note for the stage; an empty text adds nothing. Returns whether it wrote. */
 export async function addNote($: any, main: string, stage: string, text: string): Promise<boolean> {
   const clean = text.trim()
   if (!clean) return false
-  const existing: string | null = await $.fs.read(notesPath(main)).catch(() => null)
-  // a file that exists but does not parse throws here: never overwrite the user's notes
-  const notes: Note[] = existing === null ? [] : (JSON.parse(existing).notes ?? [])
+  const notes = await loadNotes($, main)
   notes.push({ stage, text: clean, read: false })
-  await $.fs.write(notesPath(main), JSON.stringify({ notes }, null, 2) + '\n')
+  await saveNotes($, main, notes)
   return true
+}
+
+/**
+ * Rewrites (unread again, so Claude sees it) or, with `text` null, deletes the note at `index`
+ * of notes.json. 'changed' and nothing written when that note is no longer the one the panel
+ * showed, same stage and same text (Claude or another pane changed the file meanwhile); 'same' for
+ * an empty or unchanged text.
+ */
+export async function changeNote($: any, main: string, index: number, shown: { stage: string; text: string }, text: string | null): Promise<'done' | 'same' | 'changed'> {
+  const notes = await loadNotes($, main)
+  if (notes[index]?.stage !== shown.stage || notes[index]?.text !== shown.text) return 'changed'
+  const clean = text?.trim()
+  if (text !== null && (!clean || clean === shown.text)) return 'same'
+  if (clean) notes[index] = { ...notes[index]!, text: clean, read: false }
+  else notes.splice(index, 1)
+  await saveNotes($, main, notes)
+  return 'done'
 }

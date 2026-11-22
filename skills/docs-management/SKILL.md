@@ -61,9 +61,14 @@ reads the `## ` sections and the checkbox lines; keep them exactly so):
 - [ ] Unione delle parti, test d'integrazione, prova da primo utente, PR.
 ```
 
-- One `## ` section per independent part, named **exactly as the part in `plan.json`**, plus
-  `## Madre` (in English `## Mother`) for the main session's own steps; a stage built in one session
-  has a single section.
+- **A `## ` section is a session**: one per independent part, named **exactly as the part in
+  `plan.json`**, plus `## Madre` (in English `## Mother`) for the main session's own steps.
+- **Groups inside a session are `### ` headings** (`### A. Ambiente`), each with its own steps and,
+  if useful, its own `- Test:` and `- Finita quando:` lines. A stage built in one session has no
+  `## ` section per session: write its groups as `## ` or `### ` headings, the panel shows them all
+  as one session. Keep groups for long plans only; a short plan needs none.
+- The panel shows the steps in the build phase, the same steps unticked in the plan phase, the
+  `Test:` lines in the test phase and the `Finita quando:` lines in the review phase.
 - Tick a step (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
   own copy of the file**: a child in its worktree (the panel reads it there), the main session in
   the project. At the merge, keep every section's ticks.

@@ -62,6 +62,8 @@ export type Seen = {
   cwd: string
   /** the mock clock: `await seen.clock.advance(ms)` moves time and fires due timers */
   clock: { advance: (ms: number) => Promise<void> }
+  /** the fake files under MAIN, live: a test may change one and let the refresh read it */
+  files: Record<string, string | undefined>
 }
 
 export function defaultFiles(): Record<string, string | undefined> {
@@ -75,8 +77,8 @@ const norm = (p: string) => p.replace(/\\/g, '/')
 
 export function engine(on: any, world: World = {}): Seen {
   const clock = mock.clock(on, { now: NOW })
-  const seen: Seen = { commands: [], opened: [], closed: [], status: [], pushes: [], writes: [], copies: [], toasts: [], config: [], agentRuns: 0, clock, cwd: world.cwd ?? MAIN }
   const files: Record<string, string | undefined> = { ...defaultFiles(), ...(world.files ?? {}) }
+  const seen: Seen = { commands: [], opened: [], closed: [], status: [], pushes: [], writes: [], copies: [], toasts: [], config: [], agentRuns: 0, clock, cwd: world.cwd ?? MAIN, files }
   // exact paths under MAIN; the plugin's loops.json and a worktree's .git by their ending
   const rel = (p: string): string | undefined => {
     const n = norm(p)

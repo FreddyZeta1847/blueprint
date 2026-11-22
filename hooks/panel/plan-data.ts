@@ -11,7 +11,7 @@ type LoopPhase = { id: string; optional?: boolean; user?: boolean }
 export type Loops ={ types: Record<string, { cycle: string; phases: LoopPhase[] }> }
 type RawTopic = { name: string; done?: boolean; phase?: string }
 type RawStage = {
-  id: string; name: string; type: string; status: string; phase?: string; how?: string
+  id: string; name: string; type: string; status: string; phase?: string
   deadline?: string; independent_parts?: string[]; topics?: RawTopic[]; skipped?: { id: string }[]
 }
 
@@ -76,9 +76,9 @@ function toStage(stage: RawStage, loops: Loops, isCurrent: boolean, sessions?: S
     yourTurn: stage.status === 'in_progress' && segments.includes('stopped'),
     kids: isCurrent ? sessions?.kids ?? 0 : 0,
     waitingOn: isCurrent ? (sessions?.blocked ?? []).map(b => b.worktree) : [],
-    deadline: stage.deadline, independentParts: stage.independent_parts ?? [], how: stage.how,
+    deadline: stage.deadline, independentParts: stage.independent_parts ?? [],
     topics: (stage.topics ?? []).map((t, i) => ({
-      name: t.name, done: !!t.done,
+      name: t.name, done: !!t.done, phase: t.phase,
       current: stage.status === 'in_progress' && !t.done && (loop.cycle === 'per_step' ? !!t.phase : i === firstOpen),
     })),
   }
