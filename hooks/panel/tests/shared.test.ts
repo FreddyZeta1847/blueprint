@@ -114,3 +114,12 @@ test('an unreadable plan gives null, not a throw', async () => {
   expect(await readPlan(fake({ 'blueprint/plan.json': '{ "version": 3, "stag', 'data/loops.json': LOOPS }), MAIN)).toBeNull()
   expect(await readPlan(fake({ 'data/loops.json': LOOPS }), MAIN)).toBeNull()
 })
+
+test('two stages running: the children belong to the one built in parallel, not to the first', async () => {
+  const two = { ...PLAN, stages: PLAN.stages.map(s => (s.id === 'repo' ? { ...s, status: 'in_progress', phase: 'do' } : s)) }
+  const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(two), 'data/loops.json': LOOPS }), MAIN, { kids: 2, blocked: [] })
+  expect(plan?.currentIndex).toBe(0)
+  expect(plan?.parallelIndex).toBe(2)
+  expect(plan?.stages[2]!.kids).toBe(2)
+  expect(plan?.stages[0]!.kids).toBe(0)
+})

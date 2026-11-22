@@ -50,7 +50,7 @@ let listCache: { main: string; at: number; agents: Promise<Agent[]> } | null = n
 const lastGood = new Map<string, StatusFile>()
 
 export function currentParts(plan: PlanModel | null): string[] {
-  return plan?.stages[plan.currentIndex]?.independentParts ?? []
+  return plan?.stages[plan.parallelIndex]?.independentParts ?? []
 }
 
 async function listAgents($: any, main: string, now: number): Promise<Agent[]> {

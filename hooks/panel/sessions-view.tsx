@@ -73,7 +73,7 @@ export async function renderSessionsView($: any, ctx: ViewCtx, plan: PlanModel |
   const { Box, Text, Button } = ctx.el
   const lang = ctx.lang
   const sessions = await readSessions($, ctx.main, plan)
-  const stage = plan?.stages[plan.currentIndex]
+  const stage = plan?.stages[plan.parallelIndex]
   if (!stage || sessions.parts.length === 0) return <Text dimColor>{tr(lang, 'noParallel')}</Text>
 
   const now: number = await $.clock.now()
@@ -94,7 +94,7 @@ export async function renderSessionsView($: any, ctx: ViewCtx, plan: PlanModel |
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Text dimColor wrap="truncate">{`${tr(lang, 'stageOf', { n: plan!.currentIndex + 1, m: plan!.stages.length })} · ${stage.name}`}</Text>
+      <Text dimColor wrap="truncate">{`${tr(lang, 'stageOf', { n: plan!.parallelIndex + 1, m: plan!.stages.length })} · ${stage.name}`}</Text>
       <Box flexDirection="row" justifyContent="space-between">
         <Text dimColor bold>{tr(lang, 'session')}</Text>
         <Text dimColor bold>{`${tr(lang, 'context')} · ${tr(lang, 'timeCost')}`}</Text>

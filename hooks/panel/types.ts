@@ -35,6 +35,8 @@ export type PlanModel = {
   card?: { size: string; difficulty: string; pace: string }
   stages: StageModel[]
   currentIndex: number
+  /** The running stage built in parallel (its children, the Sessioni view); the current one when none. */
+  parallelIndex: number
 }
 
 /** kids: child sessions matched to the current stage's parts (any state, files older than 7 days excluded). */

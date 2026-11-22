@@ -92,10 +92,14 @@ export async function readPlan($: any, main: string, sessions?: SessionsSummary)
   let current = stages.findIndex(s => s.status === 'in_progress')
   if (current < 0) current = stages.findIndex(s => s.status === 'todo')
   if (current < 0) current = Math.max(stages.length - 1, 0)
+  // the children belong to the running stage built in parallel, even when another stage runs too
+  const found = stages.findIndex(s => s.status === 'in_progress' && (s.independent_parts?.length ?? 0) > 0)
+  const parallel = found >= 0 ? found : current
   return {
     project: String(raw.project ?? ''),
     card: await readCard($, main),
-    stages: stages.map((s, i) => toStage(s, loops, i === current, sessions)),
+    stages: stages.map((s, i) => toStage(s, loops, i === parallel, sessions)),
     currentIndex: current,
+    parallelIndex: parallel,
   }
 }
