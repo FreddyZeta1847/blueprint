@@ -19,7 +19,7 @@
       "cycle": "per_stage",
       "phases": [
         { "id": "clarify", "produces": "the context check: Claude asks itself whether it has enough context to carry out the stage on its own (decisions written, state of the code); if not, a short discussion with the user fills the gap" },
-        { "id": "plan", "produces": "the implementation plan" },
+        { "id": "plan", "produces": "the implementation plan, with whatever tool the user uses, and next to it the plain plan blueprint/plans/<stage id>.md for the user: the steps grouped and numbered in plain words, one checkbox each, each section ending with its tests and when it is finished; one section per independent part, plus «Madre» (the main session) when the parts are built in parallel" },
         { "id": "build", "produces": "the parts built" },
         { "id": "test", "produces": "green tests", "back_to": "build" },
         { "id": "review", "produces": "review passed", "back_to": "build" },

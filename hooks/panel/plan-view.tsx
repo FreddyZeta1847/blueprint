@@ -1,15 +1,139 @@
 /*
  * Vista Piano — the plan's stages as rows (segmented phase bar, ticked circle when done,
- * pills «tocca a te» / «N figlie» / deadline); a press opens a stage: type, phase line and rail,
- * topics, decisions, how, notes with a field to add one. Mockup D, decisions «Mockup del pannello».
- * Surfaces without Svg (the terminal) get text bars and text pills. Which stages are open lives
- * in the `expanded` $.state atom; "*" stands for «the current stage» until the user presses a row.
+ * pills «tocca a te» / «N figlie» / deadline); a press opens a stage: type, rail with ◀ ▶ to look
+ * at each phase, what that phase shows (topics, plain plan, steps, tests, done-when, decision
+ * files: PhaseContent), notes with ✎ ✕ and a field to add one. Mockup D, decisions
+ * «Mockup del pannello». Surfaces without Svg (the terminal) get text bars and text pills. Which
+ * stages are open lives in the `expanded` $.state atom; "*" stands for «the current stage» until
+ * the user presses a row; which phase each stage shows lives in `phaseLens`.
  */
 import { atom, read, update } from 'claude-code'
 import type { PhaseState, PlanModel, StageModel, ViewCtx } from './types'
-import { C, GLYPH, barSvg, barText, pillSvg, railSvg } from './marks'
+import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepLineSvg, stepMarkSvg } from './marks'
 import { tr } from './text'
-import { addNote, readNotes, stageDecisions, type Note } from './plan-extras'
+import { addNote, changeNote, readNotes, stageDecisions, type Note } from './plan-extras'
+import { readSteps, type StepSection } from './plan-steps'
+
+/**
+ * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
+ * the other, its name above; the line is teal for a child, muted for the mother. Text on the terminal.
+ */
+async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
+  const { Box, Text, Svg, Button } = ctx.el
+  const sections = await readSteps($, ctx.main, stage)
+  if (sections.length === 0) return null
+  const path = `${ctx.main}/blueprint/plans/${stage.id}.md`
+  const copy = async () => {
+    await $.ui.copy({ text: path })
+    await $.ui.toast(tr(ctx.lang, 'decisionsFileCopied', { path }))
+  }
+  return (
+    <Box flexDirection="column" gap={1} width="100%">
+      <Text bold color={C.ink}>{tr(ctx.lang, asPlan ? 'planSteps' : 'steps')}</Text>
+      {asPlan && <Button key={`plan-file:${stage.id}`} plain dimColor onPress={copy}>{`⧉ blueprint/plans/${stage.id}.md`}</Button>}
+      {bySession(sections).map((s, i) => {
+        const color = s.role === 'child' ? C.teal : C.muted
+        const steps = asPlan ? s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) : s.steps
+        const lines = steps.map(st => `${GLYPH[st.state]} ${st.text}`)
+        return (
+          <Box flexDirection="column" width="100%">
+            {s.role !== 'single' && <Text bold color={color}>{s.name}</Text>}
+            {hasSvg(ctx)
+              ? <Box key={`steps:${stage.id}:${i}`} flexDirection="column" width="100%">{steps.map((st, k) => StepRow(ctx, st, color, k === 0, k === steps.length - 1))}</Box>
+              : lines.map(line => <Text color={color} wrap="wrap">{`│ ${line}`}</Text>)}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
+/** One column per session: its groups' steps one after the other (the groups' titles stay in the file). */
+function bySession(sections: StepSection[]): StepSection[] {
+  const out: StepSection[] = []
+  for (const s of sections) {
+    const last = out[out.length - 1]
+    if (last && last.name === s.name && last.role === s.role) last.steps = [...last.steps, ...s.steps]
+    else out.push({ ...s, steps: [...s.steps] })
+  }
+  return out
+}
+
+/**
+ * One step on the desktop: the drawn mark on the session's line, then the step as real text, which
+ * wraps to whatever width the pane has. The mark, with the line's pieces around it, is in the
+ * flow, so it always shows; under it, from the second text row down, an absolute Box carries the
+ * rest of the line, so it follows the row's height and never crosses the mark (the desktop draws
+ * absolute layers over everything else).
+ */
+function StepRow(ctx: ViewCtx, step: { state: PhaseState; text: string }, line: string, first: boolean, last: boolean) {
+  const { Box, Text, Svg } = ctx.el
+  const ink = step.state === 'done' ? C.muted : step.state === 'todo' ? C.faint : C.ink
+  return (
+    <Box flexDirection="row" gap={1} width="100%" alignItems="stretch">
+      <Box width={3} flexShrink={0} flexDirection="column" alignItems="flex-start" justifyContent="flex-start">
+        <Svg source={stepMarkSvg(step.state, line, first, last)} alt={GLYPH[step.state]} width={18} height={20} />
+        {!last && (
+          <Box position="absolute" top={1} bottom={0} left={0} overflow="hidden">
+            <Svg source={stepLineSvg(line)} alt="│" width={18} height={4000} />
+          </Box>
+        )}
+      </Box>
+      <Box flexGrow={1} flexShrink={1} paddingBottom={last ? 0 : 'xs'}>
+        <Text color={ink} wrap="wrap">{step.text}</Text>
+      </Box>
+    </Box>
+  )
+}
+
+/** The «Test:» (test phase) or «Finita quando:» (review phase) line of each session or group. */
+async function Checks($: any, ctx: ViewCtx, stage: StageModel, key: 'test' | 'doneWhen') {
+  const { Box, Text } = ctx.el
+  const rows = (await readSteps($, ctx.main, stage)).filter(s => s[key])
+  if (rows.length === 0) return null
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text bold color={C.ink}>{tr(ctx.lang, key === 'test' ? 'checksTest' : 'checksDone')}</Text>
+      {rows.map(s => (
+        <Box flexDirection="column">
+          {(s.group || s.name) && <Text bold color={s.role === 'child' ? C.teal : C.muted}>{[s.role === 'single' ? '' : s.name, s.group].filter(Boolean).join(' · ')}</Text>}
+          <Text wrap="wrap">{s[key]}</Text>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+/**
+ * The topics. In a discussion each topic is marked against the phase looked at: past it ✓, in it ●,
+ * not there yet ○ (a done topic has passed every phase).
+ */
+function Topics(ctx: ViewCtx, stage: StageModel, at: number) {
+  if (stage.topics.length === 0)
+    return Section(ctx, tr(ctx.lang, 'topics'), [tr(ctx.lang, 'noTopics', { purpose: tr(ctx.lang, `purpose_${stage.type}`) })])
+  if (stage.type !== 'discussion') return Section(ctx, tr(ctx.lang, 'topics'), stage.topics.map(topicLine))
+  const mark = (t: StageModel['topics'][number]): PhaseState => {
+    if (t.done || stage.status === 'done') return 'done'
+    const reached = stage.phases.findIndex(p => p.id === t.phase)
+    return reached > at ? 'done' : reached === at ? 'running' : 'todo'
+  }
+  return Section(ctx, tr(ctx.lang, 'topics'), stage.topics.map(t => `${GLYPH[mark(t)]} ${t.name}`))
+}
+
+/** What the phase looked at shows under the rail (decisions «Piano spiegato per passi»). */
+async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number) {
+  const id = stage.phases[at]?.id
+  if (!id) return Topics(ctx, stage, at) // a type with no known loop
+  if (stage.type === 'discussion') {
+    return [Topics(ctx, stage, at), id === 'decision' || id === 'recap' ? await Decisions($, ctx, stage) : null]
+  }
+  if (id === 'clarify' || id === 'do' || id === 'prepare') return Topics(ctx, stage, at)
+  if (id === 'plan') return await Steps($, ctx, stage, true)
+  if (id === 'build') return await Steps($, ctx, stage, false)
+  if (id === 'test') return await Checks($, ctx, stage, 'test')
+  if (id === 'review') return await Checks($, ctx, stage, 'doneWhen')
+  return null
+}
 
 const CURRENT = '*'
 const expanded = atom({ plugin: 'blueprint', key: 'expanded' } as const, [CURRENT] as string[], { shape: 'expanded-1' })
@@ -133,18 +257,51 @@ function topicLine(t: StageModel['topics'][number]): string {
   return `${GLYPH[state]} ${t.name}`
 }
 
-/** The stage's phases, always the same for its type: a rail of marks (text list on the terminal). */
-function Phases(ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeof currentPhase>) {
-  const { Box, Text, Svg } = ctx.el
+/**
+ * Which phase the user looks at, per stage: only the panel's view, never the plan. `live` is the
+ * stage's running phase when the choice was made: once the stage moves on, the choice lapses.
+ */
+type Lens = Record<string, { at: number; live: number }>
+const lens = atom({ plugin: 'blueprint', key: 'phaseLens' } as const, {} as Lens, { shape: 'phase-lens-1' })
+
+const liveIndex = (stage: StageModel) => stage.phases.findIndex(p => p.state === 'running' || p.state === 'stopped')
+
+/**
+ * The phase looked at: the user's choice while it holds, else the running one. A stage not running
+ * opens on its context phase (its topics), a finished discussion on its last (topics and decision files).
+ */
+function lookedAt(stage: StageModel, chosen: Lens): { at: number; isChosen: boolean } {
+  const live = liveIndex(stage)
+  const pick = chosen[stage.id]
+  if (pick && pick.live === live) return { at: Math.min(Math.max(pick.at, 0), stage.phases.length - 1), isChosen: true }
+  const lastOfDiscussion = stage.status === 'done' && stage.type === 'discussion'
+  return { at: live >= 0 ? live : lastOfDiscussion ? stage.phases.length - 1 : 0, isChosen: false }
+}
+
+/**
+ * The stage's phases, always the same for its type: a rail of marks (text list on the terminal),
+ * and under it ◀ phase · state ▶ with what the phase is for. The arrows only move the view.
+ */
+function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeof currentPhase>, at: number, isChosen: boolean) {
+  const { Box, Text, Svg, Button } = ctx.el
   if (stage.phases.length === 0) return null
+  const seen = stage.phases[at]!
+  const name = tr(ctx.lang, `ph_${seen.id}`)
   const idle = tr(ctx.lang, stage.status === 'done' ? 'stageDone' : stage.status === 'postponed' ? 'stageParked' : 'stageTodo')
-  const label = phase?.label ?? idle
+  const label = isChosen ? name : phase?.label ?? idle
+  const color = seen.state === 'stopped' ? C.amber : seen.state === 'running' ? C.accent : C.ink
+  const move = (by: number) => () => void update($, lens, m => ({ ...m, [stage.id]: { at: Math.min(Math.max(at + by, 0), stage.phases.length - 1), live: liveIndex(stage) } }))
   return (
     <Box flexDirection="column">
       {hasSvg(ctx)
-        ? Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, label)} alt={label} />)
+        ? Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, label, 300, isChosen ? at : undefined)} alt={label} />)
         : Section(ctx, tr(ctx.lang, 'phases'), stage.phases.map(p => `${GLYPH[p.state]} ${tr(ctx.lang, `ph_${p.id}`)}`))}
-      {phase && <Text color={phase.stopped ? C.amber : C.accent}>{tr(ctx.lang, 'phaseNow', { phase: phase.label })}</Text>}
+      <Box flexDirection="row" gap={2}>
+        <Button key={`phase-prev:${stage.id}`} plain dimColor={at === 0} onPress={move(-1)}>◀</Button>
+        <Text bold color={color}>{`${name} · ${tr(ctx.lang, `ps_${seen.state}`)}`}</Text>
+        <Button key={`phase-next:${stage.id}`} plain dimColor={at === stage.phases.length - 1} onPress={move(1)}>▶</Button>
+      </Box>
+      <Text dimColor wrap="wrap">{tr(ctx.lang, `phd_${seen.id}`)}</Text>
       {phase?.stopped && <Text color={C.amber} wrap="wrap">{waitLine(ctx, stage)}</Text>}
     </Box>
   )
@@ -173,10 +330,43 @@ async function Decisions($: any, ctx: ViewCtx, stage: StageModel) {
   )
 }
 
+/** The note being edited, `<stage id>:<index in notes.json>`, or none: only one field at a time. */
+const editing = atom({ plugin: 'blueprint', key: 'noteEdit' } as const, null as string | null, { shape: 'note-edit-1' })
+
+/**
+ * The stage's notes, each with ✎ (it becomes a field holding its text; Enter saves) and ✕ (deleted
+ * at once). `i` is the note's place in notes.json; the shown text guards against a file changed meanwhile.
+ */
+async function NoteLines($: any, ctx: ViewCtx, stage: StageModel, notes: Note[]) {
+  const { Box, Text, Button, Input } = ctx.el
+  const open = await read($, editing)
+  const change = async (i: number, shown: string, text: string | null) => {
+    const result = await changeNote($, ctx.main, i, { stage: stage.id, text: shown }, text).catch(() => null)
+    void update($, editing, () => null)
+    void update($, expanded, list => [...list]) // same value, new array: redraws with the notes as saved
+    if (result === 'same') return
+    await $.ui.toast(tr(ctx.lang, result === null ? 'noteNotSaved' : result === 'changed' ? 'noteChanged' : text === null ? 'noteDeleted' : 'noteEdited'))
+  }
+  return notes.flatMap((n, i) => {
+    if (n.stage !== stage.id) return []
+    const id = `${stage.id}:${i}`
+    if (open === id) return [<Input key={`note-text:${id}`} value={n.text} autoFocus onSubmit={(value: string) => change(i, n.text, value)} />]
+    return [
+      <Box flexDirection="row" justifyContent="space-between" gap={1}>
+        <Text wrap="wrap">{`• ${n.text}`}</Text>
+        <Box flexDirection="row" gap={1}>
+          <Button key={`note-edit:${id}`} plain dimColor onPress={() => void update($, editing, () => id)}>✎</Button>
+          <Button key={`note-del:${id}`} plain dimColor onPress={() => change(i, n.text, null)}>✕</Button>
+        </Box>
+      </Box>,
+    ]
+  })
+}
+
 async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[]) {
   const { Box, Text, Input } = ctx.el
   const phase = currentPhase(ctx, stage)
-  const mine = notes.filter(n => n.stage === stage.id).map(n => `• ${n.text}`)
+  const { at, isChosen } = lookedAt(stage, await read($, lens))
   const submit = async (value: string) => {
     const saved = await addNote($, ctx.main, stage.id, value).catch(() => null)
     if (saved === null) return void (await $.ui.toast(tr(ctx.lang, 'noteNotSaved')))
@@ -190,15 +380,11 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
         <Text dimColor>{tr(ctx.lang, `type_${stage.type}`)}</Text>
         {Pills(ctx, stage)}
       </Box>
-      {Phases(ctx, stage, phase)}
-      {Section(ctx, tr(ctx.lang, 'topics'), stage.topics.length > 0
-        ? stage.topics.map(topicLine)
-        : [tr(ctx.lang, 'noTopics', { purpose: tr(ctx.lang, `purpose_${stage.type}`) })])}
-      {await Decisions($, ctx, stage)}
-      {stage.how && Section(ctx, tr(ctx.lang, 'how'), [stage.how])}
+      {Phases($, ctx, stage, phase, at, isChosen)}
+      {await PhaseContent($, ctx, stage, at)}
       <Box flexDirection="column">
         <Text bold color={C.ink}>{tr(ctx.lang, 'notes')}</Text>
-        {mine.map(line => <Text wrap="wrap">{line}</Text>)}
+        {await NoteLines($, ctx, stage, notes)}
         <Input key={`note:${stage.id}`} placeholder={tr(ctx.lang, 'addNote')} onSubmit={submit} />
       </Box>
     </Box>

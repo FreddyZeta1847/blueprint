@@ -268,6 +268,12 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   says it `produces`;
 - a phase marked `user: true` needs the user (a choice, a delivery, an outcome to see): stop there
   and ask;
+- **`plan` (implementation) gives the user a plain plan too.** Next to the technical plan, write
+  `blueprint/plans/<stage id>.md` (format in `blueprint:docs-management` §1): a few numbered steps
+  per section, with their tests and when the section is finished, one section per independent part
+  plus «Madre» when the parts run in parallel. Show it to the user in the chat as well. Then tick
+  each step as it finishes, each session in its own section and its own copy; the panel shows the
+  steps as a column of marks in the open stage;
 - **`first_use` (implementation) is never a formality.** Green tests prove the code does what the
   tests ask, not that the product works for the person who opens it. Start the work exactly with
   the instructions you will give the user, in every way of starting it you offer (e.g. a single

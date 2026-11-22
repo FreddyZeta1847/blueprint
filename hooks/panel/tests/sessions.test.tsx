@@ -15,7 +15,7 @@ import type { PlanModel } from '../types'
 const NOW = Date.parse('2026-11-16T10:00:00Z')
 
 const plan = (parts: string[]): PlanModel => ({
-  project: 'p', currentIndex: 0,
+  project: 'p', currentIndex: 0, parallelIndex: 0,
   stages: [{ id: 'fb', name: 'FB', type: 'implementation', status: 'in_progress', segments: [], phases: [], yourTurn: false, kids: 0, waitingOn: [], independentParts: parts, topics: [] }],
 })
 

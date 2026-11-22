@@ -7,7 +7,8 @@ export type Lang = 'it' | 'en'
 
 export type PhaseState = 'done' | 'running' | 'stopped' | 'todo' | 'skipped'
 
-export type TopicModel = { name: string; done: boolean; current: boolean }
+/** `phase`: the phase a discussion topic has reached, when it has started. */
+export type TopicModel = { name: string; done: boolean; current: boolean; phase?: string }
 
 export type StageModel = {
   id: string
@@ -27,7 +28,6 @@ export type StageModel = {
   deadline?: string
   independentParts: string[]
   topics: TopicModel[]
-  how?: string
 }
 
 export type PlanModel = {
@@ -35,6 +35,8 @@ export type PlanModel = {
   card?: { size: string; difficulty: string; pace: string }
   stages: StageModel[]
   currentIndex: number
+  /** The running stage built in parallel (its children, the Sessioni view); the current one when none. */
+  parallelIndex: number
 }
 
 /** kids: child sessions matched to the current stage's parts (any state, files older than 7 days excluded). */

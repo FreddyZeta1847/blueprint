@@ -24,6 +24,7 @@
 │   │   │   ├── entry.test.tsx
 │   │   │   ├── harness.ts
 │   │   │   ├── integration.accept.test.tsx
+│   │   │   ├── plan-steps.test.tsx
 │   │   │   ├── plan-view.accept.test.tsx
 │   │   │   ├── plan-view.test.tsx
 │   │   │   ├── sessions.accept.test.tsx
@@ -34,6 +35,7 @@
 │   │   ├── marks.ts
 │   │   ├── plan-data.ts
 │   │   ├── plan-extras.ts
+│   │   ├── plan-steps.ts
 │   │   ├── plan-view.tsx
 │   │   ├── repo.ts
 │   │   ├── sessions-data.ts

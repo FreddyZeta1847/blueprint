@@ -26,6 +26,7 @@ Everything Blueprint keeps in a project sits in one folder at the repo root:
 |---|---|---|
 | `blueprint/context.md` | Claude, after the user's yes | the context card: one answer per context question, with its source. Format in `blueprint:get-context` §7 |
 | `blueprint/plan.json` | the main session only, after the user's OK | stages, topics, current phase, how, deadlines, independent parts. Format in `blueprint:create-plan` §5; checked by the plan-guard hook |
+| `blueprint/plans/<stage id>.md` | Claude | the **plain plan** of an implementation stage, written in its `plan` phase next to the technical plan, for the user to follow the work (format below) |
 | `blueprint/notes.json` | the user (optional) | notes per stage: `{ "notes": [{ "stage": "<id>", "text": "...", "read": false }] }`. Read them when a stage opens; mark them `read` once told to the user |
 | `blueprint/decisions/` | Claude, checked by the hooks | **only decisions**: those taken in discussions, and the corrections an implementation or a delivery forces on them — filed by shared area, contract and section. Created **only when the card's `documentation` answer says a decisions folder is needed** |
 | `blueprint/decisions.md` | Claude | the **single decisions file**, when the card's `documentation` answer chose it: one `## <stage name>` section per stage, one bullet per decision (`- **<the choice>** — why; one-way/two-way; decided by user/Claude; date`). Every stage type writes here: discussions, implementation corrections, the choices a delivery's feedback rounds settle ("warmer colours, no dark backgrounds"), quick tasks. Not parsed by the hooks |
@@ -35,6 +36,44 @@ Everything Blueprint keeps in a project sits in one folder at the repo root:
 `## Decisions` section. This holds for **every** stage type, not only discussions: a choice settled
 in a quick task or in the feedback of a delivery is a decision too, and it must not live only in the
 chat.
+
+**The plain plan** (`blueprint/plans/<stage id>.md`). The technical plan says how the code is
+written; this one lets the user follow the stage at a glance. It may name tools and files, but it
+groups the work in a few numbered steps, in plain words, a few lines per section. Format (the panel
+reads the `## ` sections and the checkbox lines; keep them exactly so):
+
+```markdown
+# Piano — App dei soci e area admin
+
+## App dei soci
+- [x] 1. Ambiente con le versioni fissate.
+- [ ] 2–4. Calendario, prenotazione e disdetta, sul contratto della tappa 4.
+- [ ] 5. Lista d'attesa: se un posto si libera, il primo in lista lo prende.
+- Test: corso pieno, disdetta entro 2 ore, lista d'attesa.
+- Finita quando: un socio prenota dal telefono e i test passano.
+
+## Area admin
+- [ ] 1–3. Corsi, iscritti, chiusure.
+- Test: …
+- Finita quando: …
+
+## Madre
+- [ ] Unione delle parti, test d'integrazione, prova da primo utente, PR.
+```
+
+- **A `## ` section is a session**: one per independent part, named **exactly as the part in
+  `plan.json`**, plus `## Madre` (in English `## Mother`) for the main session's own steps.
+- **Groups inside a session are `### ` headings** (`### A. Ambiente`), each with its own steps and,
+  if useful, its own `- Test:` and `- Finita quando:` lines. A stage built in one session has no
+  `## ` section per session: write its groups as `## ` or `### ` headings, the panel shows them all
+  as one session. Keep groups for long plans only; a short plan needs none.
+- The panel shows the steps in the build phase, the same steps unticked in the plan phase, the
+  `Test:` lines in the test phase and the `Finita quando:` lines in the review phase.
+- Tick a step (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
+  own copy of the file**: a child in its worktree (the panel reads it there), the main session in
+  the project. At the merge, keep every section's ticks.
+- The file is written once in the `plan` phase and changes only by ticks, or when the plan changes
+  (say so to the user).
 
 Other folders that the execution of a stage may create inside `blueprint/` are not Blueprint's: never
 read them as decisions and never write them from a Blueprint step.

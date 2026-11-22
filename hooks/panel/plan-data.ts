@@ -11,7 +11,7 @@ type LoopPhase = { id: string; optional?: boolean; user?: boolean }
 export type Loops ={ types: Record<string, { cycle: string; phases: LoopPhase[] }> }
 type RawTopic = { name: string; done?: boolean; phase?: string }
 type RawStage = {
-  id: string; name: string; type: string; status: string; phase?: string; how?: string
+  id: string; name: string; type: string; status: string; phase?: string
   deadline?: string; independent_parts?: string[]; topics?: RawTopic[]; skipped?: { id: string }[]
 }
 
@@ -76,9 +76,9 @@ function toStage(stage: RawStage, loops: Loops, isCurrent: boolean, sessions?: S
     yourTurn: stage.status === 'in_progress' && segments.includes('stopped'),
     kids: isCurrent ? sessions?.kids ?? 0 : 0,
     waitingOn: isCurrent ? (sessions?.blocked ?? []).map(b => b.worktree) : [],
-    deadline: stage.deadline, independentParts: stage.independent_parts ?? [], how: stage.how,
+    deadline: stage.deadline, independentParts: stage.independent_parts ?? [],
     topics: (stage.topics ?? []).map((t, i) => ({
-      name: t.name, done: !!t.done,
+      name: t.name, done: !!t.done, phase: t.phase,
       current: stage.status === 'in_progress' && !t.done && (loop.cycle === 'per_step' ? !!t.phase : i === firstOpen),
     })),
   }
@@ -92,10 +92,14 @@ export async function readPlan($: any, main: string, sessions?: SessionsSummary)
   let current = stages.findIndex(s => s.status === 'in_progress')
   if (current < 0) current = stages.findIndex(s => s.status === 'todo')
   if (current < 0) current = Math.max(stages.length - 1, 0)
+  // the children belong to the running stage built in parallel, even when another stage runs too
+  const found = stages.findIndex(s => s.status === 'in_progress' && (s.independent_parts?.length ?? 0) > 0)
+  const parallel = found >= 0 ? found : current
   return {
     project: String(raw.project ?? ''),
     card: await readCard($, main),
-    stages: stages.map((s, i) => toStage(s, loops, i === current, sessions)),
+    stages: stages.map((s, i) => toStage(s, loops, i === parallel, sessions)),
     currentIndex: current,
+    parallelIndex: parallel,
   }
 }
