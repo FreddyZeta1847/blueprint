@@ -76,8 +76,8 @@ reads the `## ` sections and the checkbox lines; keep them exactly so):
   when one command runs every group and its output is split per file. The panel uses it to count
   each group's tests; a `Test:` line without it still shows its words, with no count.
 - The panel shows the steps in the build phase, the same steps unticked in the plan phase, the
-  `Test` lines with each group's count in the test phase, and the review's findings plus the
-  `Finita quando:` lines in the review phase.
+  `Test` lines with each group's count in the test phase, the review's findings in the review
+  phase, and the `Finita quando:` lines in the first-use phase, as the user's checklist.
 - Tick a step (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
   own copy of the file**: a child in its worktree (the panel reads it there), the main session in
   the project. At the merge, keep every section's ticks.

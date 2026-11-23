@@ -3,7 +3,8 @@
  * «Barre»): an amber banner while findings are open (how many, the seconds left before they are
  * fixed by themselves, «Correggi tutto ora»), then the findings grouped by the tool that found
  * them, each with its severity in words and a «Correggi» button. Round 3 with findings still open
- * says it is the user's turn and offers no button. Data and sending: reviews.ts.
+ * says it is the user's turn and offers no button; before the first round, one line saying so.
+ * Data and sending: reviews.ts.
  */
 import type { StageModel, ViewCtx } from './types'
 import { C } from './marks'
@@ -29,7 +30,7 @@ function FindingRow($: any, ctx: ViewCtx, stage: StageModel, f: Finding, canFix:
 export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
   const { Box, Text, Button } = ctx.el
   const r = await readReviews($, ctx.main, stage.id)
-  if (!r) return null
+  if (!r) return <Text wrap="wrap" dimColor>{tr(ctx.lang, 'reviewNotYet')}</Text>
   const open = openOnes(r).length
   const sent = r.findings.filter(f => f.status === 'sent').length
   const isStuck = stuck(r)

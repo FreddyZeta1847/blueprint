@@ -232,7 +232,7 @@ test('the arrows under the rail move the view between the phases, without touchi
   expect(seen.writes.filter(w => w.path.endsWith('plan.json'))).toEqual([])
 })
 
-test('the content follows the phase looked at: topics, plan, steps, tests, done-when; the notes always', async ($, on) => {
+test('the content follows the phase looked at: topics, plan, steps, tests, review, done-when in first use; the notes always', async ($, on) => {
   const plain = '# Piano\n\n## Area admin\n- [x] 1. Corsi.\n- Test: un corso chiuso non si prenota.\n- Finita quando: la reception crea un corso.\n\n## Area clienti\n- [ ] 1. Calendario.\n'
   const seen = await open($, on, { files: { ...defaultFiles(), 'blueprint/plans/fb.md': plain } })
   const ui = await $.ui.mount(PANE('terminal'))
@@ -248,11 +248,11 @@ test('the content follows the phase looked at: topics, plan, steps, tests, done-
   expect([await has(/^Contenuto$/), await has(/^Piano spiegato$/)]).toEqual([true, false])
   await go('phase-next', 3) // test: the «Test:» lines
   expect([await has(/^Test$/), await has(/un corso chiuso non si prenota/), await has(/la reception crea un corso/)]).toEqual([true, true, false])
-  await go('phase-next', 1) // revisione: the «Finita quando:» lines
-  expect([await has(/^Finita quando$/), await has(/la reception crea un corso/), await has(/un corso chiuso/)]).toEqual([true, true, false])
-  await go('phase-next', 1) // prova primo utente: only what the phase is, and the notes
-  expect([await has(/^Passi$/), await has(/^Contenuto$/), await has(/^Test$/), await has(/^Finita quando$/), await has(/Provarlo anche sul telefono/)])
-    .toEqual([false, false, false, false, true])
+  await go('phase-next', 1) // revisione, not started yet: a line saying so, no «Finita quando:» lines
+  expect([await has(/^La revisione non è ancora partita/), await has(/^Finita quando$/), await has(/la reception crea un corso/)]).toEqual([true, false, false])
+  await go('phase-next', 1) // prova primo utente: the «Finita quando:» lines, and the notes
+  expect([await has(/^Passi$/), await has(/^Test$/), await has(/^Finita quando$/), await has(/la reception crea un corso/), await has(/Provarlo anche sul telefono/)])
+    .toEqual([false, false, true, true, true])
   await ui.unmount()
 })
 

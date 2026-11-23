@@ -328,7 +328,8 @@ Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three 
   **review phase** the findings of the review tools are grouped by tool, each with a **Correggi**
   (fix) button and a **Correggi tutto ora** on top; if nobody presses, they are sent to Claude by
   themselves 30 seconds later (the countdown is in the panel and in the status line), at most
-  three rounds. The notes are always there: add one, edit it (✎) or delete it (✕).
+  three rounds. In the **first-use phase** the `Finita quando:` lines become the checklist of what
+  you try yourself. The notes are always there: add one, edit it (✎) or delete it (✕).
 - **Sessions** — during a stage built in parallel: the mother session and one child per part,
   with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
 - **Legend** — every stage type with its phases, how Claude moves through them, and how the
