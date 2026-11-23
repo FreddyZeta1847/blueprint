@@ -49,6 +49,16 @@ test('outside build and test, or with a command of no group, nothing is written'
   expect(file(review)).toBe(undefined)
 })
 
+test('a command is a group\'s only when it runs exactly its key: a launcher, flags and a «cd … &&» are fine, a longer path or another file is not', async ($, on) => {
+  const seen = engine(on, { ...world('test'), toolOut: { 'npm test -- corsi-extra': TAP(1, 0), 'npm test -- corsi x.js': TAP(1, 0), 'cd app && npx npm test -- corsi --reporter=tap': TAP(5, 0) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi-extra' })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi x.js' })
+  expect(file(seen)).toBe(undefined)
+  await $.tool.call({ tool: 'Bash', command: 'cd app && npx npm test -- corsi --reporter=tap' })
+  expect(file(seen)['A. Corsi']).toMatchObject({ passed: 5, total: 5 })
+})
+
 test('a child writes its own file, next to the main session\'s', async ($, on) => {
   const older = JSON.stringify({ v: 1, groups: { 'A. Corsi': { passed: 1, total: 3, failed: [], source: 'seen', at: '2026-11-16T09:00:00.000Z' } } })
   const seen = engine(on, { ...world('build', { 'blueprint/checks/fb--main.json': older }), gitFile: `gitdir: ${MAIN}/.git/worktrees/area-admin\n`, cwd: `${MAIN}/.claude/worktrees/area-admin` })

@@ -44,11 +44,27 @@ export async function readChecks($: any, main: string, stageId: string): Promise
 /** A command as typed, without rtk's prefix and with single spaces. */
 const bare = (command: string) => command.trim().replace(/^rtk\s+(?:proxy\s+)?/, '').replace(/\s+/g, ' ')
 
-/** The counts that belong to one key: a test file's own block, or the whole run when the command names the key. */
+/**
+ * Whether the command runs exactly the key's tests: in one of its parts (split on && and ;) the
+ * key's words appear in a row with only flags after them; a launcher before them is fine
+ * («python -m pytest tests/ml -q»). «pytest tests/ml» is not run by «pytest tests/ml/test_x.py».
+ */
+function runsKey(command: string, key: string): boolean {
+  const k = bare(key).split(' ')
+  return command.split(/&&|;/).map(part => bare(part).split(' ')).some(words => {
+    for (let i = 0; i + k.length <= words.length; i++) {
+      const same = k.every((w, j) => words[i + j] === w)
+      if (same && words.slice(i + k.length).every(w => w.startsWith('-'))) return true
+    }
+    return false
+  })
+}
+
+/** The counts that belong to one key: a test file's own block, or the whole run when the command is the key. */
 function countFor(key: string, command: string, out: TestOutput): Count | null {
   const base = key.split(/[\\/]/).pop()!
   if (TEST_FILE.test(base) && out.files[base]) return out.files[base]!
-  return bare(command).includes(bare(key)) ? out : null
+  return runsKey(command, key) ? out : null
 }
 
 /** The stage this session works on: the parallel one in a child, the current one in the main session. */
