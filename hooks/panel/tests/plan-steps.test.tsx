@@ -57,7 +57,7 @@ test('in parallel, ### groups stay inside their session: one column per session,
   engine(on, { files: { ...defaultFiles(), 'blueprint/plans/fb.md': plan } })
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount(PANE('terminal'))
-  expect((await ui.findAll({ text: /^Area admin$/ })).length).toBe(1)
+  expect((await ui.findAll({ text: /^Area admin · \d+ di \d+$/ })).length).toBe(1) // the session's name with how far it is
   expect(await ui.find({ text: /^Corsi$/ })).toBeUndefined()
   expect(await ui.find({ text: /^│ ● 2\. Chiusure\.$/ })).toBeDefined()
   await ui.unmount()

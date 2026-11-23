@@ -1,7 +1,8 @@
 /*
- * Vista Piano — the plan's stages as rows (segmented phase bar, ticked circle when done,
- * pills «tocca a te» / «N figlie» / deadline); a press opens a stage: type, rail with ◀ ▶ to look
- * at each phase, what that phase shows (topics, plain plan, steps, tests, done-when, decision
+ * Vista Piano — the plan's stages as rows (segmented phase bar, ticked circle when done, a caption
+ * saying what the bar means, pills «tocca a te» / «N figlie» / «entro <data>»); only the current
+ * stage and the open ones are framed, the rest are plain rows. A press opens a stage: pills, type
+ * and what it is for, rail with ◀ ▶ to look at each phase, what that phase shows (topics, plain plan, steps, tests, done-when, decision
  * files: PhaseContent), notes with ✎ ✕ and a field to add one. Mockup D, decisions
  * «Mockup del pannello». Surfaces without Svg (the terminal) get text bars and text pills. Which
  * stages are open lives in the `expanded` $.state atom; "*" stands for «the current stage» until
@@ -27,17 +28,22 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
     await $.ui.copy({ text: path })
     await $.ui.toast(tr(ctx.lang, 'decisionsFileCopied', { path }))
   }
+  // how far each session is, by its ticked steps: «App dei soci · 3 di 4» (not in the plan phase,
+  // where nothing is built yet); a single session carries it on the title
+  const progress = (s: StepSection) => asPlan ? '' : ` · ${tr(ctx.lang, 'stepsOf', { done: s.steps.filter(st => st.state === 'done').length, all: s.steps.length })}`
+  const sessions = bySession(sections)
+  const lone = sessions.length === 1 && sessions[0]!.role === 'single'
   return (
     <Box flexDirection="column" gap={1} width="100%">
-      <Text bold color={C.ink}>{tr(ctx.lang, asPlan ? 'planSteps' : 'steps')}</Text>
+      <Text bold color={C.ink}>{`${tr(ctx.lang, asPlan ? 'planSteps' : 'steps')}${lone ? progress(sessions[0]!) : ''}`}</Text>
       {asPlan && <Button key={`plan-file:${stage.id}`} plain dimColor onPress={copy}>{`⧉ blueprint/plans/${stage.id}.md`}</Button>}
-      {bySession(sections).map((s, i) => {
+      {sessions.map((s, i) => {
         const color = s.role === 'child' ? C.teal : C.muted
         const steps = asPlan ? s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) : s.steps
         const lines = steps.map(st => `${GLYPH[st.state]} ${st.text}`)
         return (
           <Box flexDirection="column" width="100%">
-            {s.role !== 'single' && <Text bold color={color}>{s.name}</Text>}
+            {s.role !== 'single' && <Text bold color={color}>{`${s.name}${progress(s)}`}</Text>}
             {hasSvg(ctx)
               ? <Box key={`steps:${stage.id}:${i}`} flexDirection="column" width="100%">{steps.map((st, k) => StepRow(ctx, st, color, k === 0, k === steps.length - 1))}</Box>
               : lines.map(line => <Text color={color} wrap="wrap">{`│ ${line}`}</Text>)}
@@ -110,7 +116,7 @@ async function Checks($: any, ctx: ViewCtx, stage: StageModel, key: 'test' | 'do
  */
 function Topics(ctx: ViewCtx, stage: StageModel, at: number) {
   if (stage.topics.length === 0)
-    return Section(ctx, tr(ctx.lang, 'topics'), [tr(ctx.lang, 'noTopics', { purpose: tr(ctx.lang, `purpose_${stage.type}`) })])
+    return Section(ctx, tr(ctx.lang, 'topics'), [tr(ctx.lang, 'noTopics')])
   if (stage.type !== 'discussion') return Section(ctx, tr(ctx.lang, 'topics'), stage.topics.map(topicLine))
   const mark = (t: StageModel['topics'][number]): PhaseState => {
     if (t.done || stage.status === 'done') return 'done'
@@ -181,6 +187,11 @@ function toggle(list: string[], id: string, plan: PlanModel): string[] {
   return resolved.includes(id) ? resolved.filter(x => x !== id) : [...resolved, id]
 }
 
+/** «si costruisce.» → «Si costruisce.»: the phase texts are written to follow a dash in the Legenda. */
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+/** «Serve a costruire…» → «serve a costruire…», after the type's name. */
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
+
 /** The terminal hands out Svg too, but as an empty fragment: it gets text instead. */
 const hasSvg = (ctx: ViewCtx) => ctx.surface !== 'terminal'
 
@@ -196,7 +207,7 @@ function pillList(ctx: ViewCtx, stage: StageModel): Pill[] {
   const pills: Pill[] = []
   if (stage.yourTurn) pills.push({ key: `pill:turn:${stage.id}`, label: tr(ctx.lang, 'yourTurn'), tone: 'amber' })
   if (stage.kids > 0) pills.push({ key: `pill:kids:${stage.id}`, label: tr(ctx.lang, 'kids', { n: stage.kids }), tone: 'accent' })
-  if (stage.deadline) pills.push({ key: `pill:due:${stage.id}`, label: shortDate(ctx.lang, stage.deadline), tone: 'muted' })
+  if (stage.deadline) pills.push({ key: `pill:due:${stage.id}`, label: tr(ctx.lang, 'due', { d: shortDate(ctx.lang, stage.deadline) }), tone: 'muted' })
   return pills
 }
 
@@ -218,15 +229,38 @@ function Pills(ctx: ViewCtx, stage: StageModel) {
   )
 }
 
-function Bar(ctx: ViewCtx, stage: StageModel) {
-  const { Text, Svg } = ctx.el
-  const done = stage.status === 'done'
-  const alt = `${barText(stage.segments)}${done ? ` ${GLYPH.done}` : ''}`
-  return Keyed(ctx, `bar:${stage.id}`, hasSvg(ctx)
-    ? <Svg source={barSvg(stage.segments, 120, done)} alt={alt} />
-    : <Text dimColor>{alt}</Text>)
+/**
+ * What the bar of a closed stage means, in words beside it: «implementazione · fase 3 di 7:
+ * costruzione», «consegna · da fare»; a finished stage only its type (its tick says the rest:
+ * decision «tappa finita col cerchio spuntato»).
+ */
+function caption(ctx: ViewCtx, stage: StageModel): string {
+  const type = tr(ctx.lang, `type_${stage.type}`)
+  const live = liveIndex(stage)
+  if (stage.status === 'in_progress' && live >= 0) {
+    const phase = tr(ctx.lang, `ph_${stage.phases[live]!.id}`)
+    return `${type} · ${tr(ctx.lang, 'phaseOf', { n: live + 1, m: stage.phases.length, phase })}`
+  }
+  if (stage.status === 'done') return type
+  return `${type} · ${tr(ctx.lang, stage.status === 'postponed' ? 'stageParked' : 'stageTodo')}`
 }
 
+/** The closed stage's second line: its phase bar (a text bar on the terminal) and the caption. */
+function Bar(ctx: ViewCtx, stage: StageModel) {
+  const { Box, Text, Svg } = ctx.el
+  const done = stage.status === 'done'
+  const alt = `${barText(stage.segments)}${done ? ` ${GLYPH.done}` : ''}`
+  return (
+    <Box flexDirection="row" gap={1} alignItems="center">
+      {Keyed(ctx, `bar:${stage.id}`, hasSvg(ctx)
+        ? <Svg source={barSvg(stage.segments, 96, done)} alt={alt} />
+        : <Text dimColor>{alt}</Text>)}
+      <Text dimColor wrap="truncate">{caption(ctx, stage)}</Text>
+    </Box>
+  )
+}
+
+/** The stage's name as a button (a press opens or closes it); a finished stage's name is dimmed. */
 function Row($: any, ctx: ViewCtx, plan: PlanModel, stage: StageModel, index: number, open: boolean) {
   const { Box, Button } = ctx.el
   const pills = Pills(ctx, stage)
@@ -235,7 +269,7 @@ function Row($: any, ctx: ViewCtx, plan: PlanModel, stage: StageModel, index: nu
   const press = () => void update($, expanded, list => toggle(list, stage.id, plan))
   return (
     <Box flexDirection="row" justifyContent="space-between" gap={1}>
-      <Button key={`stage:${stage.id}`} onPress={press}>{label}</Button>
+      <Button key={`stage:${stage.id}`} dimColor={stage.status === 'done' && !open} onPress={press}>{label}</Button>
       {!open && pills}
     </Box>
   )
@@ -294,14 +328,14 @@ function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeo
   return (
     <Box flexDirection="column">
       {hasSvg(ctx)
-        ? Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, label, 300, isChosen ? at : undefined)} alt={label} />)
+        ? Keyed(ctx, `rail:${stage.id}`, <Svg source={railSvg(stage.phases, 300, isChosen ? at : undefined)} alt={label} />)
         : Section(ctx, tr(ctx.lang, 'phases'), stage.phases.map(p => `${GLYPH[p.state]} ${tr(ctx.lang, `ph_${p.id}`)}`))}
       <Box flexDirection="row" gap={2}>
         <Button key={`phase-prev:${stage.id}`} plain dimColor={at === 0} onPress={move(-1)}>◀</Button>
         <Text bold color={color}>{`${name} · ${tr(ctx.lang, `ps_${seen.state}`)}`}</Text>
         <Button key={`phase-next:${stage.id}`} plain dimColor={at === stage.phases.length - 1} onPress={move(1)}>▶</Button>
       </Box>
-      <Text dimColor wrap="wrap">{tr(ctx.lang, `phd_${seen.id}`)}</Text>
+      <Text dimColor wrap="wrap">{sentence(tr(ctx.lang, `phd_${seen.id}`))}</Text>
       {phase?.stopped && <Text color={C.amber} wrap="wrap">{waitLine(ctx, stage)}</Text>}
     </Box>
   )
@@ -376,10 +410,8 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
   }
   return (
     <Box flexDirection="column" paddingLeft={2} gap={1}>
-      <Box flexDirection="row" justifyContent="space-between" gap={1}>
-        <Text dimColor>{tr(ctx.lang, `type_${stage.type}`)}</Text>
-        {Pills(ctx, stage)}
-      </Box>
+      {Pills(ctx, stage)}
+      <Text dimColor wrap="wrap">{`${tr(ctx.lang, `type_${stage.type}`)} · ${lowerFirst(tr(ctx.lang, `purpose_${stage.type}`))}`}</Text>
       {Phases($, ctx, stage, phase, at, isChosen)}
       {await PhaseContent($, ctx, stage, at)}
       <Box flexDirection="column">
@@ -398,13 +430,14 @@ function waitLine(ctx: ViewCtx, stage: StageModel): string {
   return `${GLYPH.stopped} ${tr(ctx.lang, 'waitPhase', { phase: tr(ctx.lang, `ph_${at?.id ?? ''}`) })}`
 }
 
+/** One line under the stages: the four marks and their colours, the same as the rail and the steps. */
 function Legend(ctx: ViewCtx) {
   const { Box, Text } = ctx.el
   const items: [string, string, string][] = [
-    ['■', C.muted, 'lg_done'], ['▶', C.accent, 'lg_running'], ['!', C.amber, 'lg_stopped'], ['□', C.faint, 'lg_todo'],
+    [GLYPH.done, C.muted, 'lg_done'], [GLYPH.running, C.accent, 'lg_running'], [GLYPH.stopped, C.amber, 'lg_stopped'], [GLYPH.todo, C.faint, 'lg_todo'],
   ]
   return (
-    <Box flexDirection="row" gap={1}>
+    <Box flexDirection="row" gap={1} flexWrap="wrap">
       <Text dimColor>{tr(ctx.lang, 'legend')}</Text>
       {items.map(([mark, color, key]) => <Text color={color}>{`${mark} ${tr(ctx.lang, key)}`}</Text>)}
     </Box>
@@ -419,17 +452,17 @@ export async function renderPlanView($: any, ctx: ViewCtx, plan: PlanModel | nul
   const rows = []
   for (const [i, stage] of plan.stages.entries()) {
     const open = isOpen(list, stage, plan)
-    // one framed card per stage: the current one has an accent frame (amber when it waits for you)
-    const frame = i === plan.currentIndex ? (stage.yourTurn ? C.amber : C.accent) : C.line
-    rows.push(
-      <Box flexDirection="column" borderStyle="round" borderColor={frame} paddingX={1}>
-        {Row($, ctx, plan, stage, i, open)}
-        {open ? await OpenStage($, ctx, stage, notes) : Bar(ctx, stage)}
-      </Box>,
-    )
+    const current = i === plan.currentIndex
+    // a frame only where the eye should stop: the current stage (accent, amber when it waits for
+    // you) and any open one (grey); the other stages are plain rows, so the list stays light
+    const frame = current ? (stage.yourTurn ? C.amber : C.accent) : C.line
+    const body = [Row($, ctx, plan, stage, i, open), open ? await OpenStage($, ctx, stage, notes) : Bar(ctx, stage)]
+    rows.push(current || open
+      ? <Box flexDirection="column" borderStyle="round" borderColor={frame} paddingX={1}>{body}</Box>
+      : <Box flexDirection="column" paddingX={1}>{body}</Box>)
   }
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" gap={1}>
       {rows}
       {Legend(ctx)}
     </Box>

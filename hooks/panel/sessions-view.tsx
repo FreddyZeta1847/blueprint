@@ -40,7 +40,10 @@ function ContextCell(ctx: ViewCtx, key: string, percent: number) {
   return <Box flexDirection="row" gap={1}>{bar}<Text dimColor>{`${p}%`}</Text></Box>
 }
 
-type Line = { key: string; glyph: string; name: string; percent: number; time: string; cost: string; detail: string; amber: boolean }
+type Line = { key: string; mark: PhaseState; name: string; percent: number; time: string; cost: string; detail: string; amber: boolean }
+
+/** The row's mark in its state's colour, as on the plan's rail: blue working, amber waiting, grey finished. */
+const TONE: Record<PhaseState, string> = { running: C.accent, stopped: C.amber, done: C.muted, skipped: C.faint, todo: C.faint }
 
 function Row(ctx: ViewCtx, line: Line, enter?: () => void) {
   const { Box, Text, Button } = ctx.el
@@ -48,7 +51,10 @@ function Row(ctx: ViewCtx, line: Line, enter?: () => void) {
   return (
     <Box key={`row:${line.key}`} flexDirection="column">
       <Box flexDirection="row" justifyContent="space-between">
-        <Text bold color={line.amber ? C.amber : undefined}>{`${line.glyph} ${cut(line.name, nameMax)}`}</Text>
+        <Box flexDirection="row" gap={1}>
+          <Text color={TONE[line.mark]}>{GLYPH[line.mark]}</Text>
+          <Text bold color={line.amber ? C.amber : undefined}>{cut(line.name, nameMax)}</Text>
+        </Box>
         <Box flexDirection="row" gap={2}>{ContextCell(ctx, line.key, line.percent)}<Text dimColor>{line.time}</Text></Box>
       </Box>
       <Box flexDirection="row" justifyContent="space-between">
@@ -64,7 +70,7 @@ function kidLine(ctx: ViewCtx, row: SessionRow, now: number): Line {
   const end = row.state === 'running' || row.state === 'blocked' ? now : row.updatedAt
   const detail = row.state === 'running' ? row.tool ?? tr(ctx.lang, WORD.running) : tr(ctx.lang, WORD[row.state])
   return {
-    key: row.worktree, glyph: GLYPH[MARK[row.state]], name: row.name, percent: row.percent,
+    key: row.worktree, mark: MARK[row.state], name: row.name, percent: row.percent,
     time: duration(end - row.startedAt), cost: money(ctx.lang, row.costUsd), detail, amber: row.state === 'blocked',
   }
 }
@@ -80,7 +86,7 @@ export async function renderSessionsView($: any, ctx: ViewCtx, plan: PlanModel |
   const usage = await $.session.usage()
   const motherCost = usage?.cost?.usd ?? 0
   const mother: Line = {
-    key: 'mother', glyph: GLYPH.running, name: tr(lang, 'mother'), percent: usage?.context?.percent ?? 0,
+    key: 'mother', mark: 'running', name: tr(lang, 'mother'), percent: usage?.context?.percent ?? 0,
     time: duration(now - (usage?.startedAt ?? now)), cost: money(lang, motherCost),
     detail: `${tr(lang, 'thisSession')} · ${tr(lang, 'waitingKids')}`, amber: false,
   }
@@ -103,7 +109,7 @@ export async function renderSessionsView($: any, ctx: ViewCtx, plan: PlanModel |
       {sessions.kids.map(k => Row(ctx, kidLine(ctx, k, now), enter(k)))}
       {sessions.others.length > 0 && <Text dimColor bold>{tr(lang, 'others')}</Text>}
       {sessions.others.map(k => Row(ctx, kidLine(ctx, k, now), enter(k)))}
-      <Text dimColor>{tr(lang, 'total', { cost: money(lang, total), n: sessions.kids.length + 1 })}</Text>
+      <Text bold>{tr(lang, 'total', { cost: money(lang, total), n: sessions.kids.length + 1 })}</Text>
       <Button key="notify-switch" variant={on ? 'primary' : 'secondary'}
         onPress={() => void $.config.set({ key: 'blueprint.notifyWhenWaiting', value: !on }).catch(() => undefined)}>
         {`${tr(lang, 'notifySwitch')}: ${tr(lang, on ? 'switchOn' : 'switchOff')}`}
