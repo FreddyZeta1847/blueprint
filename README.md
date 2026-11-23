@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.2.0-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.2.1-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -335,6 +335,10 @@ is a plan) and `notifyWhenWaiting` (off: a phone notification when a stage or a 
 you). The panel follows Claude Code's language setting (Italian or English).
 
 ## Status
+
+v3.2.1 — a clearer panel: a frame only around the current and the open stage, finished stages
+dimmed, a caption beside each bar saying what the stage is and where it stands, step counts per
+session, and every mark in its state's colour.
 
 v3.2.0 — the plain plan: in the plan phase of an implementation stage Claude also writes
 `blueprint/plans/<stage>.md`, a few numbered steps per session in plain words, with their tests and
