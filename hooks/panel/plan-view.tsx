@@ -14,6 +14,7 @@ import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepLineSvg, stepMarkSvg }
 import { tr } from './text'
 import { addNote, changeNote, readNotes, stageDecisions, type Note } from './plan-extras'
 import { readSteps, type StepSection } from './plan-steps'
+import { TestResults } from './test-view'
 
 /**
  * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
@@ -136,7 +137,7 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
   if (id === 'clarify' || id === 'do' || id === 'prepare') return Topics(ctx, stage, at)
   if (id === 'plan') return await Steps($, ctx, stage, true)
   if (id === 'build') return await Steps($, ctx, stage, false)
-  if (id === 'test') return await Checks($, ctx, stage, 'test')
+  if (id === 'test') return await TestResults($, ctx, stage)
   if (id === 'review') return await Checks($, ctx, stage, 'doneWhen')
   return null
 }
