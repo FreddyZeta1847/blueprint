@@ -31,6 +31,12 @@ test('parseSteps: sections, their ### groups, checkbox lines, and the «Test:» 
   expect(marked[0]!.groups[0]!.steps[0]!.text).toBe('Review: differential-review e 2*3 casi, vedi qui la guida.')
 })
 
+test('parseSteps: a «Test (key):» line keeps its key (a command or a test file); a plain «Test:» has none', async () => {
+  const keyed = parseSteps('## A. Uno\n- [ ] 1. x\n- Test (npm test -- uno): corso pieno.\n## B. Due\n- [ ] 2. y\n- Test (`due.test.ts`): disdetta.\n## C. Tre\n- [ ] 3. z\n- Test: niente chiave.\n')
+  expect(keyed.map(s => s.groups[0]!.test)).toEqual(['corso pieno.', 'disdetta.', 'niente chiave.'])
+  expect(keyed.map(s => s.groups[0]!.testKey)).toEqual(['npm test -- uno', 'due.test.ts', undefined])
+})
+
 // a stage built in one session (no independent parts) whose plan has several ## sections: they are
 // groups of that one session, not sessions
 function singleSession(): string {

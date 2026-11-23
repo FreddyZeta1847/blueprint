@@ -16,16 +16,19 @@ export type StepSection = {
   name: string; role: StepRole; group?: string
   steps: { text: string; state: PhaseState }[]
   test?: string; doneWhen?: string
+  /** what the «Test (key):» line names: a command, or a test file whose block the output carries */
+  testKey?: string
 }
 type RawStep = { text: string; done: boolean }
-type RawGroup = { title?: string; steps: RawStep[]; test?: string; doneWhen?: string }
+type RawGroup = { title?: string; steps: RawStep[]; test?: string; testKey?: string; doneWhen?: string }
 type RawSection = { name: string; groups: RawGroup[] }
 
-/** One `- Test: …` / `- Finita quando: …` / `- Done when: …` line, or null. */
-function checkLine(line: string): { key: 'test' | 'doneWhen'; text: string } | null {
-  const m = /^\s*[-*]\s+(test|finita quando|done when)\s*:\s*(.+?)\s*$/i.exec(line)
-  if (!m?.[1] || !m[2]) return null
-  return { key: m[1].toLowerCase() === 'test' ? 'test' : 'doneWhen', text: m[2] }
+/** One `- Test: …` / `- Test (key): …` / `- Finita quando: …` / `- Done when: …` line, or null. */
+function checkLine(line: string): { key: 'test' | 'doneWhen'; text: string; testKey?: string } | null {
+  const m = /^\s*[-*]\s+(test|finita quando|done when)\s*(?:\(([^)]+)\))?\s*:\s*(.+?)\s*$/i.exec(line)
+  if (!m?.[1] || !m[3]) return null
+  const testKey = m[2]?.replace(/`/g, '').trim()
+  return { key: m[1].toLowerCase() === 'test' ? 'test' : 'doneWhen', text: m[3], ...(testKey ? { testKey } : {}) }
 }
 
 /** Markdown marks the panel cannot draw (**bold**, __bold__, *italic*, _italic_, `code`, [links](url)) taken out of a line. */
@@ -50,7 +53,10 @@ export function parseSteps(text: string): RawSection[] {
     const box = /^\s*[-*]\s+\[([ xX])\]\s+(.+?)\s*$/.exec(line)
     if (box?.[2]) { group.steps.push({ text: plain(box[2]), done: box[1] !== ' ' }); continue }
     const check = checkLine(line)
-    if (check) group[check.key] = plain(check.text)
+    if (check) {
+      group[check.key] = plain(check.text)
+      if (check.testKey) group.testKey = check.testKey
+    }
   }
   return sections
     .map(s => ({ ...s, groups: s.groups.filter(g => g.steps.length > 0 || g.test || g.doneWhen).map(({ title, ...g }) => (title ? { title, ...g } : g)) }))
@@ -66,6 +72,7 @@ function toSections(name: string, role: StepRole, groups: RawGroup[], running: b
   let n = 0
   return groups.map(g => ({
     name, role, ...(titled && g.title ? { group: g.title } : {}), test: g.test, doneWhen: g.doneWhen,
+    ...(g.testKey ? { testKey: g.testKey } : {}),
     steps: g.steps.map(s => {
       const i = n++ // the step's place in the whole session
       const state: PhaseState = s.done ? 'done' : running && i === first ? 'running' : 'todo'
