@@ -24,6 +24,7 @@ import { renderSessionsView } from './panel/sessions-view'
 import { renderLegendView } from './panel/legend-view'
 import { sessionsSummary } from './panel/sessions-data'
 import { registerStatusWriter } from './panel/status-writer'
+import { registerTestRecorder } from './panel/checks'
 
 const PANE = 'blueprint'
 const REFRESH_MS = 5000
@@ -126,6 +127,7 @@ function wantedView(args: string): PanelView | null {
 
 export const register: Register = (on, options) => {
   registerStatusWriter(on)
+  registerTestRecorder(on)
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
