@@ -44,17 +44,31 @@ export async function readChecks($: any, main: string, stageId: string): Promise
 /** A command as typed, without rtk's prefix and with single spaces. */
 const bare = (command: string) => command.trim().replace(/^rtk\s+(?:proxy\s+)?/, '').replace(/\s+/g, ' ')
 
+/** A redirection (`2>&1`, `>out.txt`, `2> err.log`'s first word): ignored after a group's command. */
+const REDIRECT = /^\d*>>?(?:&\d+)?\S*$|^\d*<\S*$/
+
+/** Flags and redirections only (a bare `>` takes the next word as its file). */
+function onlyFlags(rest: string[]): boolean {
+  for (let i = 0; i < rest.length; i++) {
+    const w = rest[i]!
+    if (/^\d*(?:>>?|<)$/.test(w)) { i++; continue }
+    if (!w.startsWith('-') && !REDIRECT.test(w)) return false
+  }
+  return true
+}
+
 /**
- * Whether the command runs exactly the key's tests: in one of its parts (split on && and ;) the
- * key's words appear in a row with only flags after them; a launcher before them is fine
- * («python -m pytest tests/ml -q»). «pytest tests/ml» is not run by «pytest tests/ml/test_x.py».
+ * Whether the command runs exactly the key's tests: in one of its parts (split on &&, ||, ; and |)
+ * the key's words appear in a row with only flags or redirections after them; a launcher before
+ * them is fine («python -m pytest tests/ml -q 2>&1 | tail -5»). «pytest tests/ml» is not run by
+ * «pytest tests/ml/test_x.py».
  */
 function runsKey(command: string, key: string): boolean {
   const k = bare(key).split(' ')
-  return command.split(/&&|;/).map(part => bare(part).split(' ')).some(words => {
+  return command.split(/&&|\|\||;|\|/).map(part => bare(part).split(' ')).some(words => {
     for (let i = 0; i + k.length <= words.length; i++) {
       const same = k.every((w, j) => words[i + j] === w)
-      if (same && words.slice(i + k.length).every(w => w.startsWith('-'))) return true
+      if (same && onlyFlags(words.slice(i + k.length))) return true
     }
     return false
   })
@@ -75,32 +89,45 @@ async function stageOf($: any, main: string, child: boolean): Promise<StageModel
   return ok ? stage : null
 }
 
-export async function recordRun($: any, command: string, output: string): Promise<void> {
+/** What Claude reads when a test run counted for no group. */
+export const missNote = (stageId: string, out: Count) =>
+  `[Blueprint] This command printed a test summary (${out.passed} of ${out.total} passed) but runs no group's «Test (…)» key in blueprint/plans/${stageId}.md, so the panel did not count it (no group matched). Run a group's command as written in its Test line (a launcher before it, flags, pipes and redirections after it are fine), or fix the key.`
+
+/**
+ * Records a command's test counts. Says what happened, so the hook can tell Claude when a test run
+ * counted for no group (a key that does not match, or a command not written as in the plan):
+ * otherwise the panel would show old numbers as if they were new.
+ */
+export async function recordRun($: any, command: string, output: string): Promise<{ note?: string }> {
   const repo = await findRepo($, String(await $.session.cwd()).replace(/\\/g, '/'))
-  if (!repo) return
+  if (!repo) return {}
   const stage = await stageOf($, repo.main, !!repo.worktree)
   const out = stage && parseTestOutput(output)
-  if (!stage || !out) return
+  if (!stage || !out) return {}
   const at = new Date(await $.clock.now()).toISOString()
   const found: Record<string, GroupResult> = {}
   for (const section of await readSteps($, repo.main, stage)) {
     const count = section.testKey ? countFor(section.testKey, command, out) : null
     if (count) found[groupKey(section)] = { passed: count.passed, total: count.total, failed: count.failed, source: 'seen', at }
   }
-  if (Object.keys(found).length === 0) return
+  if (Object.keys(found).length === 0) {
+    return { note: missNote(stage.id, out) }
+  }
   const path = `${dir(repo.main)}/${stage.id}--${repo.worktree ?? 'main'}.json`
   const before: ChecksFile | null = await $.fs.read(path).then(JSON.parse).catch(() => null)
   if (!(await $.fs.exists(`${dir(repo.main)}/.gitignore`).catch(() => false))) await $.fs.write(`${dir(repo.main)}/.gitignore`, '*\n')
   await $.fs.write(path, JSON.stringify({ v: 1, groups: { ...(before?.groups ?? {}), ...found } }))
+  return {}
 }
 
 export function registerTestRecorder(on: any): void {
   on('tool.call', { tool: /^(?:Bash|PowerShell)$/ }, async ($: any, e: any, next: any) => {
     const result = await next(e)
     const stdout = result?.result?.stdout
-    if (typeof e.command === 'string' && typeof stdout === 'string') {
-      await recordRun($, e.command, `${stdout}\n${result.result.stderr ?? ''}`).catch(() => undefined) // never fails the tool call
-    }
-    return result
+    if (typeof e.command !== 'string' || typeof stdout !== 'string') return result
+    // never fails the tool call: an error becomes a note for Claude instead of a silent stop
+    const { note } = await recordRun($, e.command, `${stdout}\n${result.result.stderr ?? ''}`)
+      .catch((err: unknown) => ({ note: `[Blueprint] The panel could not record these test counts: ${String((err as any)?.message ?? err).slice(0, 200)}` }))
+    return note ? { ...result, context: [...(result.context ?? []), note] } : result
   })
 }

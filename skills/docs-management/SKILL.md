@@ -87,7 +87,12 @@ reads the `## ` sections and the checkbox lines; keep them exactly so):
 **Test counts** (`blueprint/checks/`). While an implementation stage is in its `build` or `test`
 phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the
 output of a match is read (node, bun and `claude plugin test`, vitest, jest, pytest, and rtk's
-condensed lines) and the group's count written to that session's file:
+condensed lines) and the group's count written to that session's file. A command counts for a
+group only when it runs **exactly** that group's key: the key's words in a row, with nothing after
+them but flags, redirections and pipes (`python -m pytest tests/ml -q 2>&1 | tail -5` runs the key
+`pytest tests/ml`; `pytest tests/ml/test_env.py` does not), so a key may be part of another without
+counting the wrong group. A test run that counts for no group gets a `[Blueprint]` note in the
+command's result: fix the key or run the command as written. The file looks like this:
 `{ "v": 1, "groups": { "A. Corsi": { "passed": 14, "total": 14, "failed": [], "source": "seen", "at": "<ISO time>" } } }`.
 The panel keeps the newest result per group, so the main session's run in the test phase, after
 the merge, replaces the children's. When the panel cannot read a runner's output, Claude may write

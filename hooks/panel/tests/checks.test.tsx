@@ -7,6 +7,7 @@
  */
 import { expect, test } from 'claude-code/testing'
 import { engine, MAIN, defaultFiles, planJson } from './harness'
+import { missNote } from '../checks'
 
 const STEPS = '# Piano\n\n## Area admin\n### A. Corsi\n- [x] 1. Elenco.\n- Test (npm test -- corsi): un corso chiuso non si prenota.\n### B. Chiusure\n- [ ] 2. Chiusura.\n- Test (chiusure.test.ts): gli iscritti ricevono l\'avviso.\n\n## Area clienti\n### C. Calendario\n- [ ] 1. Calendario.\n- Test (calendario.test.ts): settimana che cambia.\n\n## Madre\n### D. Integrazione\n- [ ] Unione.\n- Test (npm run e2e): le due parti insieme.\n'
 const TAP = (pass: number, fail: number) => `# tests ${pass + fail}\n# pass ${pass}\n# fail ${fail}\n`
@@ -57,6 +58,26 @@ test('a command is a group\'s only when it runs exactly its key: a launcher, fla
   expect(file(seen)).toBe(undefined)
   await $.tool.call({ tool: 'Bash', command: 'cd app && npx npm test -- corsi --reporter=tap' })
   expect(file(seen)['A. Corsi']).toMatchObject({ passed: 5, total: 5 })
+})
+
+test('pipes and redirections after a group\'s command still count (issue 004 seen in mote)', async ($, on) => {
+  const seen = engine(on, { ...world('test'), toolOut: { 'npm test -- corsi 2>&1 | tail -5': TAP(4, 0), 'npm test -- corsi > out.txt; cat out.txt': TAP(6, 0) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi 2>&1 | tail -5' })
+  expect(file(seen)['A. Corsi']).toMatchObject({ passed: 4, total: 4 })
+  await seen.clock.advance(1000)
+  await $.tool.call({ tool: 'PowerShell', command: 'npm test -- corsi > out.txt; cat out.txt' })
+  expect(file(seen)['A. Corsi']).toMatchObject({ passed: 6, total: 6 })
+})
+
+test('a test run that belongs to no group is told to Claude, so it is never silently uncounted', async ($, on) => {
+  // the note travels in the tool result's context, which a test's own $.tool.call does not carry back:
+  // here the text and the fact that nothing was written; the hook returns missNote as context
+  const seen = engine(on, { ...world('test'), toolOut: { 'npm test -- altro': TAP(2, 0) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- altro' })
+  expect(file(seen)).toBe(undefined)
+  expect(missNote('fb', { passed: 2, total: 2, failed: [] })).toMatch(/^\[Blueprint\] .*2 of 2 passed.*blueprint\/plans\/fb\.md.*no group matched/)
 })
 
 test('a child writes its own file, next to the main session\'s', async ($, on) => {
