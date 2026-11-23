@@ -25,6 +25,7 @@ import { renderLegendView } from './panel/legend-view'
 import { sessionsSummary } from './panel/sessions-data'
 import { registerStatusWriter } from './panel/status-writer'
 import { registerTestRecorder } from './panel/checks'
+import { autoFix, howMany } from './panel/reviews'
 
 const PANE = 'blueprint'
 const REFRESH_MS = 5000
@@ -39,6 +40,8 @@ let lang: Lang = 'en'
 let lastPlan: PlanModel | null = null
 let unreadable = false
 let summary: SessionsSummary = { kids: 0, blocked: [] }
+// The review's countdown (findings open, seconds left): while it runs the panel refreshes every second.
+let countdown: { open: number; seconds: number } | null = null
 
 const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
 
@@ -80,6 +83,8 @@ async function refresh($: any, options: any): Promise<void> {
   else if (!hasPlanFile) lastPlan = null
   if (moved && lastPlan && options?.autoOpen !== false) openTries = 24
   await updateStatus($)
+  countdown = await autoFix($, main, lastPlan, lang).catch(() => null)
+  if (countdown) await $.ui.status(tr(lang, 'statusFix', { what: howMany(lang, countdown.open), s: countdown.seconds }))
   await notifyIfYourTurn($, options)
   await tryAutoOpen($)
   void update($, tick, n => (n + 1) % 1_000_000)
@@ -137,6 +142,7 @@ export const register: Register = (on, options) => {
     })
     await refresh($, options) // finds where the session works, reads the plan, opens the pane if wanted
     $.clock.every(REFRESH_MS, () => void refresh($, options))
+    $.clock.every(1000, () => { if (countdown) void refresh($, options) })
     return result
   })
 

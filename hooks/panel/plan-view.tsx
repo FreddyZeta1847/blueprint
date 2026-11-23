@@ -15,6 +15,7 @@ import { tr } from './text'
 import { addNote, changeNote, readNotes, stageDecisions, type Note } from './plan-extras'
 import { readSteps, type StepSection } from './plan-steps'
 import { TestResults } from './test-view'
+import { ReviewResults } from './review-view'
 
 /**
  * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
@@ -138,7 +139,7 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
   if (id === 'plan') return await Steps($, ctx, stage, true)
   if (id === 'build') return await Steps($, ctx, stage, false)
   if (id === 'test') return await TestResults($, ctx, stage)
-  if (id === 'review') return await Checks($, ctx, stage, 'doneWhen')
+  if (id === 'review') return [await ReviewResults($, ctx, stage), await Checks($, ctx, stage, 'doneWhen')]
   return null
 }
 
