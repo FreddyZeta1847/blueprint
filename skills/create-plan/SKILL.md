@@ -274,6 +274,16 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   plus «Madre» when the parts run in parallel. Show it to the user in the chat as well. Then tick
   each step as it finishes, each session in its own section and its own copy; the panel shows the
   steps as a column of marks in the open stage;
+- **`test` and `review` (implementation) belong to the main session.** While building, every
+  session (the children too) runs its tests, and the panel already counts them per group. When the
+  stage reaches `test`, the children are merged and closed: the main session runs every group's
+  tests again on the merged work, and those counts are the ones that hold. In `review` the main
+  session runs the review tools chosen at the opening, by an agent that did not write the code,
+  writes what they found to `blueprint/reviews/<stage id>.json` (format in
+  `blueprint:docs-management`) and stops: the user fixes them from the panel, or the panel sends
+  them by itself 30 seconds later. After fixing, run the tools again and write the next round. The
+  review is done when a round finds nothing; on round 3 with findings still open, stop and ask the
+  user;
 - **`first_use` (implementation) is never a formality.** Green tests prove the code does what the
   tests ask, not that the product works for the person who opens it. Start the work exactly with
   the instructions you will give the user, in every way of starting it you offer (e.g. a single

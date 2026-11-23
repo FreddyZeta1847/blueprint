@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.2.1-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.3.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -321,9 +321,14 @@ Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three 
   its topics, the files that hold a discussion's decisions (a click copies the path) and, in an
   implementation stage, its **steps** (with how many each session has done) — the plain plan Claude writes in `blueprint/plans/<stage>.md`
   next to the technical one, a column of marks per session (teal line for a child, grey for the
-  main session), unticked in the plan phase, ticked as each step finishes in the build phase, its
-  `Test:` lines in the test phase and its `Finita quando:` lines in the review phase. The notes are
-  always there: add one, edit it (✎) or delete it (✕).
+  main session), unticked in the plan phase, ticked as each step finishes in the build phase. In
+  the **test phase** every group of the plain plan gets a bar and a fraction («14/14») read from the
+  real output of its test command (the `Test (command or file)` line), with the failed tests by
+  name; the counts already fill up while building, and the main session's last run wins. In the
+  **review phase** the findings of the review tools are grouped by tool, each with a **Correggi**
+  (fix) button and a **Correggi tutto ora** on top; if nobody presses, they are sent to Claude by
+  themselves 30 seconds later (the countdown is in the panel and in the status line), at most
+  three rounds. The notes are always there: add one, edit it (✎) or delete it (✕).
 - **Sessions** — during a stage built in parallel: the mother session and one child per part,
   with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
 - **Legend** — every stage type with its phases, how Claude moves through them, and how the
@@ -335,6 +340,11 @@ is a plan) and `notifyWhenWaiting` (off: a phone notification when a stage or a 
 you). The panel follows Claude Code's language setting (Italian or English).
 
 ## Status
+
+v3.3.0 — tests and review in the panel: each group's test count read from the real command
+output (also while building, from the children too), and the review's findings with Correggi,
+Correggi tutto and an automatic fix after 30 seconds. The test and review phases belong to the
+main session; the plain plan's `Test` lines name their command or test file.
 
 v3.2.1 — a clearer panel: a frame only around the current and the open stage, finished stages
 dimmed, a caption beside each bar saying what the stage is and where it stands, step counts per

@@ -27,6 +27,8 @@ Everything Blueprint keeps in a project sits in one folder at the repo root:
 | `blueprint/context.md` | Claude, after the user's yes | the context card: one answer per context question, with its source. Format in `blueprint:get-context` §7 |
 | `blueprint/plan.json` | the main session only, after the user's OK | stages, topics, current phase, how, deadlines, independent parts. Format in `blueprint:create-plan` §5; checked by the plan-guard hook |
 | `blueprint/plans/<stage id>.md` | Claude | the **plain plan** of an implementation stage, written in its `plan` phase next to the technical plan, for the user to follow the work (format below) |
+| `blueprint/checks/<stage id>--<session>.json` | the panel (a hook on test commands) | the test counts of each group of the plain plan, one file per session (`main` or the child's worktree), local only (`.gitignore`). Format below |
+| `blueprint/reviews/<stage id>.json` | the main session, in the `review` phase | the findings of the review tools, one round at a time; the panel marks the ones it sends to be fixed. Local only (`.gitignore`). Format below |
 | `blueprint/notes.json` | the user (optional) | notes per stage: `{ "notes": [{ "stage": "<id>", "text": "...", "read": false }] }`. Read them when a stage opens; mark them `read` once told to the user |
 | `blueprint/decisions/` | Claude, checked by the hooks | **only decisions**: those taken in discussions, and the corrections an implementation or a delivery forces on them — filed by shared area, contract and section. Created **only when the card's `documentation` answer says a decisions folder is needed** |
 | `blueprint/decisions.md` | Claude | the **single decisions file**, when the card's `documentation` answer chose it: one `## <stage name>` section per stage, one bullet per decision (`- **<the choice>** — why; one-way/two-way; decided by user/Claude; date`). Every stage type writes here: discussions, implementation corrections, the choices a delivery's feedback rounds settle ("warmer colours, no dark backgrounds"), quick tasks. Not parsed by the hooks |
@@ -49,12 +51,12 @@ reads the `## ` sections and the checkbox lines; keep them exactly so):
 - [x] 1. Ambiente con le versioni fissate.
 - [ ] 2–4. Calendario, prenotazione e disdetta, sul contratto della tappa 4.
 - [ ] 5. Lista d'attesa: se un posto si libera, il primo in lista lo prende.
-- Test: corso pieno, disdetta entro 2 ore, lista d'attesa.
+- Test (npm test -- soci): corso pieno, disdetta entro 2 ore, lista d'attesa.
 - Finita quando: un socio prenota dal telefono e i test passano.
 
 ## Area admin
 - [ ] 1–3. Corsi, iscritti, chiusure.
-- Test: …
+- Test (admin.test.ts): …
 - Finita quando: …
 
 ## Madre
@@ -67,13 +69,37 @@ reads the `## ` sections and the checkbox lines; keep them exactly so):
   if useful, its own `- Test:` and `- Finita quando:` lines. A stage built in one session has no
   `## ` section per session: write its groups as `## ` or `### ` headings, the panel shows them all
   as one session. Keep groups for long plans only; a short plan needs none.
+- **Group titles are unique in the whole file**, across sessions too (`A`, `B` for one child, `C`, `D`
+  for the other, `E` for the mother): in the test phase the panel lists the groups alone.
+- **A `Test` line says which tests are its group's**, in parentheses: the command that runs only
+  them (`- Test (npm test -- soci): …`), or the name of their test file (`- Test (admin.test.ts): …`)
+  when one command runs every group and its output is split per file. The panel uses it to count
+  each group's tests; a `Test:` line without it still shows its words, with no count.
 - The panel shows the steps in the build phase, the same steps unticked in the plan phase, the
-  `Test:` lines in the test phase and the `Finita quando:` lines in the review phase.
+  `Test` lines with each group's count in the test phase, and the review's findings plus the
+  `Finita quando:` lines in the review phase.
 - Tick a step (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
   own copy of the file**: a child in its worktree (the panel reads it there), the main session in
   the project. At the merge, keep every section's ticks.
 - The file is written once in the `plan` phase and changes only by ticks, or when the plan changes
   (say so to the user).
+
+**Test counts** (`blueprint/checks/`). While an implementation stage is in its `build` or `test`
+phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the
+output of a match is read (node, bun and `claude plugin test`, vitest, jest, pytest, and rtk's
+condensed lines) and the group's count written to that session's file:
+`{ "v": 1, "groups": { "A. Corsi": { "passed": 14, "total": 14, "failed": [], "source": "seen", "at": "<ISO time>" } } }`.
+The panel keeps the newest result per group, so the main session's run in the test phase, after
+the merge, replaces the children's. When the panel cannot read a runner's output, Claude may write
+the counts itself in `blueprint/checks/<stage id>--claude.json` with `"source": "told"`: the panel
+marks them with `*`.
+
+**Review findings** (`blueprint/reviews/<stage id>.json`). The main session writes one round:
+`{ "v": 1, "round": 1, "foundAt": "<ISO time>", "tools": ["<every tool that ran>"], "findings": [{ "id": "f1", "tool": "<the tool>", "severity": "high|medium|low", "text": "<one line, plain words>", "status": "open" }] }`.
+Write `foundAt` as the real time the round was written: the panel fixes the open findings by itself
+30 seconds later. A finding the panel sent to be fixed turns `sent`; fixed ones may be set `fixed`.
+After fixing, run the tools again and write the next round (`round` + 1, new `foundAt`). A round
+with no finding ends the review. Add `blueprint/reviews/.gitignore` with `*` if it is missing.
 
 Other folders that the execution of a stage may create inside `blueprint/` are not Blueprint's: never
 read them as decisions and never write them from a Blueprint step.
