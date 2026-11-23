@@ -313,11 +313,13 @@ TEST-FINDINGS.md  what the live test runs found, and what was fixed
 In a project with a plan, Blueprint opens a pane beside the chat (desktop app, terminal and
 Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three screens:
 
-- **Plan** — one card per stage with a bar of its phases (grey done, blue in progress, yellow
-  waiting for you, dark to do). Open a stage to see its phases; ◀ ▶ under them move the view from
+- **Plan** — one row per stage with a bar of its phases (grey done, blue in progress, yellow
+  waiting for you, dark to do) and a caption saying what it is («implementazione · fase 3 di 7:
+  costruzione»); the current stage is framed, finished ones are dimmed. Open a stage to see what
+  its type is for and its phases; ◀ ▶ under them move the view from
   phase to phase (the plan itself does not change) and the stage shows what belongs to that phase:
   its topics, the files that hold a discussion's decisions (a click copies the path) and, in an
-  implementation stage, its **steps** — the plain plan Claude writes in `blueprint/plans/<stage>.md`
+  implementation stage, its **steps** (with how many each session has done) — the plain plan Claude writes in `blueprint/plans/<stage>.md`
   next to the technical one, a column of marks per session (teal line for a child, grey for the
   main session), unticked in the plan phase, ticked as each step finishes in the build phase, its
   `Test:` lines in the test phase and its `Finita quando:` lines in the review phase. The notes are

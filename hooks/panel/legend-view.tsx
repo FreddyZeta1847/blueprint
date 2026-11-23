@@ -22,6 +22,28 @@ function Block(ctx: ViewCtx, title: string, lines: string[], color: string = C.i
   )
 }
 
+/** The marks, each drawn in its own colour as in the panel, then the frames and the steps' lines. */
+function Marks(ctx: ViewCtx) {
+  const { Box, Text } = ctx.el
+  const marks: [string, string, string][] = [
+    [GLYPH.done, C.muted, 'lgMarkDone'], [GLYPH.running, C.accent, 'lgMarkRunning'], [GLYPH.stopped, C.amber, 'lgMarkStopped'],
+    [GLYPH.todo, C.faint, 'lgMarkTodo'], [GLYPH.skipped, C.muted, 'lgMarkSkipped'],
+  ]
+  return (
+    <Box flexDirection="column">
+      <Text bold color={C.ink}>{tr(ctx.lang, 'lgMarks')}</Text>
+      {marks.map(([glyph, color, key]) => (
+        <Box flexDirection="row" gap={1}>
+          <Box width={2} flexShrink={0}><Text bold color={color}>{glyph}</Text></Box>
+          <Box flexShrink={1}><Text wrap="wrap">{tr(ctx.lang, key)}</Text></Box>
+        </Box>
+      ))}
+      <Text wrap="wrap">{tr(ctx.lang, 'lgFrames')}</Text>
+      <Text wrap="wrap">{tr(ctx.lang, 'lgSteps')}</Text>
+    </Box>
+  )
+}
+
 /** «2. proposta · tocca a te — tante opzioni, poi la raccomandazione» */
 function phaseLine(ctx: ViewCtx, n: number, p: { id: string; user?: boolean; optional?: boolean }): string {
   const tags = [p.user ? tr(ctx.lang, 'lgYours') : '', p.optional ? tr(ctx.lang, 'lgOptional') : ''].filter(Boolean)
@@ -44,16 +66,11 @@ function TypeBlock(ctx: ViewCtx, type: string, phases: { id: string; user?: bool
 export async function renderLegendView($: any, ctx: ViewCtx) {
   const { Box, Text } = ctx.el
   const loops = await readLoops($)
-  const marks = [
-    `${GLYPH.done} ${tr(ctx.lang, 'lgMarkDone')}`, `${GLYPH.running} ${tr(ctx.lang, 'lgMarkRunning')}`,
-    `${GLYPH.stopped} ${tr(ctx.lang, 'lgMarkStopped')}`, `${GLYPH.todo} ${tr(ctx.lang, 'lgMarkTodo')}`,
-    `${GLYPH.skipped} ${tr(ctx.lang, 'lgMarkSkipped')}`, tr(ctx.lang, 'lgFrames'), tr(ctx.lang, 'lgSteps'),
-  ]
   const flow = ['lgFlow1', 'lgFlow2', 'lgFlow3', 'lgFlow4'].map(k => `• ${tr(ctx.lang, k)}`)
   const sessions = ['lgSes1', 'lgSes2', 'lgSes3', 'lgSes4', 'lgSes5', 'lgSes6', 'lgSes7'].map(k => `• ${tr(ctx.lang, k)}`)
   return (
     <Box flexDirection="column" gap={1}>
-      {Block(ctx, tr(ctx.lang, 'lgMarks'), marks)}
+      {Marks(ctx)}
       <Text bold color={C.ink}>{tr(ctx.lang, 'lgTypes')}</Text>
       {TYPES.map(type => TypeBlock(ctx, type, loops?.types[type]?.phases ?? []))}
       {Block(ctx, tr(ctx.lang, 'lgFlow'), flow)}

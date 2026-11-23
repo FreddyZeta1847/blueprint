@@ -58,6 +58,6 @@ test('terminal: bars and pills are text (✓ after a done bar, the deadline in b
   await $.session.start({ cwd: MAIN, surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount(PANE('terminal'))
   expect((await ui.find({ key: 'bar:repo' }))?.text ?? JSON.stringify(await ui.find({ key: 'bar:repo' }))).toContain('✓')
-  expect(await ui.find({ text: '[20 nov]' })).toBeDefined()
+  expect(await ui.find({ text: '[entro 20 nov]' })).toBeDefined()
   await ui.unmount()
 })

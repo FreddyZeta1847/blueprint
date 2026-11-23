@@ -220,7 +220,7 @@ test('the arrows under the rail move the view between the phases, without touchi
     expect(await ui.find({ text: /^costruzione · in corso$/ })).toBeDefined() // starts on the running phase
     await ui.press({ key: 'phase-prev:fb' })
     expect(await ui.find({ text: /^piano · fatta$/ })).toBeDefined()
-    expect(await ui.find({ text: /^il piano di costruzione\.$/ })).toBeDefined()
+    expect(await ui.find({ text: /^Il piano di costruzione\.$/ })).toBeDefined()
     if (surface === 'desktop') expect(JSON.stringify(await ui.find({ key: 'rail:fb' }))).toContain('stroke-dasharray') // the ring on the dot looked at
     for (let i = 0; i < 9; i++) await ui.press({ key: 'phase-next:fb' }) // past the last phase it stays there
     expect(await ui.find({ text: /^unione · da fare$/ })).toBeDefined()
@@ -307,7 +307,8 @@ test('a stage without topics still has content: a line saying what its type is f
   await open($, on)
   const ui = await $.ui.mount(PANE('terminal'))
   await ui.press({ key: 'stage:sec' }) // a quick task with no topics
-  expect(await ui.find({ text: /Nessun elenco: la tappa è un lavoro unico\. Serve a un lavoro breve/ })).toBeDefined()
+  expect(await ui.find({ text: /^Nessun elenco: la tappa è un lavoro unico\.$/ })).toBeDefined()
+  expect(await ui.find({ text: /^attività breve · serve a un lavoro breve e a basso rischio\.$/ })).toBeDefined() // the type says what it is for
   await ui.unmount()
 })
 

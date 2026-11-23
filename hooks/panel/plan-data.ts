@@ -25,10 +25,13 @@ export async function readLoops($: any): Promise<Loops | null> {
   return loops?.types ? loops : null
 }
 
-/** "Size: project — un sito" → "project": the first part of a card line, before the dash. */
+/**
+ * The key word of a card line: "Size: project — un sito" → "project", "Pace: Calm: we discuss…" →
+ * "calm". The lines go on with the reason, which the panel's one summary line has no room for.
+ */
 function cardLine(text: string, key: string): string | undefined {
   const m = new RegExp(`^${key}:\\s*(.+)$`, 'mi').exec(text)
-  return m?.[1]?.split(/\s+[—–-]\s+/)[0]?.trim()
+  return m?.[1]?.trim().split(/[\s.,;:(—–-]+/)[0]?.toLowerCase() || undefined
 }
 
 async function readCard($: any, main: string): Promise<PlanModel['card']> {

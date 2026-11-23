@@ -1,6 +1,7 @@
 /*
  * The panel's header, shared by both views: project name, «tappa N di M», the progress bar
- * (amber when the current stage is stopped) and the context card summary in one line.
+ * (amber when the current stage is stopped) and the context card's key words in one line
+ * («Progetto · difficoltà: alta · ritmo: calma»).
  * Surfaces without Svg (the terminal) get a text bar.
  */
 import type { PlanModel, ViewCtx } from './types'
@@ -27,7 +28,7 @@ export function Header(ctx: ViewCtx, plan: PlanModel) {
         : <Text dimColor>{'■'.repeat(done) + (done < total ? (stopped ? '!' : '▶') : '') + '□'.repeat(Math.max(total - done - 1, 0))}</Text>}
       {card && (
         <Text dimColor wrap="truncate">
-          {`${tr(ctx.lang, `size_${card.size}`)} · ${card.difficulty} · ${card.pace}`}
+          {`${tr(ctx.lang, `size_${card.size}`)} · ${tr(ctx.lang, 'difficulty', { d: card.difficulty })} · ${tr(ctx.lang, 'pace', { p: card.pace })}`}
         </Text>
       )}
     </Box>
