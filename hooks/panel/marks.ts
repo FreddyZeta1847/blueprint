@@ -88,6 +88,11 @@ export function stepMarkSvg(state: PhaseState, line: string, first: boolean, las
     markShape(x, cy, state, state === 'running' || state === 'stopped' ? 7 : 6))
 }
 
+/** A mark of the work tree (18×20), with no line: the tree's guides are drawn by the levels. */
+export function treeMarkSvg(state: PhaseState): string {
+  return doc(18, 20, markShape(9, 10, state, state === 'running' || state === 'stopped' ? 7 : 6))
+}
+
 /** A group's tests: the bar green when all passed, coral when some failed. */
 export function fractionSvg(passed: number, total: number, width = 90): string {
   const f = total > 0 ? Math.min(passed / total, 1) : 0

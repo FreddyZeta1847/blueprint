@@ -33,7 +33,8 @@
 │   │   │   ├── sessions.test.tsx
 │   │   │   ├── shared.test.ts
 │   │   │   ├── test-output.test.ts
-│   │   │   └── test-view.test.tsx
+│   │   │   ├── test-view.test.tsx
+│   │   │   └── tree-view.test.tsx
 │   │   ├── checks.ts
 │   │   ├── header.tsx
 │   │   ├── legend-view.tsx
@@ -51,6 +52,7 @@
 │   │   ├── test-output.ts
 │   │   ├── test-view.tsx
 │   │   ├── text.ts
+│   │   ├── tree-view.tsx
 │   │   └── types.ts
 │   ├── tests/
 │   │   ├── decisions.test.js

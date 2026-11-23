@@ -40,49 +40,74 @@ in a quick task or in the feedback of a delivery is a decision too, and it must 
 chat.
 
 **The plain plan** (`blueprint/plans/<stage id>.md`). The technical plan says how the code is
-written; this one lets the user follow the stage at a glance. It may name tools and files, but it
-groups the work in a few numbered steps, in plain words, a few lines per section. Format (the panel
-reads the `## ` sections and the checkbox lines; keep them exactly so):
+written; this one lets the user follow the stage at a glance, and it is the index of the technical
+plan: the same names in both. Four levels, each with a **name**, a **short title** (what the panel
+shows) and, on the line below, **a few plain words** (prose, not technical, not long) that explain
+it. Format (the panel reads the headings, the checkbox lines and the lines under them; keep them
+exactly so):
 
 ```markdown
 # Piano — App dei soci e area admin
 
 ## App dei soci
-- [x] 1. Ambiente con le versioni fissate.
-- [ ] 2–4. Calendario, prenotazione e disdetta, sul contratto della tappa 4.
-- [ ] 5. Lista d'attesa: se un posto si libera, il primo in lista lo prende.
+### A. Calendario e prenotazione
+Il socio vede la settimana e prenota un posto dal telefono.
 - Test (npm test -- soci): corso pieno, disdetta entro 2 ore, lista d'attesa.
 - Finita quando: un socio prenota dal telefono e i test passano.
 
-## Area admin
-- [ ] 1–3. Corsi, iscritti, chiusure.
-- Test (admin.test.ts): …
-- Finita quando: …
+#### A1. La settimana dei corsi
+Sette colonne, una per giorno, con i posti liberi di ogni corso.
+- [x] A1.1 Corsi della settimana dal server
+  La pagina chiede i corsi della settimana e li mette nei giorni giusti.
+- [ ] A1.2 Posti liberi su ogni corso
+  Accanto a ogni corso il numero dei posti rimasti.
+
+#### A2. Prenotare e disdire
+- [ ] A2.1 Il pulsante «Prenota»
+  …
 
 ## Madre
-- [ ] Unione delle parti, test d'integrazione, prova da primo utente, PR.
+### E. Unione
+#### E1. Unione delle parti
+- [ ] E1.1 Unione e test d'integrazione
 ```
 
+- **The four levels**: `## ` a **session**; `### A. Title` a **letter** (a group of Tasks with
+  similar tests); `#### A1. Title` a **Task** of the technical plan; `- [ ] A1.1 Title` a
+  **sub-task**, a concrete result inside the Task. The plain words go on the line(s) right under a
+  title, and under a sub-task indented by two spaces.
+- **Names**: a letter is unique in the whole file, across sessions too (`A`, `B` for one child, `C`,
+  `D` for the other, `E` for the mother): in the test phase the panel lists the letters alone. A
+  Task is named after its letter (`A1`, `A2`) **exactly as in the technical plan**; a sub-task after
+  its Task (`A1.1`). Names never change once written.
+- **One home each**: a Task belongs to one letter only (if it would need two, split the Task); a
+  sub-task always belongs to a Task. Work found on the way goes into the technical plan first, then
+  here.
+- **Titles stay short and stay titles**: what is done or missing goes in the plain words below,
+  never appended to the title («… — scritte; manca la prova» is a note, not a title).
+- **Sub-tasks are where the work moves**: 2–4 per Task, each a result you could stop after and
+  resume from, not the technical plan's mechanical steps («write the failing test», «commit»).
 - **A `## ` section is a session**: one per independent part, named **exactly as the part in
-  `plan.json`**, plus `## Madre` (in English `## Mother`) for the main session's own steps.
-- **Groups inside a session are `### ` headings** (`### A. Ambiente`), each with its own steps and,
-  if useful, its own `- Test:` and `- Finita quando:` lines. A stage built in one session has no
-  `## ` section per session: write its groups as `## ` or `### ` headings, the panel shows them all
-  as one session. Keep groups for long plans only; a short plan needs none.
-- **Group titles are unique in the whole file**, across sessions too (`A`, `B` for one child, `C`, `D`
-  for the other, `E` for the mother): in the test phase the panel lists the groups alone.
+  `plan.json`**, plus `## Madre` (in English `## Mother`) for the main session's own letters. A
+  stage built in one session has no `## ` section: it starts with its letters.
+- **The older format still reads**: letters with checkbox steps and no `#### ` Tasks are drawn as a
+  plain column. New plans use the four levels.
 - **A `Test` line says which tests are its group's**, in parentheses: the command that runs only
   them (`- Test (npm test -- soci): …`), or the name of their test file (`- Test (admin.test.ts): …`)
   when one command runs every group and its output is split per file. The panel uses it to count
   each group's tests; a `Test:` line without it still shows its words, with no count.
-- The panel shows the steps in the build phase, the same steps unticked in the plan phase, the
+- The panel shows the work tree in the build phase (sessions, letters and Tasks open, a Task's
+  sub-tasks behind its button; the sub-task in progress colours its Task, letter and session, and
+  only that path shows its plain words), the same tree unticked in the plan phase, the
   `Test` lines with each group's count in the test phase, the review's findings in the review
   phase, and the `Finita quando:` lines in the first-use phase, as the user's checklist.
-- Tick a step (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
+- Tick a sub-task (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
   own copy of the file**: a child in its worktree (the panel reads it there), the main session in
   the project. At the merge, keep every section's ticks.
-- The file is written once in the `plan` phase and changes only by ticks, or when the plan changes
-  (say so to the user).
+- The file is written in the `plan` phase in three moves (`blueprint:create-plan` §7): the skeleton
+  (letters with title, plain words, `Test` line and session) for the user's OK; then the technical
+  plan with the letters as its chapters; then the Tasks and sub-tasks. After that it changes only
+  by ticks, or when the plan changes (say so to the user).
 
 **Test counts** (`blueprint/checks/`). While an implementation stage is in its `build` or `test`
 phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the
