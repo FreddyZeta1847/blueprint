@@ -3,7 +3,7 @@
  * four levels (decisions «Albero del lavoro»): session → letter → Task → sub-task, each with its
  * name (A, A1, A1.1), its short title and, only on the path being worked on, its plain words.
  * Sessions, letters and Tasks are open; a Task's sub-tasks open with its button («▸ 3» / «▾ 3»),
- * the Task in progress already open. The state of the sub-task in progress climbs back up: its Task,
+ * the Task in progress already open; a letter's button («▾ 1/2») shuts it, if the user wants. The state of the sub-task in progress climbs back up: its Task,
  * letter and session are blue while the session works, amber when it waits for the user. Which
  * Tasks were opened or shut by hand lives in the `taskOpen` $.state atom. The terminal gets the
  * same tree with text marks and no guides. Data: plan-steps.ts.
@@ -71,14 +71,24 @@ function Level(ctx: ViewCtx, children: unknown) {
 const label = (id: string | undefined, title: string) => (id ? `${id} ${title}` : title)
 const stepRow = (ctx: ViewCtx, s: TreeStep) => Row(ctx, { state: s.state, label: label(s.id, s.text), expl: s.expl })
 
-/** A Task with its button and, when open, its sub-tasks. */
-function TaskRows($: any, ctx: ViewCtx, key: string, task: TaskNode, opened: string[]) {
-  const { Box, Button } = ctx.el
-  const state = nodeState(task.steps.map(s => s.state))
-  const open = opened.includes(`open:${key}`) || (!opened.includes(`shut:${key}`) && onPath(state))
+/** Whether a row is open: what the user chose last for it, else its default. */
+const isOpen = (opened: string[], key: string, byDefault: boolean) =>
+  opened.includes(`open:${key}`) || (!opened.includes(`shut:${key}`) && byDefault)
+
+/** The button that opens or shuts a row («▾ …» open, «▸ …» shut), remembering the choice. */
+function Toggle($: any, ctx: ViewCtx, key: string, open: boolean, text: string) {
+  const { Button } = ctx.el
   const flip = () => void update($, taskOpen, list => [...list.filter(k => k !== `open:${key}` && k !== `shut:${key}`), `${open ? 'shut' : 'open'}:${key}`])
+  return <Button key={`task:${key}`} plain dimColor onPress={flip}>{`${open ? '▾' : '▸'} ${text}`}</Button>
+}
+
+/** A Task with its button and, when open, its sub-tasks (shut by default, but the one in progress). */
+function TaskRows($: any, ctx: ViewCtx, key: string, task: TaskNode, opened: string[]) {
+  const { Box } = ctx.el
+  const state = nodeState(task.steps.map(s => s.state))
+  const open = isOpen(opened, key, onPath(state))
   const n = task.steps.length
-  const button = n > 0 ? <Button key={`task:${key}`} plain dimColor onPress={flip}>{`${open ? '▾' : '▸'} ${n}`}</Button> : null
+  const button = n > 0 ? Toggle($, ctx, key, open, String(n)) : null
   return (
     <Box flexDirection="column" width="100%">
       {Row(ctx, { state, label: label(task.id, task.title ?? ''), expl: task.expl, right: button })}
@@ -87,13 +97,18 @@ function TaskRows($: any, ctx: ViewCtx, key: string, task: TaskNode, opened: str
   )
 }
 
-/** A letter: its row («A Title», Tasks done of all), then its Tasks — or its steps, in the old format. */
+/**
+ * A letter: its row («A Title» and a button with the Tasks done of all, open by default; the user
+ * may shut it), then its Tasks — or its steps, in the old format.
+ */
 function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g: StepSection, opened: string[]) {
-  const { Box, Text } = ctx.el
+  const { Box } = ctx.el
   const { id, title } = splitId(g.group ?? '')
   const states = g.tasks ? g.tasks.map(t => nodeState(t.steps.map(s => s.state))) : g.steps.map(s => s.state)
   const state = nodeState(g.steps.map(s => s.state))
-  const right = g.tasks ? <Text dimColor>{`${states.filter(s => s === 'done').length}/${states.length}`}</Text> : null
+  const key = `${stage.id}:${session}:letter:${g.group ?? ''}`
+  const open = isOpen(opened, key, true)
+  const right = states.length > 0 ? Toggle($, ctx, key, open, `${states.filter(s => s === 'done').length}/${states.length}`) : null
   const kids = g.tasks
     ? g.tasks.map((t, i) => TaskRows($, ctx, `${stage.id}:${session}:${t.id ?? `${id ?? ''}#${i}`}`, t, opened))
     : g.steps.map(s => Row(ctx, { state: s.state, label: s.text }))
@@ -101,7 +116,7 @@ function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g:
   return (
     <Box flexDirection="column" width="100%">
       {Row(ctx, { state, label: label(id, title), expl: g.expl, right, bold: true })}
-      {Level(ctx, kids)}
+      {open && Level(ctx, kids)}
     </Box>
   )
 }

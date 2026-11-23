@@ -24,7 +24,7 @@ test('one session: the tree, the path in progress in blue, plain words only on i
   const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
   expect(await has(/^Passi · 1 di 4$/)).toBe(true)
   expect([await has(/^● Sessione principale$/), await has(/^1 di 4$/)]).toEqual([true, true])
-  expect([await has(/^● A Lettore$/), await has(/^0\/2$/), await has(/^Legge il piano\.$/)]).toEqual([true, true, true])
+  expect([await has(/^● A Lettore$/), await has(/^▾ 0\/2$/), await has(/^Legge il piano\.$/)]).toEqual([true, true, true])
   expect([await has(/^● A1 Livelli$/), await has(/^Ogni livello ha un nome\.$/)]).toEqual([true, true])
   expect([await has(/^✓ A1\.1 Titoli$/), await has(/^I titoli con il nome\.$/)]).toEqual([true, false]) // done: no words
   expect([await has(/^● A1\.2 Spiegazioni$/), await has(/^Le righe sotto i titoli\.$/)]).toEqual([true, true])
@@ -47,6 +47,11 @@ test('a Task\'s button opens and shuts its sub-tasks', async ($, on) => {
   expect(await has(/A1\.2 Spiegazioni/)).toBe(false)
   await ui.press({ key: 'task:fb::A1' })
   expect(await has(/^● A1\.2 Spiegazioni$/)).toBe(true)
+  // a letter is open by default; its button shuts it and opens it again
+  await ui.press({ key: 'task:fb::letter:A. Lettore' })
+  expect([await has(/^● A Lettore$/), await has(/^▸ 0\/2$/), await has(/A1 Livelli/)]).toEqual([true, true, false])
+  await ui.press({ key: 'task:fb::letter:A. Lettore' })
+  expect(await has(/^● A1 Livelli$/)).toBe(true)
   await ui.unmount()
 })
 
