@@ -43,7 +43,7 @@ export async function TestResults($: any, ctx: ViewCtx, stage: StageModel) {
       {ran.length > 0 && (
         <Box flexDirection="row" gap={1}>
           {Bar(ctx, 'tests:total', fractionSvg(passed, total, 240), of(passed, total))}
-          <Text bold color={passed === total ? C.ink : C.coral}>{of(passed, total)}</Text>
+          <Text bold color={passed === total ? C.green : C.coral}>{of(passed, total)}</Text>
         </Box>
       )}
       {ran.filter(x => x.r!.passed < x.r!.total).map(x => <Text wrap="wrap" color={C.coral}>{failedLine(ctx, x.name, x.r!)}</Text>)}
@@ -52,7 +52,7 @@ export async function TestResults($: any, ctx: ViewCtx, stage: StageModel) {
           <Box flexDirection="row" gap={1}>
             <Box flexGrow={1} flexShrink={1}><Text wrap="wrap" color={r ? C.ink : C.faint}>{name}</Text></Box>
             {r ? Bar(ctx, `tests:${name}`, fractionSvg(r.passed, r.total), of(r.passed, r.total)) : null}
-            <Text color={!r ? C.faint : r.passed === r.total ? C.muted : C.coral}>{r ? `${r.passed}/${r.total}${r.source === 'told' ? ' *' : ''}` : '—'}</Text>
+            <Text color={!r ? C.faint : r.passed === r.total ? C.green : C.coral}>{r ? `${r.passed}/${r.total}${r.source === 'told' ? ' *' : ''}` : '—'}</Text>
           </Box>
           <Text wrap="wrap" dimColor>{text}</Text>
         </Box>

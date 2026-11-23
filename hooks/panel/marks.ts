@@ -12,6 +12,8 @@ export const C = {
   teal: '#4FB8A8',
   /** a failed test or a high-severity problem: always next to words, never colour alone */
   coral: '#EE8A6E',
+  /** tests all passed: always next to the fraction in words, so never colour alone */
+  green: '#5DBB7A',
 }
 const FONT = 'font-family="system-ui, -apple-system, Segoe UI, sans-serif"'
 
@@ -86,11 +88,11 @@ export function stepMarkSvg(state: PhaseState, line: string, first: boolean, las
     markShape(x, cy, state, state === 'running' || state === 'stopped' ? 7 : 6))
 }
 
-/** A group's tests: the passed part muted when all passed, coral when some failed. */
+/** A group's tests: the bar green when all passed, coral when some failed. */
 export function fractionSvg(passed: number, total: number, width = 90): string {
   const f = total > 0 ? Math.min(passed / total, 1) : 0
   return doc(width, 8, `<rect x="0" y="1" width="${width}" height="6" rx="2" fill="${C.line}"/>` +
-    (f > 0 ? `<rect x="0" y="1" width="${width * f}" height="6" rx="2" fill="${passed === total ? C.muted : C.coral}"/>` : ''))
+    (f > 0 ? `<rect x="0" y="1" width="${width * f}" height="6" rx="2" fill="${passed === total ? C.green : C.coral}"/>` : ''))
 }
 
 /** Header progress: done stages muted, the current one blue (amber when stopped). */
