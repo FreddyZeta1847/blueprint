@@ -45,3 +45,17 @@ test('text that is not a test run gives nothing', async () => {
   expect(parseTestOutput('Switched to a new branch\n')).toBe(null)
   expect(parseTestOutput('')).toBe(null)
 })
+
+test('review round 1: every jest/vitest test failed, pytest, «sure», and output full of empty lines', async () => {
+  // every test failed: the «Tests» line has no «passed», and «Test Suites» is never the count
+  expect(count('Test Suites: 1 failed, 1 total\nTests:       3 failed, 3 total\n')).toEqual({ passed: 0, total: 3, failed: [] })
+  expect(count(' Test Files  1 failed (1)\n      Tests  3 failed (3)\n')).toEqual({ passed: 0, total: 3, failed: [] })
+  expect(parseTestOutput('============ 3 passed, 1 failed in 0.12s ============\n')!.sure).toBe(true)
+  // a «2 failed» line that is not a known runner's summary is read, but not surely a test run
+  expect(parseTestOutput('a1b2c3 retry: 2 failed attempts\n')!.sure).toBe(false)
+  expect(parseTestOutput(' 5 pass\n 0 fail\n')!.sure).toBe(true)
+  // 50 000 empty CRLF lines are read at once, not in seconds
+  const start = Date.now()
+  expect(parseTestOutput('\r\n'.repeat(50_000) + 'x')).toBeNull()
+  expect(Date.now() - start).toBeLessThan(1000)
+})

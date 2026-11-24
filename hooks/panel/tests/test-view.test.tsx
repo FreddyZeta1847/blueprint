@@ -46,3 +46,12 @@ test('the test phase with no results yet: every group with «—», no total', a
   expect(await ui.find({ type: 'Text', text: /^\d+ di \d+$/ })).toBeUndefined()
   await ui.unmount()
 })
+
+test('a counts file written by hand with a missing field still draws the test phase', async ($, on) => {
+  const bad = JSON.stringify({ v: 1, groups: { 'A. Corsi': { passed: 2, total: 3, source: 'told', at: '2026-11-16T09:00:00.000Z' }, 'B. Disdetta': { passed: 'tanti' } } })
+  await open($, on, { 'blueprint/checks/fb--main.json': bad })
+  const ui = await $.ui.mount(PANE('terminal'))
+  expect(await ui.find({ text: /2\/3/ })).toBeDefined() // the readable group
+  expect((await ui.findAll({ text: /^—$/ })).length).toBeGreaterThan(0) // the broken one reads as no result
+  await ui.unmount()
+})

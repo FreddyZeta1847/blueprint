@@ -2,14 +2,15 @@
  * The review phase of an open implementation stage (group E of stage «Test e revisione», mockup 2
  * «Barre»): an amber banner while findings are open (how many, the seconds left before they are
  * fixed by themselves, «Correggi tutto ora»), then the findings grouped by the tool that found
- * them, each with its severity in words and a «Correggi» button. Round 3 with findings still open
+ * them, each with its severity in words and a «Correggi» button. A round already there when the
+ * session started has no countdown: it waits for a press. Round 3 with findings still open
  * says it is the user's turn and offers no button; before the first round, one line saying so.
  * Data and sending: reviews.ts.
  */
 import type { StageModel, ViewCtx } from './types'
 import { C } from './marks'
 import { tr } from './text'
-import { AUTO_FIX_MS, MAX_ROUNDS, howMany, openOnes, readReviews, sendFixes, stuck, type Finding } from './reviews'
+import { MAX_ROUNDS, howMany, openOnes, readReviews, secondsLeft, sendFixes, stuck, type Finding } from './reviews'
 
 const SEV_COLOR = { high: C.coral, medium: C.amber, low: C.muted }
 
@@ -35,7 +36,7 @@ export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
   const sent = r.findings.filter(f => f.status === 'sent').length
   const isStuck = stuck(r)
   const tools = [...new Set([...(r.tools ?? []), ...r.findings.map(f => f.tool)])]
-  const left = Math.max(0, Math.ceil((Date.parse(r.foundAt) + AUTO_FIX_MS - (await $.clock.now())) / 1000))
+  const left = secondsLeft(stage.id, r, await $.clock.now())
   const fixAll = () => void sendFixes($, ctx.main, stage.id, 'all', ctx.lang)
   const live = (f: Finding) => f.status !== 'fixed'
   return (
@@ -43,7 +44,7 @@ export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
       {isStuck ? <Text wrap="wrap" bold color={C.amber}>{tr(ctx.lang, 'reviewStuck')}</Text>
         : open > 0 ? (
           <Box flexDirection="row" gap={1} borderStyle="round" borderColor={C.amber} paddingX={1}>
-            <Box flexGrow={1} flexShrink={1}><Text wrap="wrap" color={C.amber}>{tr(ctx.lang, 'reviewCountdown', { what: howMany(ctx.lang, open), s: left })}</Text></Box>
+            <Box flexGrow={1} flexShrink={1}><Text wrap="wrap" color={C.amber}>{left === null ? tr(ctx.lang, 'reviewWaiting', { what: howMany(ctx.lang, open) }) : tr(ctx.lang, 'reviewCountdown', { what: howMany(ctx.lang, open), s: left })}</Text></Box>
             <Button key="fix-all" variant="primary" onPress={fixAll}>{tr(ctx.lang, 'reviewFixAll')}</Button>
           </Box>
         )

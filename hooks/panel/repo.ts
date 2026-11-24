@@ -6,6 +6,9 @@
 const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
 const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf('/'), 0))
 
+/** A stage id that is safe in a file name (the plan-guard's rule): lowercase kebab-case. */
+export const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
 export function slug(name: string): string {
   return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
