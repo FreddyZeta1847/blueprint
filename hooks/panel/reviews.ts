@@ -18,7 +18,18 @@ import { SAFE_ID } from './repo'
 
 export type Finding = { id: string; tool: string; severity: 'high' | 'medium' | 'low'; text: string; status: 'open' | 'sent' | 'fixed' }
 /** `tools`: every tool that ran this round, so one that found nothing can say so. */
-export type Reviews = { v: 1; round: number; foundAt: string; tools?: string[]; findings: Finding[] }
+/** A past round, as it ended (its findings fixed or still open). */
+export type PastRound = { round: number; foundAt?: string; tools?: string[]; findings: Finding[] }
+/** `history`: the rounds before this one, so the panel can add them up («12 problemi in 2 giri»). */
+export type Reviews = { v: 1; round: number; foundAt: string; tools?: string[]; findings: Finding[]; history?: PastRound[] }
+
+/** Every finding of every round, each with the round that found it, the past rounds first. */
+export function allFindings(r: Reviews): (Finding & { round: number })[] {
+  const past = (Array.isArray(r.history) ? r.history : [])
+    .filter(h => h && Array.isArray(h.findings))
+    .flatMap(h => h.findings.map(f => ({ ...f, round: Number(h.round) || 0 })))
+  return [...past, ...r.findings.map(f => ({ ...f, round: r.round }))]
+}
 
 export const AUTO_FIX_MS = 30_000
 export const MAX_ROUNDS = 3

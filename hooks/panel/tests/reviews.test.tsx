@@ -32,7 +32,9 @@ test('findings by tool, each with «Correggi»; one press sends one prompt and m
   expect(await ui.find({ text: /^2 problemi · premi «Correggi» o «Correggi tutto ora»$/ })).toBeDefined()
   // one list from the most severe down, «trovato da» under each, the tools that ran at the end
   expect(await ui.find({ text: /^trovato da: differential-review$/ })).toBeDefined()
-  expect(await ui.find({ text: /^Strumenti: \/code-review \(1 problema\) · differential-review \(1 problema\) · ponytail-review \(niente\)$/ })).toBeDefined()
+  // the dashboard: how many in this round, fixed and open, and who found them
+  expect([await ui.find({ text: /^2 problemi nel giro 1$/ }), await ui.find({ text: /^0 corretti · 2 aperti$/ }), await ui.find({ text: /^Chi li ha trovati$/ })].every(Boolean)).toBe(true)
+  expect([await ui.find({ text: /^ponytail-review$/ }), await ui.find({ text: /^niente$/ })].every(Boolean)).toBe(true) // a tool that found nothing
   expect(await ui.find({ text: /^alta$/ })).toBeDefined()
   const order = JSON.stringify(await ui.find({ type: 'Box', text: /La disdetta[\s\S]*Il posto/ }))
   expect(order.length > 0).toBe(true) // high (the cancel check) comes before medium (the seat)
@@ -55,7 +57,7 @@ test('no open finding: no banner, the round line; round 3 with open findings: yo
   let ui = await $.ui.mount(PANE('desktop'))
   // every finding fixed: say how many were found and fixed, and what each tool found (not «niente»)
   expect(await ui.find({ text: /^2 problemi trovati, tutti corretti · giro 1 di 3$/ })).toBeDefined()
-  expect(await ui.find({ text: /^Strumenti: \/code-review \(1 problema\) · differential-review \(1 problema\) · ponytail-review \(niente\)$/ })).toBeDefined()
+  expect(await ui.find({ text: /^2 corretti · 0 aperti$/ })).toBeDefined()
   expect(await ui.find({ key: 'fix-all' })).toBeUndefined()
   expect(await ui.find({ text: /^La disdetta non controlla il socio\.$/ })).toBeUndefined() // fixed ones behind a button
   await ui.press({ key: 'fixed:fb' })
@@ -122,5 +124,21 @@ test('in the review phase with no findings file yet, the tools are at work — n
   const ui = await $.ui.mount(PANE('terminal'))
   expect(await ui.find({ text: /^Gli strumenti di revisione stanno lavorando/ })).toBeDefined()
   expect(await ui.find({ text: /^La revisione non è ancora partita/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('past rounds add up: «4 problemi in 2 giri», the fixed ones of round 1 behind the button', async ($, on) => {
+  const two = JSON.parse(reviews({ round: 2 }))
+  two.history = [{ round: 1, foundAt: '2026-11-16T09:00:00.000Z', tools: ['/code-review'], findings: [
+    { id: 'f1', tool: '/code-review', severity: 'medium', text: 'Vecchio problema uno.', status: 'fixed' },
+    { id: 'f2', tool: '/code-review', severity: 'low', text: 'Vecchio problema due.', status: 'fixed' },
+  ] }]
+  await open($, on, JSON.stringify(two))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect([await ui.find({ text: /^4 problemi in 2 giri$/ }), await ui.find({ text: /^2 corretti · 2 aperti$/ })].every(Boolean)).toBe(true)
+  expect(await ui.find({ text: /^Vecchio problema uno\.$/ })).toBeUndefined()
+  await ui.press({ key: 'fixed:fb' })
+  expect(await ui.find({ text: /^Vecchio problema uno\.$/ })).toBeDefined()
+  expect(JSON.stringify(await ui.find({ key: 'review-tool:/code-review' }))).toContain('#E5AC52') // found again this round: an amber part
   await ui.unmount()
 })

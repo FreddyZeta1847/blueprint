@@ -108,6 +108,18 @@ export function severitySvg(sev: 'high' | 'medium' | 'low'): string {
   return doc(16, 12, bars)
 }
 
+/**
+ * A bar in two parts on a track: `done` in grey, then `live` in amber (the review: fixed, then open;
+ * a tool: found in past rounds, then in this one). `of` is what the full width stands for.
+ */
+export function splitBarSvg(done: number, live: number, of: number, width = 360): string {
+  const unit = of > 0 ? width / of : 0
+  const a = Math.round(done * unit); const b = Math.round(live * unit)
+  return doc(width, 10, `<rect x="0" y="1" width="${width}" height="8" rx="3" fill="${C.line}"/>` +
+    (a > 0 ? `<rect x="0" y="1" width="${a}" height="8" rx="3" fill="${C.muted}"/>` : '') +
+    (b > 0 ? `<rect x="${a}" y="1" width="${b}" height="8" rx="3" fill="${C.amber}"/>` : ''))
+}
+
 /** The countdown's ring: an amber arc for the part of the 30 seconds still left. */
 export function ringSvg(fraction: number): string {
   const r = 7; const c = 2 * Math.PI * r

@@ -131,8 +131,11 @@ marks them with `*`.
 `{ "v": 1, "round": 1, "foundAt": "<ISO time>", "tools": ["<every tool that ran>"], "findings": [{ "id": "f1", "tool": "<the tool>", "severity": "high|medium|low", "text": "<one line, plain words>", "status": "open" }] }`.
 Write `foundAt` as the real time the round was written: the panel fixes the open findings by itself
 30 seconds later. A finding the panel sent to be fixed turns `sent`; fixed ones may be set `fixed`.
-After fixing, run the tools again and write the next round (`round` + 1, new `foundAt`). A round
-with no finding ends the review. Add `blueprint/reviews/.gitignore` with `*` if it is missing.
+After fixing, run the tools again and write the next round (`round` + 1, new `foundAt`), and move
+the round you are replacing into `history`, with its findings as they ended (`fixed`, or still
+open): `"history": [{ "round": 1, "foundAt": "…", "tools": […], "findings": […] }]`. The panel adds
+every round up («12 problemi in 2 giri»), so never drop a past round. A round with no finding ends
+the review. Add `blueprint/reviews/.gitignore` with `*` if it is missing.
 
 Other folders that the execution of a stage may create inside `blueprint/` are not Blueprint's: never
 read them as decisions and never write them from a Blueprint step.
