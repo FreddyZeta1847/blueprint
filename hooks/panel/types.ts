@@ -19,7 +19,7 @@ export type StageModel = {
   /** One per phase of the loop (per-stage types) or one per topic (discussion). */
   segments: PhaseState[]
   /** The loop's phases with their state, for the phase rail of an open stage. */
-  phases: { id: string; state: PhaseState }[]
+  phases: { id: string; state: PhaseState; user?: boolean }[]
   yourTurn: boolean
   /** Child sessions of this stage (matched to its parts), from the sessions summary; 0 elsewhere. */
   kids: number
@@ -32,7 +32,6 @@ export type StageModel = {
 
 export type PlanModel = {
   project: string
-  card?: { size: string; difficulty: string; pace: string }
   stages: StageModel[]
   currentIndex: number
   /** The running stage built in parallel (its children, the Sessioni view); the current one when none. */

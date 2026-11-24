@@ -11,20 +11,84 @@ import type { StageModel } from './types'
 
 export type Note = { stage: string; text: string; read: boolean }
 
-export type Decision = { text: string; oneWay: boolean }
+/**
+ * One decision as the panel shows it: its title, whether it is hard to change, and — when the file
+ * says them — who decided, why, what was rejected, the topic it belongs to and its date.
+ */
+export type Decision = {
+  text: string; oneWay: boolean; by?: 'user' | 'claude'
+  why?: string; rejected?: string; topic?: string; date?: string
+}
+
+/**
+ * Who decided, from the name the file gives («Federico», «user», «decided by Claude»): Claude, the
+ * user, or nobody known — a decision found in code («discovery», «inherited») or a rule was not the
+ * user's, and a reversibility word in that place is no name at all.
+ */
+function who(name: string | undefined): Decision['by'] {
+  const n = (name ?? '').trim().replace(/^(decided by|deciso da)\s*:?\s*/i, '')
+  if (!n) return undefined
+  // «Claude», «Claude, approvato da Federico»: Claude wrote it, even with the user's OK
+  if (/^claude\b/i.test(n)) return 'claude'
+  if (/^(discovery|inherited|rule|scoperta|ereditat[ao]|regola|one-way|two-way)$/i.test(n)) return undefined
+  return 'user'
+}
+
+/** A sentence that only says how hard a decision is to change. */
+const isReversibility = (s: string) => /^(one-way|two-way|(facil[ei]|difficil[ei]) da cambiare|(easy|hard) to change)/i.test(s.trim())
 
 /** A bullet of the single decisions file says it is hard to change: «one-way», «difficile da cambiare». */
 const hardToChange = (line: string) => /one-way|difficile da cambiare|irreversibil|hard to change/i.test(line) && !/two-way/i.test(line)
 
-/** Bold bullet texts under `## <name>` until the next `## ` heading; one-way when the bullet says so. */
+/** Only the keys that have a value: a decision without a date has no `date` key at all. */
+const some = (o: Record<string, string | undefined>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v)) as Record<string, string>
+
+/**
+ * A bullet's body split in its parts. The files write it in several ways — «why. Scartati: ….
+ * Facile da cambiare; Federico; 2026-11-16», «why; one-way; 2026-11-16», «why. Claude; 2026-11-24»,
+ * «why (a; b). Claude, approvato da Federico; 2026-11-24» — so: the date is the last thing; the
+ * author is what comes after the last «;» before it, or else the last sentence, but only when that
+ * reads as a name (short, no full stop); the rest is the why, without the rejected options and the
+ * reversibility words (the card's mark shows those).
+ */
+function bulletParts(line: string): Pick<Decision, 'by' | 'why' | 'rejected' | 'date'> {
+  // what follows the bold title, with or without a dash («**Title** — why», «**Title** (why)»)
+  const rest = /^\s*[-*]\s+\*\*.+?\*\*\s*(?:[—–-]\s*)?(.*)$/.exec(line)?.[1] ?? ''
+  // the date may carry a note in brackets after it («2026-11-16 (all'apertura della Costruzione)»)
+  const dated = /^(.*?)(?:;\s*|\s+)(\d{4}-\d{2}-\d{2})(?:\s*\([^)]*\))?\s*$/.exec(rest)
+  let body = (dated ? dated[1]! : rest).trim()
+  let by: Decision['by']
+  if (dated) {
+    const segment = body.slice(body.lastIndexOf(';') + 1)
+    const last = segment.split(/(?<=[.!?»)])\s+/).pop()?.trim() ?? ''
+    // a name only after something else (a «;» or a full stop): «ogni notte alle 3; 2026-…» is a why
+    const named = last !== body || /^(claude\b|decided by|deciso da)/i.test(last)
+    if (last && named && last.length <= 60 && !/[.!?]$/.test(last)) {
+      by = isReversibility(last) ? undefined : who(last)
+      body = body.slice(0, body.length - last.length).replace(/[;\s]+$/, '')
+    }
+  }
+  // «; one-way», «; facile da cambiare (un numero)» inside the why: shown by the mark, not repeated
+  body = body.replace(/;\s*(one-way|two-way|(facil[ei]|difficil[ei]) da cambiare|(easy|hard) to change)[^;]*/gi, '')
+  const sentences = body.split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«])/)
+  const isRejected = (s: string) => /^(Scartat[aeio]|Rejected|Alternative scartate)\b/i.test(s)
+  const why = sentences.filter(s => !isRejected(s) && !isReversibility(s)).join(' ').replace(/[;\s]+$/, '').trim()
+  const rejected = sentences.filter(isRejected).join(' ').replace(/^(Scartat[aeio]|Rejected|Alternative scartate)\s*:\s*/i, '').replace(/[.\s]+$/, '').trim()
+  return { ...(by ? { by } : {}), ...some({ why, rejected, date: dated?.[2] }) }
+}
+
+/** Bold bullet texts under `## <name>` until the next `## ` heading, with the `### ` topic they sit under. */
 export function decisionsFromFile(text: string, name: string): Decision[] {
   const out: Decision[] = []
   let inside = false
+  let topic: string | undefined
   for (const line of text.split(/\r?\n/)) {
     const h2 = /^##\s+(.+?)\s*$/.exec(line)
-    if (h2) { inside = h2[1] === name; continue }
+    if (h2) { inside = h2[1] === name; topic = undefined; continue }
+    const h3 = inside ? /^###\s+(.+?)\s*$/.exec(line) : null
+    if (h3) { topic = h3[1]; continue }
     const bold = inside ? /^\s*[-*]\s+\*\*(.+?)\*\*/.exec(line) : null
-    if (bold?.[1]) out.push({ text: bold[1], oneWay: hardToChange(line) })
+    if (bold?.[1]) out.push({ text: bold[1], oneWay: hardToChange(line), ...bulletParts(line), ...some({ topic }) })
   }
   return out
 }
@@ -36,7 +100,11 @@ export function decisionsFromBlocks(text: string, stageId: string): Decision[] {
     const stage = /^\s*-\s+\*\*(?:Stage|Tappa):\*\*\s*(\S+)/m.exec(block)?.[1]
     if (stage !== stageId) return []
     const oneWay = /^\s*-\s+\*\*(?:Reversibility|Reversibilità):\*\*\s*one-way/im.test(block)
-    return [{ text: title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim(), oneWay }]
+    const field = (names: string) => new RegExp(`^\\s*-\\s+\\*\\*(?:${names}):\\*\\*\\s*(.+?)\\s*$`, 'im').exec(block)?.[1]
+    const decided = field('Decided by|Deciso da')
+    const by = who(/^\w+/.exec(decided ?? '')?.[0])
+    const parts = some({ why: field('Why|Perché'), rejected: field('Rejected|Alternative scartate|Scartat[aeio]'), date: /\d{4}-\d{2}-\d{2}/.exec(decided ?? '')?.[0] })
+    return [{ text: title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim(), oneWay, ...(by ? { by } : {}), ...parts }]
   })
 }
 

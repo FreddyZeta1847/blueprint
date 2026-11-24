@@ -21,10 +21,14 @@
 │   │   └── vault.js
 │   ├── panel/
 │   │   ├── tests/
+│   │   │   ├── activity.test.ts
 │   │   │   ├── checks.test.tsx
+│   │   │   ├── discussion-view.test.tsx
 │   │   │   ├── entry.test.tsx
 │   │   │   ├── harness.ts
 │   │   │   ├── integration.accept.test.tsx
+│   │   │   ├── now-view.test.tsx
+│   │   │   ├── phases.test.tsx
 │   │   │   ├── plan-steps.test.tsx
 │   │   │   ├── plan-view.accept.test.tsx
 │   │   │   ├── plan-view.test.tsx
@@ -35,10 +39,14 @@
 │   │   │   ├── test-output.test.ts
 │   │   │   ├── test-view.test.tsx
 │   │   │   └── tree-view.test.tsx
+│   │   ├── activity.ts
 │   │   ├── checks.ts
+│   │   ├── decisions-view.tsx
 │   │   ├── header.tsx
 │   │   ├── legend-view.tsx
 │   │   ├── marks.ts
+│   │   ├── now-data.ts
+│   │   ├── now-view.tsx
 │   │   ├── plan-data.ts
 │   │   ├── plan-extras.ts
 │   │   ├── plan-steps.ts

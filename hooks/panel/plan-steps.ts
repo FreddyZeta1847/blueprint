@@ -89,7 +89,8 @@ export function parseSteps(text: string): RawSection[] {
   }
   return sections
     .map(s => ({ ...s, groups: s.groups.filter(g => g.steps.length > 0 || g.test || g.doneWhen).map(tidy) }))
-    .filter(s => s.groups.some(g => g.steps.length > 0))
+    // a section with letters but no checkbox yet is the plan phase's skeleton: kept, so it shows
+    .filter(s => s.groups.length > 0)
 }
 
 /** Drops an empty title; steps written before the first Task go to a Task with no title, so none is lost. */
@@ -104,7 +105,8 @@ function tidy({ title, ...g }: RawGroup): RawGroup {
 
 /** «A1.2 Titolo» → { id: 'A1.2', title: 'Titolo' }; a title with no name stays whole. */
 export function splitId(text: string): { id?: string; title: string } {
-  const m = /^([A-Z]\d*(?:\.\d+)*)\.?\s+(.+)$/.exec(text)
+  // a capital letter alone is a name only with its dot («A. Title»), so «I test unitari» has none
+  const m = /^([A-Z]\d+(?:\.\d+)*|[A-Z](?=\.))\.?\s+(.+)$/.exec(text)
   return m?.[1] && m[2] ? { id: m[1], title: m[2] } : { title: text }
 }
 

@@ -220,7 +220,7 @@ test('the arrows under the rail move the view between the phases, without touchi
     expect(await ui.find({ text: /^costruzione · in corso$/ })).toBeDefined() // starts on the running phase
     await ui.press({ key: 'phase-prev:fb' })
     expect(await ui.find({ text: /^piano · fatta$/ })).toBeDefined()
-    expect(await ui.find({ text: /^Il piano di costruzione\.$/ })).toBeDefined()
+    expect(await ui.find({ text: /^Il piano di costruzione\.$/ })).toBeUndefined() // a sentence that says nothing new is gone
     if (surface === 'desktop') expect(JSON.stringify(await ui.find({ key: 'rail:fb' }))).toContain('stroke-dasharray') // the ring on the dot looked at
     for (let i = 0; i < 9; i++) await ui.press({ key: 'phase-next:fb' }) // past the last phase it stays there
     expect(await ui.find({ text: /^unione · da fare$/ })).toBeDefined()
@@ -308,7 +308,7 @@ test('a stage without topics still has content: a line saying what its type is f
   const ui = await $.ui.mount(PANE('terminal'))
   await ui.press({ key: 'stage:sec' }) // a quick task with no topics
   expect(await ui.find({ text: /^Nessun elenco: la tappa è un lavoro unico\.$/ })).toBeDefined()
-  expect(await ui.find({ text: /^attività breve · serve a un lavoro breve e a basso rischio\.$/ })).toBeDefined() // the type says what it is for
+  expect(await ui.find({ text: /^attività breve$/ })).toBeDefined() // the type, without the sentence repeated in every stage
   await ui.unmount()
 })
 
@@ -319,12 +319,21 @@ test('Legenda: the third tab lists every stage type with its phases, and explain
     await ui.press({ key: 'tab:legenda' })
     expect(await ui.find({ text: /^Le tappe e le loro fasi$/ })).toBeDefined()
     for (const type of ['discussione', 'implementazione', 'consegna', 'attività breve']) expect(await ui.find({ text: new RegExp(`^${type} — `) })).toBeDefined()
-    expect(await ui.find({ text: /3\. convergenza · tocca a te — / })).toBeDefined() // a phase that needs the user, read from loops.json
+    expect(await ui.find({ text: /3\. scelta · tocca a te — / })).toBeDefined() // a phase that needs the user, read from loops.json
     expect(await ui.find({ text: /3\. prova generale · facoltativa — / })).toBeDefined() // an optional one (in the test's loops it does not need the user)
-    expect(await ui.find({ text: /5\. revisione · tocca a te — Claude ti rilegge domanda, scelta e opzioni scartate/ })).toBeDefined()
+    expect(await ui.find({ text: /5\. rilettura · tocca a te — Claude ti rilegge domanda, scelta e opzioni scartate/ })).toBeDefined()
     expect(await ui.find({ text: /Come funziona Sessioni/ })).toBeDefined()
     expect(await ui.find({ text: /Le fasi si ripetono per ogni argomento/ })).toBeDefined()
     await ui.press({ key: 'tab:piano' })
     await ui.unmount()
   }
+})
+
+test('G: lines that repeat are gone — the card line, «serve a…», «Segni:»; done stages stay rows', async ($, on) => {
+  await open($, on)
+  const ui = await $.ui.mount(PANE('terminal'))
+  const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
+  expect([await has(/difficoltà|ritmo/), await has(/[Ss]erve a /), await has(/^Segni:/)]).toEqual([false, false, false])
+  expect([await has(/Repository e struttura/), await has(/Database: scelte/)]).toEqual([true, true]) // the finished stages
+  await ui.unmount()
 })

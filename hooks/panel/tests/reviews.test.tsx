@@ -30,10 +30,16 @@ test('findings by tool, each with «Correggi»; one press sends one prompt and m
   const ui = await $.ui.mount(PANE('desktop'))
   // already there when the session started: no countdown, it waits for a press
   expect(await ui.find({ text: /^2 problemi · premi «Correggi» o «Correggi tutto ora»$/ })).toBeDefined()
-  expect(await ui.find({ text: /^differential-review$/ })).toBeDefined()
-  expect(await ui.find({ text: /^ponytail-review$/ })).toBeDefined()
-  expect(await ui.find({ text: /^niente$/ })).toBeDefined() // a tool that found nothing
+  // one list from the most severe down, «trovato da» under each, the tools that ran at the end
+  expect(await ui.find({ text: /^trovato da: differential-review$/ })).toBeDefined()
+  // the dashboard: how many in this round, fixed and open, and who found them
+  expect([await ui.find({ text: /^2 problemi nel giro 1$/ }), await ui.find({ text: /^0 corretti · 2 aperti$/ }), await ui.find({ text: /^Chi li ha trovati$/ })].every(Boolean)).toBe(true)
+  expect([await ui.find({ text: /^ponytail-review$/ }), await ui.find({ text: /^niente$/ })].every(Boolean)).toBe(true) // a tool that found nothing
   expect(await ui.find({ text: /^alta$/ })).toBeDefined()
+  const order = JSON.stringify(await ui.find({ type: 'Box', text: /La disdetta[\s\S]*Il posto/ }))
+  expect(order.length > 0).toBe(true) // high (the cancel check) comes before medium (the seat)
+  const all = JSON.stringify(await ui.findAll({ text: /^(alta|media|bassa)$/ }))
+  expect(all.includes('#E5AC52')).toBe(false) // no amber among the severities
   await ui.press({ key: 'fix:f2' })
   expect(seen.prompts.length).toBe(1)
   expect(seen.prompts[0]).toMatch(/Il posto viene dato due volte\. \(f2\)/)
@@ -49,8 +55,15 @@ test('findings by tool, each with «Correggi»; one press sends one prompt and m
 test('no open finding: no banner, the round line; round 3 with open findings: your turn, no button', async ($, on) => {
   const seen = await open($, on, reviews({ status: 'fixed' }))
   let ui = await $.ui.mount(PANE('desktop'))
-  expect(await ui.find({ text: /^Nessun problema aperto · giro 1 di 3$/ })).toBeDefined()
+  // every finding fixed: say how many were found and fixed, and what each tool found (not «niente»)
+  expect(await ui.find({ text: /^2 problemi trovati, tutti corretti · giro 1 di 3$/ })).toBeDefined()
+  expect(await ui.find({ text: /^2 corretti · 0 aperti$/ })).toBeDefined()
   expect(await ui.find({ key: 'fix-all' })).toBeUndefined()
+  expect(await ui.find({ text: /^La disdetta non controlla il socio\.$/ })).toBeUndefined() // fixed ones behind a button
+  await ui.press({ key: 'fixed:fb' })
+  expect(await ui.find({ text: /^La disdetta non controlla il socio\.$/ })).toBeDefined()
+  expect((await ui.findAll({ text: /^✓ corretto$/ })).length).toBe(2)
+  expect(await ui.find({ key: 'fix:f1' })).toBeUndefined() // nothing to fix any more
   await ui.unmount()
   seen.files['blueprint/reviews/fb.json'] = reviews({ round: 3 })
   ui = await $.ui.mount(PANE('desktop'))
@@ -91,4 +104,52 @@ test('a round another session has claimed is not sent again from here', async ($
   seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2 })
   await seen.clock.advance(45_000)
   expect(seen.prompts).toEqual([])
+})
+
+test('the ring of the countdown shows only while a countdown runs', async ($, on) => {
+  const seen = await open($, on, reviews({ status: 'fixed' }))
+  let ui = await $.ui.mount(PANE('desktop'))
+  expect(await ui.find({ key: 'ring' })).toBeUndefined()
+  await ui.unmount()
+  seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2 })
+  await seen.clock.advance(5_000)
+  ui = await $.ui.mount(PANE('desktop'))
+  expect(JSON.stringify(await ui.find({ key: 'ring' }))).toContain('stroke-dasharray')
+  await ui.unmount()
+})
+
+test('in the review phase with no findings file yet, the tools are at work — not «not started»', async ($, on) => {
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'review' }) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('terminal'))
+  expect(await ui.find({ text: /^Gli strumenti di revisione stanno lavorando/ })).toBeDefined()
+  expect(await ui.find({ text: /^La revisione non è ancora partita/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('past rounds add up: «4 problemi in 2 giri», the fixed ones of round 1 behind the button', async ($, on) => {
+  const two = JSON.parse(reviews({ round: 2 }))
+  two.history = [{ round: 1, foundAt: '2026-11-16T09:00:00.000Z', tools: ['/code-review'], findings: [
+    { id: 'f1', tool: '/code-review', severity: 'medium', text: 'Vecchio problema uno.', status: 'fixed' },
+    { id: 'f2', tool: '/code-review', severity: 'low', text: 'Vecchio problema due.', status: 'fixed' },
+  ] }]
+  await open($, on, JSON.stringify(two))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect([await ui.find({ text: /^4 problemi in 2 giri$/ }), await ui.find({ text: /^2 corretti · 2 aperti$/ })].every(Boolean)).toBe(true)
+  expect(await ui.find({ text: /^Vecchio problema uno\.$/ })).toBeUndefined()
+  await ui.press({ key: 'fixed:fb' })
+  expect(await ui.find({ text: /^Vecchio problema uno\.$/ })).toBeDefined()
+  expect(JSON.stringify(await ui.find({ key: 'review-tool:/code-review' }))).toContain('#E5AC52') // found again this round: an amber part
+  await ui.unmount()
+})
+
+test('a past round\'s finding still open is listed (without «Correggi»); one round of findings is titled with its own round', async ($, on) => {
+  const r = JSON.parse(reviews({ round: 2, status: 'fixed' }))
+  r.findings = []
+  r.history = [{ round: 1, findings: [{ id: 'old', tool: '/code-review', severity: 'low', text: 'Rimasto aperto.', status: 'open' }] }]
+  await open($, on, JSON.stringify(r))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect([await ui.find({ text: /^Rimasto aperto\.$/ }), await ui.find({ text: /^1 problema nel giro 1$/ })].every(Boolean)).toBe(true)
+  expect(await ui.find({ key: 'fix:old' })).toBeUndefined()
+  await ui.unmount()
 })

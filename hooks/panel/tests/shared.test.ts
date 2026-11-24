@@ -80,11 +80,10 @@ test('findRepo: a .git folder is the main checkout, a .git file is a worktree', 
   expect(await findRepo(fake({}, { cwd: 'C:/nowhere' }))).toBeNull()
 })
 
-test('readPlan builds segments, the current stage and the card summary', async () => {
+test('readPlan builds segments and the current stage', async () => {
   const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(PLAN), 'blueprint/context.md': CARD, 'data/loops.json': LOOPS }), MAIN)
   expect(plan?.project).toBe('sito-parrucchiere')
   expect(plan?.currentIndex).toBe(2)
-  expect(plan?.card).toEqual({ size: 'project', difficulty: 'difficile', pace: 'calma' })
   expect(plan?.stages[2]!.segments).toEqual(['done', 'done', 'running', 'todo', 'todo', 'todo', 'todo'])
   expect(plan?.stages[2]!.yourTurn).toBe(false)
   expect(plan?.stages[2]!.topics.map(t => t.current)).toEqual([false, true])
@@ -100,7 +99,6 @@ test('a blocked child stops the running phase and makes it your turn', async () 
     { kids: 2, blocked: [{ worktree: 'frontend', reason: 'permission' }] })
   expect(plan?.stages[2]!.segments[2]).toBe('stopped')
   expect(plan?.stages[2]!.yourTurn).toBe(true)
-  expect(plan?.card).toBeUndefined()
 })
 
 test('a phase that needs the user is stopped: your turn', async () => {

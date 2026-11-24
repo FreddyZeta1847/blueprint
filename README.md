@@ -1,173 +1,150 @@
 <p align="center">
   <h1 align="center"><img src="assets/logo.png" alt="Blueprint logo" width="48" height="48" /> Blueprint</h1>
   <p align="center"><b>Think it through with Claude before you build.</b></p>
-  <p align="center">Blueprint takes a request from the first message to a staged plan — the context first, then stages built on written best practices — and gives every stage a fixed loop, checked by hooks, so Claude always knows where the work stands.</p>
+  <p align="center">A Claude Code plugin that turns a request into a written context and a staged plan, gives each stage a fixed loop, and checks it with hooks, so Claude always knows where the work stands.</p>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.4.0-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.5.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
 </p>
 
----
+**Contents:** [Why](#why) · [How it works](#how-it-works) · [The panel](#the-panel) · [Install](#install) · [Reference](#reference) · [Status](#status)
 
 ## Why
 
-Claude Code forgets everything between sessions, and its plans live and die inside one chat.
-On a real project that causes two problems. Claude starts building before it knows what matters
-(who approves the result? is there a deadline? how costly is a mistake?). And by week 6 it no
-longer knows which stage the work is in, or what was decided in week 1.
+Claude Code forgets everything between sessions, and its plans live and die inside one chat. It starts building before it knows what matters (who approves? is there a deadline? how costly is a mistake?). By week 6 it no longer knows which stage the work is in, or what was decided in week 1.
 
-Blueprint fixes both. It finds out what shapes a plan before planning. It writes the plan to a
-file that every session reads. It gives each stage a fixed loop, so a stage cannot be called
-done before its tests, its review or its decisions exist.
+Blueprint finds out what shapes a plan before planning, writes the plan to a file every session reads, and gives each stage a fixed loop. A stage cannot be called done before its tests, review or decisions exist.
 
-> Writing code is becoming cheap; **deciding well** is not. I believe engineers are becoming
-> architects and decision-makers, with AI agents as specialists and builders. So the source of
-> truth should be the written decisions.
+> Writing code is becoming cheap; **deciding well** is not. I believe engineers are becoming architects and decision-makers, with AI agents as builders. So the source of truth should be the written decisions.
+
+Blueprint plans and discusses. **How** a stage is built (your tools, sessions, git workflow) is up to you. Blueprint never names your tools and never hides them.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    A[Request] --> C[get-context<br/>derive, ask what is missing]
-    D[Discovery<br/>optional] --> C
-    C --> B{Conclusions:<br/>size, difficulty, pace}
-    B -- tiny --> T[One line of confirmation,<br/>then do it. No plan]
-    B -- fits the plan --> R[Re-planning<br/>before → after]
-    B -- new work --> K[Context card<br/>you confirm]
-    K --> P[create-plan<br/>stages, you confirm]
-    P --> S[Each stage:<br/>context check → phases → close]
+    A[Request] --> C[get-context]
+    C --> B{Size?}
+    B -- tiny --> T[Confirm in one line, do it]
+    B -- fits the plan --> R[Re-plan: before to after]
+    B -- new work --> K[Context card you confirm]
+    K --> P[create-plan: stages you confirm]
+    P --> S[Each stage: context check, phases, close]
 ```
 
-1. **Context.** Every new request starts with `get-context`. It derives from the context what a
-   plan needs to know (the request, the conversation, the repo, your rules) and asks only what it
-   cannot derive. Then it draws the conclusions: how big the work is, how difficult, at what pace.
-   A tiny request gets one line of confirmation and no files; work that fits the existing plan
-   becomes a re-planning; new work gets a card (`blueprint/context.md`) that you confirm. No plan
-   before that.
-2. **Discovery (optional).** On code Claude doesn't know, Blueprint offers to read it first. It
-   records the git baseline, writes the decisions it finds as unconfirmed, and fills the context
-   answers the code already gives.
-3. **Plan.** `create-plan` proposes the stages, discusses them with you, and writes
-   `blueprint/plan.json` after your OK.
-4. **Stages.** Each stage runs the loop of its type. Every loop starts with a **context check**:
-   Claude must ask itself whether it has enough context to carry out the stage on its own, and
-   fills the gap with you when it has not. At the opening it tells you that answer, the topics,
-   the phases and how it would do the stage, and waits for your OK.
+1. **Context.** `get-context` works out what a plan needs from the repo and the conversation. It asks only what is missing, then states the size, difficulty and pace. The result is the card `blueprint/context.md`, which you confirm.
+2. **Plan.** `create-plan` proposes stages with one-line topics, built on written best practices. After your OK it writes `blueprint/plan.json`.
+3. **Stages.** Each stage runs the fixed loop of its type: `discussion`, `implementation`, `delivery` or `quick_task`. Every loop starts with a context check: does Claude know enough to do this stage alone?
+4. **Hooks.** Plain Node scripts check the plan, the decisions and the phase changes. No model is involved, so they cost nothing.
 
-## Where Blueprint stops
+## The panel
 
-Blueprint gives the **pipeline**: the plan says *what* (stages and their topics), the loop says
-*which phases* each stage goes through. It also runs **discussions**: deciding is its trade
-(`topic-discussion`).
+In a project with a plan, Blueprint opens a pane beside the chat. It rereads `blueprint/plan.json` every 5 seconds.
 
-**How** a stage is executed is up to you and your own tools: your skills, plugins, agents and
-habits, the sessions, the git workflow, the review tool. Blueprint never names them and never
-tells Claude how to use them. At the opening of a stage Claude proposes the "how" with what you
-have, phase by phase when different tools serve different phases, you confirm, and the plan
-records it in one line.
+- **«Adesso» card.** Who works on what, what waits for you, and what went wrong (failed tests, open review findings). Each signal opens the stage on the right phase.
+- **Plan.** One row per stage with a bar of its phases. Open a stage and step through its phases with the arrows.
+- **Work tree** (implementation). The plain plan `blueprint/plans/<stage>.md`: session, letter A, Task A1, sub-task A1.1. The sub-task in progress colours the path above it.
+- **Test counts.** Each group shows a fraction like «14/14», read from the real output of its test command.
+- **Review dashboard.** Every round added up (fixed and open, per severity, per tool). Each open finding has a **Correggi** (fix) button. A new round is sent to Claude after 30 seconds. At most 3 rounds.
+- **Decision cards** (discussion). Each decision shows if it is hard to change, who decided, and when opened, why and what was rejected.
+- **Sessions and Legend.** The mother session and one child per parallel part. A legend of every stage type.
 
-**Blueprint never hides your other plugins.** It decides only which phase the work is in; inside
-any phase every plugin, skill and agent stays available. Example — a quick task "admin mockup":
-the context check is a short discussion with Blueprint, the mockup is made with your design
-plugin. In parallel work each session gets the tools its part needs.
+`/blueprint-panel` opens or closes it (`/blueprint-panel piano | sessioni | legenda` picks a screen). Two plugin options: `autoOpen` (on) opens it where there is a plan; `notifyWhenWaiting` (off) sends a phone notification when something waits for you. The panel follows Claude Code's language setting (Italian or English).
 
-The only contact point is **parallel work**. Blueprint knows work can run in parallel, so it plans
-the shared contracts first and records which parts of a stage are independent.
-*How* those parts are then built in parallel (how many sessions, how they talk) is not its
-business.
+## Install
 
-## What the context must say
+```
+claude plugin marketplace add FreddyZeta1847/blueprint
+cd your-project
+claude plugin install blueprint@blueprint --scope project
+```
 
-`data/context-questions.json` lists what a plan needs to know. It is **not a questionnaire**:
-`get-context` derives each point from the context first (the repo, the conversation, an existing
-card) and shows you what it derived. Only what it cannot derive becomes a question, one or two at a
-time, as multiple choice with a recommendation, and it may ask other questions the work needs.
-Context can also be fetched: you can ask Claude (or it can propose) to look online, run Discovery,
-read a document or a link you point to, or wait while you ask someone.
+Use `--scope user` to enable it in every project. Then start `claude` in your project and type `/blueprint:blueprint`.
 
-Unless the work is tiny, the card is saved right away as a **draft**, with the points still unknown
-marked `open`. If a Discovery or a long search pulls Claude away, or the session restarts, the
-hooks see the draft and bring Claude back to the open points.
+Inside a running session:
 
-| id | If it must be asked | What it is for |
+```
+/plugin marketplace add FreddyZeta1847/blueprint
+/plugin install blueprint@blueprint
+```
+
+To update:
+
+```
+claude plugin marketplace update blueprint
+claude plugin update blueprint@blueprint
+```
+
+**Requirements:** Claude Code, Node.js (the hooks are Node scripts), git.
+
+## Reference
+
+<details>
+<summary><b>What the context must say</b></summary>
+
+`data/context-questions.json` lists what a plan needs to know. It is not a questionnaire: each point is derived first, and only the gaps become questions (one or two at a time, multiple choice, with a recommendation). Unless the work is tiny, the card is saved at once as a draft, with unknown points marked `open`. If a session restarts, the hooks bring Claude back to them.
+
+| id | What it asks | What it is for |
 |---|---|---|
 | `goal` | What do you want to achieve, and how will we know it is done? | the last stage and how it is verified |
-| `kind` | Is it personal, for your company, or for a client? | pace, who approves, what goes into git |
+| `kind` | Personal, for your company, or for a client? | pace, who approves, what goes into git |
 | `approver` | Who approves the result? | delivery stages and pull requests |
-| `timing` | Who decides the timing? Are there deadlines? | stage deadlines and pace |
-| `existing` | What already exists: code, decisions, inherited constraints? | Discovery, what is not up for discussion |
+| `timing` | Who decides the timing? Any deadlines? | stage deadlines and pace |
+| `existing` | What already exists: code, decisions, constraints? | Discovery, what is not up for discussion |
 | `risk` | How costly is a mistake? | how much to discuss, whether a decisions folder is needed |
-| `constraints` | Budget, mandatory technologies, rules (personal data, NDA)? | choices already decided |
+| `constraints` | Budget, mandatory technologies, rules? | choices already decided |
 | `roles` | What do you decide, and what do you leave to Claude? | who decides each area |
 | `parts` | Which parts is the work made of? | parallel work: contracts first |
-| `documentation` | Do we keep a decisions folder, or is the card enough? | Claude proposes, you confirm |
+| `documentation` | A decisions folder, or is the card enough? | Claude proposes, you confirm |
 
-From the answers Claude draws the **conclusions** and writes them at the top of the card: the
-**size** (tiny, small, medium, project), the **difficulty** in one line, and the **pace**, which is
-never asked ("personal, no deadline → calm"; "demo tomorrow → rushed"). On a running project with a confirmed card, a new request
-reuses the answers that still hold and asks only what is new.
+The **size** is tiny, small, medium or project. The **pace** is never asked: «personal, no deadline» is calm, «demo tomorrow» is rushed.
 
-## The plan
+</details>
 
-`create-plan` reads the card, the stage loops, your own `CLAUDE.md` rules and its best practices:
+<details>
+<summary><b>Planning best practices</b></summary>
 
-1. **Aim to parallelize.** With 2 or more independent parts, discuss their shared contracts first,
-   then build them in one implementation stage, in parallel.
-2. **First what other things rest on.** Shared choices and contracts before the parts that use them.
-3. **Unknowns first.** A quick task that finds out (cost, feasibility, access) before the
-   discussion that needs it.
-4. **Early feedback.** If someone else approves, an early mockup or demo.
+1. **Aim to parallelize.** With 2 or more independent parts, discuss their shared contracts first, then build the parts in parallel.
+2. **First what other things rest on.** Shared choices and contracts come first.
+3. **Unknowns first.** A quick task that finds out cost or feasibility comes before the discussion that needs it.
+4. **Early feedback.** If someone else approves, plan an early mockup or demo.
 5. **Work backwards from deadlines.** Rushed pace: less discussion, more parallel work, a plan B.
-6. **Discuss what is hard to change.** Easy-to-change choices go to whoever owns the area.
+6. **Discuss what is hard to change.** Easy choices go to whoever owns the area.
 7. **Every stage has a verifiable result.**
-8. **One-line topics.** "Booking and cancellation", not "create `BookingService.ts`".
-9. **Small stages.** "Database + API + login" in one stage gets split.
+8. **One-line topics.** «Booking and cancellation», not «create `BookingService.ts`».
+9. **Small stages.** «Database + API + login» in one stage gets split.
 10. **Small work, small plan.** No stages for completeness.
 11. **Try to break it.** For a project, a fresh agent may attack the plan before you see it.
 
-How many stages (guidance, not a rule): tiny work → no plan; small → 1–3; medium → 2–5; a full
-project usually lands around 8–12. Fewer on a full project usually means a stage is too big
-(practice 9). Stages are never padded to reach a number.
+Rough sizes: tiny means no plan, small 1–3 stages, medium 2–5, a full project about 8–12.
 
-### Stage types and their loops
+</details>
 
-Each stage has one type. The type's loop, in `data/loops.json`, says which phases the stage goes
-through and what each phase must produce. It never says how.
+<details>
+<summary><b>Stage types and their loops</b></summary>
+
+The loops are in `data/loops.json`. They say which phases a stage goes through and what each must produce. They never say how.
 
 | Type | For | Phases |
 |---|---|---|
-| `discussion` | deciding, no production code | context check → divergent proposal → convergence (you) → decision → **recap** (you: the question, the choice and the rejected options, read back from what was written) — for each topic |
-| `implementation` | building parts; tests, review and the first-use check close it | context check → plan → build → test → review → **first use** (you see it working) → *integrate* (you) |
-| `delivery` | something to show, fast and low-risk: mockup, small demo on what exists, presentation, video, document | context check → prepare → *rehearse* (you) → deliver (you) → feedback |
-| `quick_task` | a short, low-risk job: a mockup, an unknown to find out, a check, a small fix | context check → do → check → report (you) |
+| `discussion` | deciding, no production code | context check, divergent proposal, convergence (you), decision, **recap** (you) — for each topic |
+| `implementation` | building parts | context check, plan, build, test, review, **first use** (you see it working), *integrate* (you) |
+| `delivery` | something to show: mockup, demo, document | context check, prepare, *rehearse* (you), deliver (you), feedback |
+| `quick_task` | a short, low-risk job | context check, do, check, report (you) |
 
-Every loop starts with the **context check** (`clarify`), and it is never skipped: Claude asks
-itself whether it has enough context to carry out the stage on its own. Rarely "no" in a
-discussion (the discussion is where context comes from), sometimes in an implementation or a
-quick task, almost always in a delivery (who is it for? which format?). When the answer is "no",
-the phase is a short discussion with you.
+- *Italic* phases are optional and skipped only with a written reason. `test` and `review` go back to `build` when they fail.
+- The **divergent proposal** lays out the serious options, then recommends one and says why.
+- The **recap** reads back the question, the choice and the rejected options from what was written.
+- **First use** is mandatory and tests do not replace it: start the work with the instructions you will give the user, try every action, and show screenshots.
+- A **topic** is one line of what a stage is about. In a discussion each topic is one decision. In other stages topics are optional and list parts. `independent_parts` are the topics that can be built in parallel.
+- In an implementation, the plain plan `blueprint/plans/<stage>.md` is the index of the technical plan. Review findings go in `blueprint/reviews/<stage>.json`, with past rounds in `history`.
 
-The **divergent proposal** opens the whole range of serious options first, then recommends one
-and says why it wins. If you say the proposal misread the context, the topic goes back to the
-context check. *Italic* phases are optional and are skipped only with a written reason. `test` and
-`review` go back to `build` when they fail. A stage is done only after its last mandatory phase.
-There is no separate verification type: checking what is built is the end of every
-implementation.
-
-### Topics
-
-Topics say what a stage is about, one line each.
-- In a **discussion** stage they are required: each topic is one decision, and goes through the
-  phases on its own. A topic can be postponed, with a reason.
-- In an **implementation**, **delivery** or **quick task** stage they are optional: they list the
-  parts when there are several. A stage with one part ("Publish the site") has none.
-- A topic is never a phase. "Rehearsal, Demo, Feedback" are the phases of a delivery, not its
-  topics.
-- Independent parts (`independent_parts`) are topics that can be built in parallel.
+A stage in `plan.json`:
 
 ```json
 {
@@ -185,211 +162,99 @@ Topics say what a stage is about, one line each.
 }
 ```
 
-The plan changes when you ask, a deadline moves, the card changes, the work proves a decision
-wrong or new work arrives. Claude proposes the change as **before → after**, you confirm, and done stages stay as
-they are unless you ask.
+The plan changes when you ask, a deadline moves, or the work proves a decision wrong. Claude proposes the change as **before → after**, and you confirm.
 
-## The files
+</details>
 
-Everything Blueprint keeps in a project sits in one folder, committed with the code, so every
-branch sees the context, the plan and the decisions at its own version.
+<details>
+<summary><b>The files in your project</b></summary>
+
+Everything sits in one folder, committed with the code, so every branch sees the context, plan and decisions at its own version.
 
 ```
 blueprint/
-├── context.md      the context card: conclusions, then one line per point, with its source
-├── plan.json       stages, topics, current phase, how, deadlines, independent parts
-├── notes.json      optional notes per stage; new ones are mentioned at session start
+├── context.md      the context card: conclusions, then one line per point
+├── plan.json       stages, topics, current phase, how, deadlines
+├── notes.json      optional notes per stage
+├── plans/          the plain plan of each implementation stage
+├── reviews/        review findings per stage, with past rounds
 └── decisions/      only when the card says the project needs it
-    ├── _architecture.md   goal, components, graph, shared areas, contracts
-    ├── _sections.md       the sections and what they depend on
-    ├── _current-task.md   the discussion in progress
-    ├── _audit.md          who changed which decision, when, and why
-    ├── foundations/       shared choices: DB/DB.md, DB/DB--details.md …
-    ├── contracts/         API, types, events — one per file
-    └── sections/          pieces of value for your users
+    ├── _architecture.md, _sections.md, _current-task.md, _audit.md
+    ├── foundations/    shared choices
+    ├── contracts/      API, types, events
+    └── sections/       pieces of value for your users
 ```
 
-The decisions folder holds **only decisions**: those taken in discussions, and the corrections an
-implementation or a delivery forces on them. Each decision is one small Markdown block (choice,
-reversibility, who decided, rejected alternatives, why, the stage that took it). Your decisions and
-every one-way decision go in the main file; two-way details Claude settled on its own go in
-`--details.md`. It is plain Markdown, readable in Obsidian, in the language you speak with Claude.
+The decisions folder holds only decisions. Each is a small Markdown block: choice, reversibility, who decided, rejected options, why, and the stage. Your decisions and every hard-to-change one go in the main file. Details Claude settled alone go in `--details.md`. It is plain Markdown, readable in Obsidian.
 
-The plugin's own data files are the same for everyone and Claude never edits them:
-`data/context-questions.json` and `data/loops.json`.
+</details>
 
-## Hooks
+<details>
+<summary><b>Hooks</b></summary>
 
 | Hook | Event | What it guarantees |
 |---|---|---|
-| `orientation` | SessionStart | Claude reads where the work stands instead of remembering it: at most three short lines from `plan.json` (stage, phase or topics done, deadline, new notes), plus the discussion to resume. A draft context card → resume get-context from its open points. No plan → one line: every new request starts with get-context |
-| `plan-guard` | PreToolUse on `blueprint/plan.json` | A valid plan: known types and phases, topics where required, phases in order, optional phases skipped only with a reason, going back only where the loop allows, done only after the last mandatory phase, no stage born done. Changing a done stage asks you first |
-| `file-watcher` | PostToolUse | Every saved decision block is indexed and checked: contradictions, broken links, unreadable blocks, a missing or unknown stage |
+| `orientation` | SessionStart | Claude reads where the work stands: a few short lines from `plan.json`, plus any discussion to resume or draft card to finish |
+| `plan-guard` | PreToolUse on `plan.json` | A valid plan: known types and phases, phases in order, optional ones skipped only with a reason, done only after the last mandatory phase |
+| `file-watcher` | PostToolUse | Saved decisions are indexed and checked for contradictions and broken links |
 | `one-way-guard` | PreToolUse on the decisions folder | A hard-to-change decision is never saved as decided by Claude alone. No permission mode bypasses it |
-| `step-close` | Stop | At the end of a turn: is the context card still a draft (back to get-context, for example after a Discovery)? With code changes: is a phase finished (record it)? Did the work change something we decided (then the correction is written)? Each asked once |
+| `step-close` | Stop | At the end of a turn: is the card still a draft? Is a phase finished? Did the work change a decision? Each asked once |
 
-Every check is a plain Node script: free to run, no model involved.
+</details>
 
-## Commands and skills
+<details>
+<summary><b>Commands and skills</b></summary>
 
 | Type | Name | What it does |
 |---|---|---|
-| Command | `/blueprint:blueprint` | Starts Blueprint in a repo: creates `blueprint/`, offers Discovery on unknown code, then starts get-context (`/blueprint` also works when nothing else has that name) |
-| Command | `/blueprint:deep-review` | Optional, costs tokens. Agents re-read the decisions and their prose to catch contradictions of meaning |
-| Skill | `using-blueprint` | How Blueprint works: the pipeline, hard rules, routing; read every session |
-| Skill | `get-context` | Every new request: derive the context, ask what is missing, draw the conclusions, the card |
-| Skill | `create-plan` | Best practices, stage types, `plan.json`, re-planning, opening and closing a stage |
-| Skill | `topic-discussion` | The discussion engine: context check, specialists, one divergent proposal, your choice, the decision written |
-| Skill | `discovery` | Reads an existing codebase; offered by `/blueprint:blueprint` or on request (there is no separate command) |
+| Command | `/blueprint:blueprint` | Starts Blueprint in a repo, offers Discovery on unknown code, then starts get-context |
+| Command | `/blueprint:deep-review` | Optional, costs tokens. Agents re-read the decisions to catch contradictions of meaning |
+| Skill | `using-blueprint` | The pipeline, hard rules and routing |
+| Skill | `get-context` | Derive the context, ask what is missing, write the card |
+| Skill | `create-plan` | Best practices, stage types, `plan.json`, re-planning |
+| Skill | `topic-discussion` | The discussion engine: one divergent proposal, your choice, the decision written |
+| Skill | `discovery` | Reads an existing codebase first |
 | Skill | `docs-management` | The format of `blueprint/` and the decisions folder |
 
-## Install
+</details>
 
-```
-claude plugin marketplace add FreddyZeta1847/blueprint
-cd your-project
-claude plugin install blueprint@blueprint --scope project
-```
+<details>
+<summary><b>What changed from 2.0</b></summary>
 
-Use `--scope user` instead to enable Blueprint in every project. Then start `claude` in your
-project and type `/blueprint:blueprint`.
+- Blueprint now covers the whole way from the first message to the plan, plus each stage's loop.
+- New: `get-context`, `create-plan`, `blueprint/context.md`, `blueprint/plan.json`, `data/loops.json`, the `plan-guard` hook.
+- One folder: the vault became `blueprint/decisions/`, created only when needed.
+- The «does it touch the foundations?» gate is gone: `get-context` sizes every request.
+- Removed: the `brainstorming`, `feature-detection`, `user-agent`, `management-info`, `engineering-sheets` and `pre-publish-check` skills, and the `profile-updater` and `sheet-designer` agents. Ten skills became six.
+- A 2.0 `vault-<project>/` folder is still read by the hooks, but not converted.
 
-Inside an active Claude Code session, the same steps are:
+</details>
 
-```
-/plugin marketplace add FreddyZeta1847/blueprint
-/plugin install blueprint@blueprint
-```
+<details>
+<summary><b>Good to know</b></summary>
 
-To update:
+- A global `CLAUDE.md` with another planning workflow, or another planning plugin, can compete with Blueprint.
+- Without a plan the session-start hook is silent, so for a tiny request Claude may not load Blueprint. Say so in your `CLAUDE.md` if you want a confirmation line before small changes.
+- Discussions with specialists and `/blueprint:deep-review` spend tokens. The hook checks do not.
 
-```
-claude plugin marketplace update blueprint
-claude plugin update blueprint@blueprint
-```
+</details>
 
-**Requirements:** Claude Code, Node.js (the hooks are Node scripts), git.
-
-## What changed from 2.0
-
-- **Scope.** Blueprint now covers the whole way from the first message to the plan, and the loop
-  of every stage. How a stage is executed is left to your own tools.
-- **New:** the `get-context` and `create-plan` skills, `blueprint/context.md` and
-  `blueprint/plan.json`, the stage types and loops (`data/loops.json`), the `plan-guard` hook.
-- **One folder.** Everything lives in `blueprint/`; the vault became the decisions folder
-  `blueprint/decisions/`, created only when the project needs it. Who decides each area is the `roles` answer on the card.
-- **No more entry gate.** The "does it touch the foundations?" question is gone: `get-context`
-  sizes every request from its context.
-- **Removed:** the `brainstorming`, `feature-detection`, `user-agent`, `management-info`,
-  `engineering-sheets` and `pre-publish-check` skills, the `profile-updater` and `sheet-designer`
-  agents, the path (`_queue.json`), `atoms.json` and `_full-context.md`. Ten skills became six.
-- **Old vaults.** A 2.0 `vault-<project>/` folder is still read by the hooks, but it is not
-  converted automatically.
-
-## Good to know
-
-- If your global `~/.claude/CLAUDE.md` describes a different planning workflow, or another plugin
-  has its own planning skill, it can compete with Blueprint inside a Blueprint project.
-- Without a plan the session-start hook stays silent, so for a tiny request Claude may not load
-  Blueprint at all. If you want a confirmation line before every small change, say so in your own
-  `CLAUDE.md`.
-- Specialist discussions and `/deep-review` spend tokens; the checks don't.
-
-## Repository layout
+<details>
+<summary><b>Repository layout</b></summary>
 
 ```
 .claude-plugin/   plugin.json, marketplace.json
 commands/         blueprint.md, deep-review.md
 data/             context-questions.json, loops.json
 skills/           6 skills (one folder each, SKILL.md)
-hooks/            hooks.json, orientation.js, plan-guard.js, file-watcher.js, one-way-guard.js,
-                  step-close.js, lib/ (shared code), tests/ (node --test hooks/tests/*.test.js)
-PROGRESS.md       public, sanitized log of design milestones
+hooks/            hooks.json, the Node hooks, lib/, tests/ (node --test hooks/tests/*.test.js)
+hooks/panel.tsx   the panel (TSX), with its parts in hooks/panel/
+PROGRESS.md       log of design milestones
 TEST-FINDINGS.md  what the live test runs found, and what was fixed
 ```
 
-## The panel
-
-In a project with a plan, Blueprint opens a pane beside the chat (desktop app, terminal and
-Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three screens:
-
-- **Plan** — one row per stage with a bar of its phases (grey done, blue in progress, yellow
-  waiting for you, dark to do) and a caption saying what it is («implementazione · fase 3 di 7:
-  costruzione»); the current stage is framed, finished ones are dimmed. Open a stage to see what
-  its type is for and its phases; ◀ ▶ under them move the view from
-  phase to phase (the plan itself does not change) and the stage shows what belongs to that phase:
-  its topics, the files that hold a discussion's decisions (a click copies the path) and, in an
-  implementation stage, its **work tree** — the plain plan Claude writes in `blueprint/plans/<stage>.md`
-  as the index of the technical one: sessions → letters (A, B…) → Tasks (A1, A2…) → sub-tasks
-  (A1.1…), each with a short title. Sessions, letters and Tasks are open, a Task's sub-tasks open
-  with its button; the sub-task Claude is on colours its Task, letter and session (blue while it
-  works, amber «!» when it waits for you) and only that path shows its plain words. Unticked in the
-  plan phase, ticked as each sub-task finishes in the build phase (plans in the older format show a
-  column of steps per session). In
-  the **test phase** every group of the plain plan gets a bar and a fraction («14/14») read from the
-  real output of its test command (the `Test (command or file)` line), with the failed tests by
-  name; the counts already fill up while building, and the main session's last run wins. In the
-  **review phase** the findings of the review tools are grouped by tool, each with a **Correggi**
-  (fix) button and a **Correggi tutto ora** on top; if nobody presses, they are sent to Claude by
-  themselves 30 seconds later (the countdown is in the panel and in the status line), at most
-  three rounds. In the **first-use phase** the `Finita quando:` lines become the checklist of what
-  you try yourself. The notes are always there: add one, edit it (✎) or delete it (✕).
-- **Sessions** — during a stage built in parallel: the mother session and one child per part,
-  with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
-- **Legend** — every stage type with its phases, how Claude moves through them, and how the
-  Sessions screen works.
-
-`/blueprint-panel` opens or closes it (`/blueprint-panel piano | sessioni | legenda` picks the
-screen). Two options in the plugin settings: `autoOpen` (on: the pane opens by itself where there
-is a plan) and `notifyWhenWaiting` (off: a phone notification when a stage or a child waits for
-you). The panel follows Claude Code's language setting (Italian or English).
+</details>
 
 ## Status
 
-v3.4.0 — the work tree: the plain plan in four levels (session, letter, Task, sub-task) with
-the same names as the technical plan (A, A1, A1.1), written in three moves (skeleton approved by
-you, technical plan on the letters, then sub-tasks); letters go to children by the files they
-touch; the panel draws it as a tree whose «in progress» climbs from the sub-task to the session.
-
-v3.3.0 — tests and review in the panel: each group's test count read from the real command
-output (also while building, from the children too), and the review's findings with Correggi,
-Correggi tutto and an automatic fix after 30 seconds. The test and review phases belong to the
-main session; the plain plan's `Test` lines name their command or test file.
-
-v3.2.1 — a clearer panel: a frame only around the current and the open stage, finished stages
-dimmed, a caption beside each bar saying what the stage is and where it stands, step counts per
-session, and every mark in its state's colour.
-
-v3.2.0 — the plain plan: in the plan phase of an implementation stage Claude also writes
-`blueprint/plans/<stage>.md`, a few numbered steps per session in plain words, with their tests and
-when they are finished; each session ticks its own steps. The panel shows them as a column per
-session, lets you look at each phase of a stage with ◀ ▶ (the content follows the phase), and lets
-you edit or delete notes.
-
-v3.1.0 — the panel (Plan, Sessions and Legend screens beside the chat); discussion topics get a
-fifth phase, **recap**: Claude reads back the question, the choice and the rejected options from
-what it wrote, and the topic is ticked only after your yes. Plans written before it stay valid.
-
-v3.0.2 — fixes from a full end-to-end run of a real project: implementation stages get a
-mandatory **first-use** phase (the work started with the user's own instructions, every way of
-starting it, a fresh empty store then sample data, the real clock, every action tried, screenshots
-to the user — green tests do not replace it); a third place for decisions (a single
-`blueprint/decisions.md` for light work), and every stage type records the choices it settles;
-anything the user judges by looking is shown as real images; a mockup stage is defended once when
-dropped from work where the look matters; a stage closes in one coherent write and its closing
-travels in its own PR; the draft-card reminder stays quiet while Claude is waiting for the user's
-answer.
-
-v3.0.1 — Discovery maps the code first with the user's code-mapping tool (a knowledge graph, a code index), then reads single files only where the map is not enough.
-
-v3.0.0 — the pipeline from the first message to a staged plan: a context derived before it is
-asked, a plan built on written best practices, a fixed loop for every stage type (each opening
-with a context check) checked by the plan-guard, and topics that say what each stage is about. Tested live on three scenarios: a new project, a running
-project with one new task, and a series of tiny changes (see `TEST-FINDINGS.md`, run 5).
-
-v2.0.0 — discuss only the foundations; Claude settles and records the details; a versioned vault
-that separates your decisions from Claude's; an end-of-step check.
-
-v1.1.0 — per-feature importance/effort scores and a per-project focus.
-
-v1.0.0 — the core pipeline run end-to-end on a real test project.
+v3.5.0 — the panel as a dashboard: the «Adesso» card, a work tree with test counts, decision cards, and a review dashboard over every round. Older versions: see [PROGRESS.md](PROGRESS.md).

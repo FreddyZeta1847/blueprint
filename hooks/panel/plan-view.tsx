@@ -10,13 +10,15 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { PhaseState, PlanModel, StageModel, ViewCtx } from './types'
-import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepLineSvg, stepMarkSvg } from './marks'
-import { tr } from './text'
+import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepLineSvg, stepMarkSvg, topicRailSvg } from './marks'
+import { shortDate, tr } from './text'
 import { addNote, changeNote, readNotes, stageDecisions, type Note } from './plan-extras'
 import { readSteps, type StepSection } from './plan-steps'
 import { TestResults } from './test-view'
 import { ReviewResults } from './review-view'
-import { WorkTree } from './tree-view'
+import { WorkTree, asTodo, sessionsOf } from './tree-view'
+import { NowCard } from './now-view'
+import { DecisionCards } from './decisions-view'
 
 /**
  * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
@@ -24,8 +26,9 @@ import { WorkTree } from './tree-view'
  */
 async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
   const { Box, Text, Svg, Button } = ctx.el
-  const sections = await readSteps($, ctx.main, stage)
-  if (sections.length === 0) return null
+  const found = await readSteps($, ctx.main, stage)
+  if (found.length === 0) return null
+  const sections = asPlan ? found.map(asTodo) : found
   const path = `${ctx.main}/blueprint/plans/${stage.id}.md`
   const copy = async () => {
     await $.ui.copy({ text: path })
@@ -33,11 +36,12 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
   }
   // how far each session is, by its ticked steps: «App dei soci · 3 di 4» (not in the plan phase,
   // where nothing is built yet); a single session carries it on the title
-  const progress = (s: StepSection) => asPlan ? '' : ` · ${tr(ctx.lang, 'stepsOf', { done: s.steps.filter(st => st.state === 'done').length, all: s.steps.length })}`
-  const sessions = bySession(sections)
+  const progress = (s: { steps: StepSection['steps'] }) => asPlan ? '' : ` · ${tr(ctx.lang, 'stepsOf', { done: s.steps.filter(st => st.state === 'done').length, all: s.steps.length })}`
+  const sessions = sessionsOf(sections).map(s => ({ ...s, steps: s.groups.flatMap(g => g.steps) }))
   const lone = sessions.length === 1 && sessions[0]!.role === 'single'
-  // a plan written in four levels (letters, Tasks, sub-tasks) is drawn as the work tree
-  const tree = sections.some(s => s.tasks)
+  // a plan written in four levels (letters, Tasks, sub-tasks), or its skeleton of letters with no
+  // checkbox yet, is drawn as the work tree
+  const tree = sections.some(s => s.tasks) || sections.every(s => s.steps.length === 0)
   return (
     <Box flexDirection="column" gap={1} width="100%">
       <Text bold color={C.ink}>{`${tr(ctx.lang, asPlan ? 'planSteps' : 'steps')}${lone || tree ? progress({ ...sections[0]!, steps: sections.flatMap(s => s.steps) }) : ''}`}</Text>
@@ -45,7 +49,7 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
       {tree && await WorkTree($, ctx, stage, sections, asPlan)}
       {!tree && sessions.map((s, i) => {
         const color = s.role === 'child' ? C.teal : C.muted
-        const steps = asPlan ? s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) : s.steps
+        const steps = s.steps
         const lines = steps.map(st => `${GLYPH[st.state]} ${st.text}`)
         return (
           <Box flexDirection="column" width="100%">
@@ -58,17 +62,6 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
       })}
     </Box>
   )
-}
-
-/** One column per session: its groups' steps one after the other (the groups' titles stay in the file). */
-function bySession(sections: StepSection[]): StepSection[] {
-  const out: StepSection[] = []
-  for (const s of sections) {
-    const last = out[out.length - 1]
-    if (last && last.name === s.name && last.role === s.role) last.steps = [...last.steps, ...s.steps]
-    else out.push({ ...s, steps: [...s.steps] })
-  }
-  return out
 }
 
 /**
@@ -129,8 +122,30 @@ function Topics(ctx: ViewCtx, stage: StageModel, at: number) {
     const reached = stage.phases.findIndex(p => p.id === t.phase)
     return reached > at ? 'done' : reached === at ? 'running' : 'todo'
   }
-  return Section(ctx, tr(ctx.lang, 'topics'), stage.topics.map(t => `${GLYPH[mark(t)]} ${t.name}`))
+  // each topic also gets its own small rail: where it is among the discussion's phases
+  const rail = (t: StageModel['topics'][number]): PhaseState[] => {
+    if (t.done || stage.status === 'done') return stage.phases.map(() => 'done')
+    const reached = stage.phases.findIndex(p => p.id === t.phase)
+    return stage.phases.map((p, i) => (i < reached ? 'done' : i === reached ? (p.user ? 'stopped' : 'running') : 'todo'))
+  }
+  const { Box, Text, Svg } = ctx.el
+  return (
+    <Box flexDirection="column">
+      <Text bold color={C.ink}>{tr(ctx.lang, 'topics')}</Text>
+      {stage.topics.map((t, i) => (
+        <Box flexDirection="row" gap={1}>
+          <Box flexGrow={1} flexShrink={1}><Text wrap="wrap">{`${GLYPH[mark(t)]} ${t.name}`}</Text></Box>
+          {hasSvg(ctx)
+            ? Keyed(ctx, `topic:${stage.id}:${i}`, <Svg source={topicRailSvg(rail(t))} alt={rail(t).map(s => GLYPH[s]).join('')} />)
+            : <Text dimColor>{rail(t).map(s => GLYPH[s]).join('')}</Text>}
+        </Box>
+      ))}
+    </Box>
+  )
 }
+
+/** Phases that once showed nothing: each says what it waits for (decisions «Il pannello come cruscotto»). */
+const WAITS = new Set(['do', 'check', 'report', 'prepare', 'rehearse', 'deliver', 'feedback'])
 
 /** What the phase looked at shows under the rail (decisions «Piano spiegato per passi»). */
 async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number) {
@@ -139,7 +154,9 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
   if (stage.type === 'discussion') {
     return [Topics(ctx, stage, at), id === 'decision' || id === 'recap' ? await Decisions($, ctx, stage) : null]
   }
-  if (id === 'clarify' || id === 'do' || id === 'prepare') return Topics(ctx, stage, at)
+  if (id === 'clarify') return Topics(ctx, stage, at)
+  // the phases of a delivery and a quick task: the topics with their marks, and what the phase waits for
+  if (WAITS.has(id)) return [Topics(ctx, stage, at), <ctx.el.Text dimColor wrap="wrap">{tr(ctx.lang, `waits_${id}`)}</ctx.el.Text>]
   if (id === 'plan') return await Steps($, ctx, stage, true)
   if (id === 'build') return await Steps($, ctx, stage, false)
   if (id === 'test') return await TestResults($, ctx, stage)
@@ -150,18 +167,6 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
 
 const CURRENT = '*'
 const expanded = atom({ plugin: 'blueprint', key: 'expanded' } as const, [CURRENT] as string[], { shape: 'expanded-1' })
-
-const MONTHS = {
-  it: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
-  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-}
-
-/** "2026-11-20" → "20 nov"; anything else as it is. */
-export function shortDate(lang: ViewCtx['lang'], iso: string): string {
-  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso)
-  const month = m ? MONTHS[lang][Number(m[1]) - 1] : undefined
-  return m && month ? `${Number(m[2])} ${month}` : iso
-}
 
 /** One line: longer text is cut and ends with «…». */
 export function cut(text: string, max: number): string {
@@ -208,12 +213,12 @@ function Keyed(ctx: ViewCtx, key: string, child: unknown) {
   return <Box key={key}>{child}</Box>
 }
 
-type Pill = { key: string; label: string; tone: 'amber' | 'accent' | 'muted' }
+type Pill = { key: string; label: string; tone: 'amber' | 'accent' | 'teal' | 'muted' }
 
 function pillList(ctx: ViewCtx, stage: StageModel): Pill[] {
   const pills: Pill[] = []
   if (stage.yourTurn) pills.push({ key: `pill:turn:${stage.id}`, label: tr(ctx.lang, 'yourTurn'), tone: 'amber' })
-  if (stage.kids > 0) pills.push({ key: `pill:kids:${stage.id}`, label: tr(ctx.lang, 'kids', { n: stage.kids }), tone: 'accent' })
+  if (stage.kids > 0) pills.push({ key: `pill:kids:${stage.id}`, label: tr(ctx.lang, 'kids', { n: stage.kids }), tone: 'teal' })
   if (stage.deadline) pills.push({ key: `pill:due:${stage.id}`, label: tr(ctx.lang, 'due', { d: shortDate(ctx.lang, stage.deadline) }), tone: 'muted' })
   return pills
 }
@@ -226,7 +231,7 @@ function Pills(ctx: ViewCtx, stage: StageModel) {
   const vector = hasSvg(ctx)
   const pills = pillList(ctx, stage)
   if (pills.length === 0) return null
-  const color = { amber: C.amber, accent: C.accent, muted: C.muted }
+  const color = { amber: C.amber, accent: C.accent, teal: C.teal, muted: C.muted }
   return (
     <Box flexDirection="row" gap={1}>
       {pills.map(p => Keyed(ctx, p.key, vector
@@ -244,6 +249,12 @@ function Pills(ctx: ViewCtx, stage: StageModel) {
 function caption(ctx: ViewCtx, stage: StageModel): string {
   const type = tr(ctx.lang, `type_${stage.type}`)
   const live = liveIndex(stage)
+  const topic = stage.topics.find(t => t.current) ?? stage.topics.find(t => !t.done)
+  if (stage.type === 'discussion' && stage.status === 'in_progress' && topic) {
+    // a discussion's bar has one segment per topic: say which topic, and its phase
+    const phase = tr(ctx.lang, `ph_${topic.phase ?? 'clarify'}`)
+    return `${type} · ${tr(ctx.lang, 'topicOf', { n: stage.topics.indexOf(topic) + 1, m: stage.topics.length, phase })}`
+  }
   if (stage.status === 'in_progress' && live >= 0) {
     const phase = tr(ctx.lang, `ph_${stage.phases[live]!.id}`)
     return `${type} · ${tr(ctx.lang, 'phaseOf', { n: live + 1, m: stage.phases.length, phase })}`
@@ -323,6 +334,9 @@ function lookedAt(stage: StageModel, chosen: Lens): { at: number; isChosen: bool
  * The stage's phases, always the same for its type: a rail of marks (text list on the terminal),
  * and under it ◀ phase · state ▶ with what the phase is for. The arrows only move the view.
  */
+/** The phases whose sentence says a rule worth reading; the others («Si costruisce.») say nothing new. */
+const EXPLAINS = new Set(['test', 'review', 'first_use', 'convergence', 'recap', 'rehearse', 'deliver'])
+
 function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeof currentPhase>, at: number, isChosen: boolean) {
   const { Box, Text, Svg, Button } = ctx.el
   if (stage.phases.length === 0) return null
@@ -342,7 +356,7 @@ function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeo
         <Text bold color={color}>{`${name} · ${tr(ctx.lang, `ps_${seen.state}`)}`}</Text>
         <Button key={`phase-next:${stage.id}`} plain dimColor={at === stage.phases.length - 1} onPress={move(1)}>▶</Button>
       </Box>
-      <Text dimColor wrap="wrap">{sentence(tr(ctx.lang, `phd_${seen.id}`))}</Text>
+      {EXPLAINS.has(seen.id) && <Text dimColor wrap="wrap">{sentence(tr(ctx.lang, `phd_${seen.id}`))}</Text>}
       {phase?.stopped && <Text color={C.amber} wrap="wrap">{waitLine(ctx, stage)}</Text>}
     </Box>
   )
@@ -355,18 +369,26 @@ function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeo
 async function Decisions($: any, ctx: ViewCtx, stage: StageModel) {
   const { Box, Text, Button } = ctx.el
   if (stage.type !== 'discussion') return null
-  const { files, home } = await stageDecisions($, ctx.main, stage)
+  const { list, files, home } = await stageDecisions($, ctx.main, stage)
   const relative = (path: string) => path.startsWith(`${ctx.main}/`) ? path.slice(ctx.main.length + 1) : path
   const copy = (path: string) => async () => {
     await $.ui.copy({ text: path })
     await $.ui.toast(tr(ctx.lang, 'decisionsFileCopied', { path }))
   }
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" gap={1}>
+      {list.length > 0 && (
+        <Box flexDirection="column" gap={1}>
+          <Text bold color={C.ink}>{tr(ctx.lang, 'decisionsList', { n: list.length, k: list.filter(d => d.oneWay).length })}</Text>
+          {await DecisionCards($, ctx, stage, list)}
+        </Box>
+      )}
+      <Box flexDirection="column">
       <Text bold color={C.ink}>{tr(ctx.lang, 'decisionsWhere')}</Text>
       {files.length > 0
         ? files.map((path, i) => <Button key={`decfile:${stage.id}:${i}`} plain dimColor onPress={copy(path)}>{`⧉ ${relative(path)}`}</Button>)
         : <Text dimColor wrap="wrap">{tr(ctx.lang, 'decisionsNone', { path: home })}</Text>}
+      </Box>
     </Box>
   )
 }
@@ -418,7 +440,7 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
   return (
     <Box flexDirection="column" paddingLeft={2} gap={1}>
       {Pills(ctx, stage)}
-      <Text dimColor wrap="wrap">{`${tr(ctx.lang, `type_${stage.type}`)} · ${lowerFirst(tr(ctx.lang, `purpose_${stage.type}`))}`}</Text>
+      <Text dimColor wrap="wrap">{tr(ctx.lang, `type_${stage.type}`)}</Text>
       {Phases($, ctx, stage, phase, at, isChosen)}
       {await PhaseContent($, ctx, stage, at)}
       <Box flexDirection="column">
@@ -437,26 +459,20 @@ function waitLine(ctx: ViewCtx, stage: StageModel): string {
   return `${GLYPH.stopped} ${tr(ctx.lang, 'waitPhase', { phase: tr(ctx.lang, `ph_${at?.id ?? ''}`) })}`
 }
 
-/** One line under the stages: the four marks and their colours, the same as the rail and the steps. */
-function Legend(ctx: ViewCtx) {
-  const { Box, Text } = ctx.el
-  const items: [string, string, string][] = [
-    [GLYPH.done, C.muted, 'lg_done'], [GLYPH.running, C.accent, 'lg_running'], [GLYPH.stopped, C.amber, 'lg_stopped'], [GLYPH.todo, C.faint, 'lg_todo'],
-  ]
-  return (
-    <Box flexDirection="row" gap={1} flexWrap="wrap">
-      <Text dimColor>{tr(ctx.lang, 'legend')}</Text>
-      {items.map(([mark, color, key]) => <Text color={color}>{`${mark} ${tr(ctx.lang, key)}`}</Text>)}
-    </Box>
-  )
-}
-
 export async function renderPlanView($: any, ctx: ViewCtx, plan: PlanModel | null) {
   const { Box, Text } = ctx.el
   if (!plan) return <Text dimColor>{tr(ctx.lang, 'noPlan')}</Text>
   const list = await read($, expanded)
   const notes = await readNotes($, ctx.main)
-  const rows = []
+  // a signal of the «Adesso» card opens its stage on the phase that shows it
+  const openAt = (stageId: string, phase: string) => {
+    const stage = plan.stages.find(s => s.id === stageId)
+    const at = stage ? stage.phases.findIndex(p => p.id === phase) : -1
+    if (!stage) return
+    void update($, expanded, l => (isOpen(l, stage, plan) ? l : toggle(l, stage.id, plan)))
+    if (at >= 0) void update($, lens, m => ({ ...m, [stageId]: { at, live: liveIndex(stage) } }))
+  }
+  const rows = [await NowCard($, ctx, plan, openAt)]
   for (const [i, stage] of plan.stages.entries()) {
     const open = isOpen(list, stage, plan)
     const current = i === plan.currentIndex
@@ -471,7 +487,6 @@ export async function renderPlanView($: any, ctx: ViewCtx, plan: PlanModel | nul
   return (
     <Box flexDirection="column" gap={1}>
       {rows}
-      {Legend(ctx)}
     </Box>
   )
 }

@@ -9,7 +9,11 @@ export const C = {
   ink: '#ECEBE8', muted: '#A9A7A0', faint: '#5E5C57', line: '#3A3936', surface: '#2E2D2A',
   accent: '#6AA5FA', accentSoft: '#22324A', amber: '#E5AC52', amberSoft: '#3D2F18', hole: '#1B1B1A',
   /** the line of a child session's steps (the mother's is `muted`): never a state colour */
-  teal: '#4FB8A8',
+  teal: '#4FB8A8', tealSoft: '#1D3532',
+  /** a decision hard to change: always with the padlock, never a state */
+  violet: '#B39DFA', violetSoft: '#2A2540',
+  /** who decided: the user, and Claude */
+  you: '#9FE0CF', youSoft: '#243832', clay: '#D9896A', claySoft: '#3A2A23',
   /** a failed test or a high-severity problem: always next to words, never colour alone */
   coral: '#EE8A6E',
   /** tests all passed: always next to the fraction in words, so never colour alone */
@@ -44,9 +48,9 @@ export function barSvg(segments: PhaseState[], width = 120, tick = false): strin
   return doc(width + (tick ? 26 : 0), 16, rects + (tick ? markShape(width + 14, 8, 'done', 7) : ''))
 }
 
-export function pillSvg(label: string, tone: 'amber' | 'accent' | 'muted'): string {
+export function pillSvg(label: string, tone: 'amber' | 'accent' | 'teal' | 'muted'): string {
   const w = Math.round(label.length * 6.6 + 18)
-  const [fg, bg] = tone === 'amber' ? [C.amber, C.amberSoft] : tone === 'accent' ? [C.accent, C.accentSoft] : [C.muted, C.surface]
+  const [fg, bg] = tone === 'amber' ? [C.amber, C.amberSoft] : tone === 'accent' ? [C.accent, C.accentSoft] : tone === 'teal' ? [C.teal, C.tealSoft] : [C.muted, C.surface]
   return doc(w, 20, `<rect x="0" y="1" width="${w}" height="18" rx="9" fill="${bg}"/><text x="${w / 2}" y="14" font-size="11" font-weight="600" fill="${fg}" text-anchor="middle" ${FONT}>${esc(label)}</text>`)
 }
 
@@ -91,6 +95,74 @@ export function stepMarkSvg(state: PhaseState, line: string, first: boolean, las
 /** A mark of the work tree (18×20), with no line: the tree's guides are drawn by the levels. */
 export function treeMarkSvg(state: PhaseState): string {
   return doc(18, 20, markShape(9, 10, state, state === 'running' || state === 'stopped' ? 7 : 6))
+}
+
+/**
+ * A finding's severity as three bars of growing height: three filled for high, two for medium, one
+ * for low. Neutral colours only (ink for high, grey otherwise): amber stays for «your turn».
+ */
+export function severitySvg(sev: 'high' | 'medium' | 'low'): string {
+  const filled = sev === 'high' ? 3 : sev === 'medium' ? 2 : 1
+  const fill = sev === 'high' ? C.ink : C.muted
+  const bars = [4, 7, 10].map((h, i) => `<rect x="${1 + i * 5}" y="${12 - h}" width="3" height="${h}" rx="1" fill="${i < filled ? fill : C.line}"/>`).join('')
+  return doc(16, 12, bars)
+}
+
+/**
+ * A bar in two parts on a track: `done` in grey, then `live` in amber (the review: fixed, then open;
+ * a tool: found in past rounds, then in this one). `of` is what the full width stands for.
+ */
+export function splitBarSvg(done: number, live: number, of: number, width = 360): string {
+  const unit = of > 0 ? width / of : 0
+  const a = Math.round(done * unit); const b = Math.round(live * unit)
+  return doc(width, 10, `<rect x="0" y="1" width="${width}" height="8" rx="3" fill="${C.line}"/>` +
+    (a > 0 ? `<rect x="0" y="1" width="${a}" height="8" rx="3" fill="${C.muted}"/>` : '') +
+    (b > 0 ? `<rect x="${a}" y="1" width="${b}" height="8" rx="3" fill="${C.amber}"/>` : ''))
+}
+
+/** The countdown's ring: an amber arc for the part of the 30 seconds still left. */
+export function ringSvg(fraction: number): string {
+  const r = 7; const c = 2 * Math.PI * r
+  const left = Math.min(Math.max(fraction, 0), 1) * c
+  return doc(18, 18, `<circle cx="9" cy="9" r="${r}" fill="none" stroke="${C.line}" stroke-width="2"/>` +
+    `<circle cx="9" cy="9" r="${r}" fill="none" stroke="${C.amber}" stroke-width="2" stroke-dasharray="${left.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 9 9)"/>`)
+}
+
+/** A topic's own small rail: one dot per phase of the discussion, done, current or to do. */
+export function topicRailSvg(states: PhaseState[]): string {
+  // small dots read as shapes, not marks: no tick inside (it looked like «Ø»)
+  const step = 14
+  const dot = (s: PhaseState, i: number) => {
+    const cx = 7 + i * step
+    if (s === 'done' || s === 'skipped') return `<circle cx="${cx}" cy="7" r="4.5" fill="${C.muted}"/>`
+    if (s === 'running') return `<circle cx="${cx}" cy="7" r="4.5" fill="${C.hole}" stroke="${C.accent}" stroke-width="2.2"/>`
+    if (s === 'stopped') return `<circle cx="${cx}" cy="7" r="5.5" fill="${C.amber}"/><text x="${cx}" y="10.5" font-size="9" font-weight="800" fill="${C.hole}" text-anchor="middle" ${FONT}>!</text>`
+    return `<circle cx="${cx}" cy="7" r="4" fill="${C.hole}" stroke="${C.faint}" stroke-width="1.5"/>`
+  }
+  const line = `<line x1="7" y1="7" x2="${7 + (states.length - 1) * step}" y2="7" stroke="${C.line}" stroke-width="1"/>`
+  return doc(Math.max(states.length, 1) * step, 14, line + states.map(dot).join(''))
+}
+
+/** A one-way decision: a padlock in neutral ink (a shape, not a state colour). */
+export const lockSvg = (color: string = C.muted) => doc(12, 13, `<rect x="1.5" y="5.5" width="9" height="7" rx="1.5" fill="${color}"/><path d="M3.8 5.5 V4 a2.2 2.2 0 0 1 4.4 0 V5.5" fill="none" stroke="${color}" stroke-width="1.5"/>`)
+
+/** A two-way decision: two opposite arrows. */
+export const swapSvg = () => doc(12, 12, `<path d="M2 4 H9 M7 2 L9.5 4 L7 6 M10 8.5 H3 M5 6.5 L2.5 8.5 L5 10.5" fill="none" stroke="${C.muted}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>`)
+
+/**
+ * One bead per Task of a letter (work tree): filled grey when done, a ring in the state's colour
+ * while in progress or stopped, hollow when to do — the shapes differ, not only the colours.
+ */
+export function beadsSvg(states: PhaseState[]): string {
+  const step = 12
+  const bead = (s: PhaseState, i: number) => {
+    const cx = 6 + i * step
+    if (s === 'done') return `<circle cx="${cx}" cy="6" r="4" fill="${C.muted}"/>`
+    if (s === 'stopped') return `<circle cx="${cx}" cy="6" r="5" fill="${C.amber}"/><text x="${cx}" y="9" font-size="8" font-weight="800" fill="${C.hole}" text-anchor="middle" ${FONT}>!</text>`
+    if (s === 'running') return `<circle cx="${cx}" cy="6" r="3.5" fill="none" stroke="${C.accent}" stroke-width="2"/>`
+    return `<circle cx="${cx}" cy="6" r="3.5" fill="none" stroke="${C.faint}" stroke-width="1.5"/>`
+  }
+  return doc(Math.max(states.length, 1) * step, 12, states.map(bead).join(''))
 }
 
 /** A group's tests: the bar green when all passed, coral when some failed. */

@@ -5,7 +5,8 @@
  * Run: claude plugin test .   (from the repository root)
  */
 import { expect, test } from 'claude-code/testing'
-import { cut, shortDate } from '../plan-view'
+import { cut } from '../plan-view'
+import { shortDate } from '../text'
 import { addNote, decisionsFromBlocks, decisionsFromFile } from '../plan-extras'
 import { engine, MAIN, PANE } from './harness'
 
@@ -34,7 +35,7 @@ test('shortDate: ISO day → «20 nov» / «20 Nov»; other text as it is', asyn
 
 test('decisions.md: bold bullets of the stage section and its subsections only', async () => {
   const text = '## A\n- **uno** — x; one-way\n### Sub\n- **due** — facile da cambiare\n- **quattro** — difficile da cambiare\n## B\n- **tre**\n'
-  expect(decisionsFromFile(text, 'A')).toEqual([{ text: 'uno', oneWay: true }, { text: 'due', oneWay: false }, { text: 'quattro', oneWay: true }])
+  expect(decisionsFromFile(text, 'A')).toEqual([{ text: 'uno', oneWay: true, why: 'x' }, { text: 'due', oneWay: false, topic: 'Sub' }, { text: 'quattro', oneWay: true, topic: 'Sub' }])
   expect(decisionsFromFile(text, 'B')).toEqual([{ text: 'tre', oneWay: false }])
   expect(decisionsFromFile(text, 'C')).toEqual([])
 })

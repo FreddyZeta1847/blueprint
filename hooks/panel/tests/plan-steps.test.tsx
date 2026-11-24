@@ -158,3 +158,22 @@ test('a short plan with no heading still shows its steps in the build phase', as
   expect(await ui.find({ text: /^│ ● 2\. Due\.$/ })).toBeDefined()
   await ui.unmount()
 })
+
+test('a one-letter word is a name only with its dot (#5)', async () => {
+  expect(splitId('I test unitari')).toEqual({ title: 'I test unitari' })
+  expect(splitId('A new screen')).toEqual({ title: 'A new screen' })
+  expect(splitId('A. Lettore')).toEqual({ id: 'A', title: 'Lettore' })
+  expect(splitId('A1.2 Titolo')).toEqual({ id: 'A1.2', title: 'Titolo' })
+})
+
+test('the plan phase shows the skeleton: letters with their words and no checkbox yet (#4)', async ($, on) => {
+  const skeleton = '# Piano\n### A. Scheda\nIn cima al Piano.\n- Test (a.test.tsx): la scheda.\n### B. Albero\nUna pallina per Task.\n- Test (b.test.tsx): le palline.\n'
+  const plan = JSON.parse(singleSession())
+  plan.stages[2].phase = 'plan'
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/fb.md': skeleton } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('terminal'))
+  const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
+  expect([await has(/^○ A Scheda$/), await has(/^In cima al Piano\.$/), await has(/^○ B Albero$/), await has(/^Una pallina per Task\.$/)]).toEqual([true, true, true, true])
+  await ui.unmount()
+})

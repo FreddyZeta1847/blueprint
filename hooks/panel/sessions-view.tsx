@@ -12,6 +12,7 @@ import type { RowState, SessionRow } from './sessions-data'
 import { readSessions } from './sessions-data'
 import { C, GLYPH, contextBarSvg } from './marks'
 import { tr } from './text'
+import { activity } from './activity'
 
 const MARK: Record<RowState, PhaseState> = { running: 'running', blocked: 'stopped', done: 'done', ended: 'skipped' }
 const WORD: Record<RowState, string> = { running: 'st_running', blocked: 'st_blocked', done: 'st_done', ended: 'st_ended' }
@@ -79,8 +80,11 @@ export async function renderSessionsView($: any, ctx: ViewCtx, plan: PlanModel |
   const { Box, Text, Button } = ctx.el
   const lang = ctx.lang
   const sessions = await readSessions($, ctx.main, plan)
-  const stage = plan?.stages[plan.parallelIndex]
-  if (!stage || sessions.parts.length === 0) return <Text dimColor>{tr(lang, 'noParallel')}</Text>
+  // the mother is always there; with no stage built in parallel, the current stage and no children
+  const stage = plan?.stages[sessions.parts.length > 0 ? plan.parallelIndex : plan.currentIndex]
+  if (!plan || !stage) return <Text dimColor>{tr(lang, 'noParallel')}</Text>
+  const index = plan.stages.indexOf(stage)
+  const me = activity()
 
   const now: number = await $.clock.now()
   const usage = await $.session.usage()
@@ -88,7 +92,8 @@ export async function renderSessionsView($: any, ctx: ViewCtx, plan: PlanModel |
   const mother: Line = {
     key: 'mother', mark: 'running', name: tr(lang, 'mother'), percent: usage?.context?.percent ?? 0,
     time: duration(now - (usage?.startedAt ?? now)), cost: money(lang, motherCost),
-    detail: `${tr(lang, 'thisSession')} · ${tr(lang, 'waitingKids')}`, amber: false,
+    detail: `${tr(lang, 'thisSession')} · ${sessions.kids.length > 0 ? tr(lang, 'waitingKids')
+      : me.tool && me.since !== null ? `${me.tool} ${tr(lang, 'nowSince', { t: duration(now - me.since) })}` : tr(lang, 'idleMother')}`, amber: false,
   }
   const enter = (row: SessionRow) => row.id === null ? undefined : async () => {
     const cmd = `claude attach ${row.id}`
@@ -100,7 +105,7 @@ export async function renderSessionsView($: any, ctx: ViewCtx, plan: PlanModel |
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Text dimColor wrap="truncate">{`${tr(lang, 'stageOf', { n: plan!.parallelIndex + 1, m: plan!.stages.length })} · ${stage.name}`}</Text>
+      <Text dimColor wrap="truncate">{`${tr(lang, 'stageOf', { n: index + 1, m: plan.stages.length })} · ${stage.name}`}</Text>
       <Box flexDirection="row" justifyContent="space-between">
         <Text dimColor bold>{tr(lang, 'session')}</Text>
         <Text dimColor bold>{`${tr(lang, 'context')} · ${tr(lang, 'timeCost')}`}</Text>

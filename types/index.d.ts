@@ -17,6 +17,12 @@ declare module 'claude-code' {
       waiting: Shaped<boolean>
       /** Tasks of the work tree opened or shut by hand: `open:<key>` / `shut:<key>` (view only) */
       taskOpen: Shaped<string[]>
+      /** per discussion stage id, the decisions filter chosen (view only) */
+      decFilter: Shaped<Record<string, 'all' | 'hard' | 'mine' | 'claude'>>
+      /** decision cards opened or shut by hand: `open:<stage>:<index>` / `shut:…` (view only) */
+      decOpen: Shaped<string[]>
+      /** review: the stages whose fixed findings are shown (view only) */
+      fixedOpen: Shaped<string[]>
     }
   }
 }

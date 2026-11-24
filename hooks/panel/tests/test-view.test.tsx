@@ -34,7 +34,7 @@ test('the test phase: total, failed tests by name, each group with its fraction;
     expect(await ui.find({ text: /^—$/ })).toBeDefined() // D has not run
     expect(await ui.find({ text: /^disdetta a 1 ora rifiutata\.$/ })).toBeDefined()
     expect(await ui.find({ text: /^\* dichiarato: / })).toBeDefined()
-    expect(await ui.find({ text: /Area admin|Area clienti|Madre/ })).toBeUndefined()
+    expect(await ui.find({ text: /^(Area admin|Area clienti|Madre)( · d+ di d+)?$/ })).toBeUndefined() // no session headings (the «Adesso» card may name one)
     await ui.unmount()
   }
 })
