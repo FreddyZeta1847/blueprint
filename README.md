@@ -322,8 +322,10 @@ Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three 
   «discussione · argomento 2 di 4: scelta»); the current stage is framed, finished ones are
   dimmed. Open a stage to see its phases; ◀ ▶ under them move the view from phase to phase (the
   plan itself does not change) and the stage shows what belongs to that phase. A **discussion**:
-  each topic with its own small rail of phases, and the stage's decisions with a padlock (hard to
-  change) or two arrows (easy) and who decided. An **implementation**: its **work tree** — the
+  each topic with its own small rail of phases, and the stage's decisions as cards that open —
+  filters «Tutte · Difficili · Tue · Di Claude», a violet padlock (hard to change) or two arrows
+  (easy), «tu» or «C» for who decided, and when open the why, what was rejected, the topic and the
+  date, read from the decisions file. An **implementation**: its **work tree** — the
   plain plan Claude writes in `blueprint/plans/<stage>.md` as the index of the technical one:
   sessions → letters (A, B…) → Tasks (A1, A2…) → sub-tasks (A1.1…), each with a short title, one
   bead per Task beside each letter, and on each session's row what it is doing («al lavoro · Bash
@@ -331,9 +333,10 @@ Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three 
   amber «!» when it waits for you) and only that path shows its plain words; in the plan phase the
   skeleton of letters shows with its words. In the **test phase** every group gets a bar and a
   fraction («14/14») read from the real output of its test command (the `Test (command or file)`
-  line), with the failed tests by name. In the **review phase** the findings, from the most severe
-  down (severity drawn as bars, not colour), each with «trovato da», a **Correggi** (fix) button
-  and **Correggi tutto ora** on top; a round written while the session is open is sent to Claude
+  line), with the failed tests by name. In the **review phase** a small dashboard adds up every
+  round («25 problemi in 3 giri»: fixed and open, per severity, per tool), then the open findings
+  from the most severe down (severity drawn as bars, not colour), each with «trovato da», a
+  **Correggi** (fix) button and **Correggi tutto ora** on top, and the fixed ones behind a button; a round written while the session is open is sent to Claude
   by itself 30 seconds later (a ring and the status line count down), at most three rounds. In
   the **first-use phase** the `Finita quando:` lines become your checklist. Delivery and quick-task
   phases show their topics and what each phase waits for. The notes are always there: add one,
@@ -354,8 +357,9 @@ you). The panel follows Claude Code's language setting (Italian or English).
 v3.5.0 — the panel as a dashboard: the «Adesso» card at the top (who works on what, what waits
 for you, what went wrong, each signal opening the right phase); beads per Task and what each
 session is doing in the work tree; a discussion's topics with their own rails and its decisions
-with a padlock and who decided; no empty phase; severity drawn as bars and amber kept for «your
-turn»; the mother always in Sessions; fewer repeated lines; the plan-phase skeleton visible.
+as cards with filters, a padlock and who decided; the review phase as a dashboard over every round
+(review files keep their past rounds); no empty phase; severity drawn as bars and amber kept for
+«your turn»; the mother always in Sessions; fewer repeated lines; the plan-phase skeleton visible.
 
 v3.4.0 — the work tree: the plain plan in four levels (session, letter, Task, sub-task) with
 the same names as the technical plan (A, A1, A1.1), written in three moves (skeleton approved by
