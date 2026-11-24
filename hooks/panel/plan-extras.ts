@@ -11,25 +11,64 @@ import type { StageModel } from './types'
 
 export type Note = { stage: string; text: string; read: boolean }
 
-/** `by`: who decided, when the file says it (a block's «Decided by», a bullet's «; Name; date»). */
-export type Decision = { text: string; oneWay: boolean; by?: 'user' | 'claude' }
+/**
+ * One decision as the panel shows it: its title, whether it is hard to change, and — when the file
+ * says them — who decided, why, what was rejected, the topic it belongs to and its date.
+ */
+export type Decision = {
+  text: string; oneWay: boolean; by?: 'user' | 'claude'
+  why?: string; rejected?: string; topic?: string; date?: string
+}
 
-const who = (name: string | undefined): Decision['by'] =>
-  !name ? undefined : /^claude$/i.test(name.trim()) ? 'claude' : 'user'
+/**
+ * Who decided, from the name the file gives («Federico», «user», «decided by Claude»): Claude, the
+ * user, or nobody known — a decision found in code («discovery», «inherited») or a rule was not the
+ * user's, and a reversibility word in that place is no name at all.
+ */
+function who(name: string | undefined): Decision['by'] {
+  const n = (name ?? '').trim().replace(/^(decided by|deciso da)\s*:?\s*/i, '')
+  if (!n) return undefined
+  if (/^claude$/i.test(n)) return 'claude'
+  if (/^(discovery|inherited|rule|scoperta|ereditat[ao]|regola|one-way|two-way)$/i.test(n)) return undefined
+  return 'user'
+}
 
 /** A bullet of the single decisions file says it is hard to change: «one-way», «difficile da cambiare». */
 const hardToChange = (line: string) => /one-way|difficile da cambiare|irreversibil|hard to change/i.test(line) && !/two-way/i.test(line)
 
-/** Bold bullet texts under `## <name>` until the next `## ` heading; one-way when the bullet says so. */
+/** Only the keys that have a value: a decision without a date has no `date` key at all. */
+const some = (o: Record<string, string | undefined>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v)) as Record<string, string>
+
+/**
+ * A bullet's body split in its parts: «Title — why. Scartati: …. Facile da cambiare; Federico;
+ * 2026-11-16» gives the why, the rejected options, who and when (the reversibility words drop out).
+ */
+function bulletParts(line: string): Pick<Decision, 'by' | 'why' | 'rejected' | 'date'> {
+  const tail = /;\s*([^;]+?)\s*;\s*(\d{4}-\d{2}-\d{2})\s*$/.exec(line)
+  const body = (/\*\*\s*[—–-]\s*(.*)$/.exec(line)?.[1] ?? '').replace(/;\s*[^;]+?\s*;\s*\d{4}-\d{2}-\d{2}\s*$/, '').replace(/\s*\d{4}-\d{2}-\d{2}\s*$/, '')
+    // «; one-way», «; facile da cambiare (un numero)»: the reversibility is shown by the mark, not repeated
+    .replace(/;\s*(one-way|two-way|(facile|difficile) da cambiare|(easy|hard) to change)[^;]*/gi, '')
+  const sentences = body.split(/(?<=[.!?»])\s+(?=[A-ZÀ-Ý«])/)
+  const isRejected = (s: string) => /^(Scartat[aeio]|Rejected)\b/i.test(s)
+  const isReversibility = (s: string) => /^(Facile|Difficile|Easy|Hard) (da cambiare|to change)/i.test(s)
+  const why = sentences.filter(s => !isRejected(s) && !isReversibility(s)).join(' ').replace(/[;\s]+$/, '').trim()
+  const rejected = sentences.filter(isRejected).join(' ').replace(/^(Scartat[aeio]|Rejected)\s*:\s*/i, '').replace(/[.\s]+$/, '').trim()
+  const by = who(tail?.[1])
+  return { ...(by ? { by } : {}), ...some({ why, rejected, date: tail?.[2] }) }
+}
+
+/** Bold bullet texts under `## <name>` until the next `## ` heading, with the `### ` topic they sit under. */
 export function decisionsFromFile(text: string, name: string): Decision[] {
   const out: Decision[] = []
   let inside = false
+  let topic: string | undefined
   for (const line of text.split(/\r?\n/)) {
     const h2 = /^##\s+(.+?)\s*$/.exec(line)
-    if (h2) { inside = h2[1] === name; continue }
+    if (h2) { inside = h2[1] === name; topic = undefined; continue }
+    const h3 = inside ? /^###\s+(.+?)\s*$/.exec(line) : null
+    if (h3) { topic = h3[1]; continue }
     const bold = inside ? /^\s*[-*]\s+\*\*(.+?)\*\*/.exec(line) : null
-    const by = who(/;\s*([^;]+?)\s*;\s*\d{4}-\d{2}-\d{2}\s*$/.exec(line)?.[1])
-    if (bold?.[1]) out.push({ text: bold[1], oneWay: hardToChange(line), ...(by ? { by } : {}) })
+    if (bold?.[1]) out.push({ text: bold[1], oneWay: hardToChange(line), ...bulletParts(line), ...some({ topic }) })
   }
   return out
 }
@@ -41,8 +80,11 @@ export function decisionsFromBlocks(text: string, stageId: string): Decision[] {
     const stage = /^\s*-\s+\*\*(?:Stage|Tappa):\*\*\s*(\S+)/m.exec(block)?.[1]
     if (stage !== stageId) return []
     const oneWay = /^\s*-\s+\*\*(?:Reversibility|Reversibilità):\*\*\s*one-way/im.test(block)
-    const by = who(/^\s*-\s+\*\*(?:Decided by|Deciso da):\*\*\s*(\w+)/im.exec(block)?.[1]?.replace(/^(utente|user)$/i, 'user'))
-    return [{ text: title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim(), oneWay, ...(by ? { by } : {}) }]
+    const field = (names: string) => new RegExp(`^\\s*-\\s+\\*\\*(?:${names}):\\*\\*\\s*(.+?)\\s*$`, 'im').exec(block)?.[1]
+    const decided = field('Decided by|Deciso da')
+    const by = who(/^\w+/.exec(decided ?? '')?.[0])
+    const parts = some({ why: field('Why|Perché'), rejected: field('Rejected|Scartat[aeio]'), date: /\d{4}-\d{2}-\d{2}/.exec(decided ?? '')?.[0] })
+    return [{ text: title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim(), oneWay, ...(by ? { by } : {}), ...parts }]
   })
 }
 

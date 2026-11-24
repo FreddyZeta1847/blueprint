@@ -82,7 +82,10 @@ const IT = {
   waits_rehearse: 'Una prova completa insieme a te, prima della consegna.', waits_deliver: 'La mostri tu a chi è destinata.',
   waits_feedback: 'Claude raccoglie i pareri e dice dove va ognuno.',
   decisionsList: 'Decisioni della tappa · {n} scritte · {k} difficili da cambiare', decHard: 'difficile da cambiare', decEasy: 'facile da cambiare',
-  byYou: 'tu', byClaude: 'Claude', topicOf: 'argomento {n} di {m}: {phase}',
+  byYou: 'tu', byClaude: 'Claude', byClaudeShort: 'C',
+  decAll: 'Tutte {n}', decHardN: 'Difficili {n}', decMine: 'Tue {n}', decClaude: 'Di Claude {n}',
+  decRejected: 'Scartati: {list}', decByYouOn: 'decisa da te il {d}', decByClaudeOn: 'decisa da Claude il {d}',
+  decHidden: 'Altre {n} non sono in questo filtro:', decShowAll: 'mostrale', topicOf: 'argomento {n} di {m}: {phase}',
   addNote: 'Aggiungi una nota…', noteSaved: 'nota salvata', noteNotSaved: 'nota non salvata: blueprint/notes.json non si legge',
   noteEdited: 'nota modificata', noteDeleted: 'nota cancellata', noteChanged: 'la nota è cambiata nel frattempo: niente è stato toccato',
   legend: 'Segni:', lg_done: 'fatto', lg_running: 'in corso', lg_stopped: 'ferma', lg_todo: 'da fare',
@@ -177,7 +180,10 @@ const EN: Record<TextKey, string> = {
   waits_rehearse: 'A full rehearsal with you, before the delivery.', waits_deliver: 'You show it to the people it is for.',
   waits_feedback: 'Claude collects the feedback and says where each piece goes.',
   decisionsList: 'Stage decisions · {n} written · {k} hard to change', decHard: 'hard to change', decEasy: 'easy to change',
-  byYou: 'you', byClaude: 'Claude', topicOf: 'topic {n} of {m}: {phase}',
+  byYou: 'you', byClaude: 'Claude', byClaudeShort: 'C',
+  decAll: 'All {n}', decHardN: 'Hard {n}', decMine: 'Yours {n}', decClaude: 'Claude\'s {n}',
+  decRejected: 'Rejected: {list}', decByYouOn: 'decided by you on {d}', decByClaudeOn: 'decided by Claude on {d}',
+  decHidden: '{n} more are not in this filter:', decShowAll: 'show them', topicOf: 'topic {n} of {m}: {phase}',
   addNote: 'Add a note…', noteSaved: 'note saved', noteNotSaved: 'note not saved: blueprint/notes.json cannot be read',
   noteEdited: 'note changed', noteDeleted: 'note deleted', noteChanged: 'the note changed meanwhile: nothing was touched',
   legend: 'Marks:', lg_done: 'done', lg_running: 'running', lg_stopped: 'stopped', lg_todo: 'to do',
@@ -204,3 +210,17 @@ export function tr(lang: Lang, key: TextKey | string, vars: Record<string, strin
   const raw = table[key] ?? key
   return raw.replace(/\{(\w+)\}/g, (m, name) => (name in vars ? String(vars[name]) : m))
 }
+
+const MONTHS = {
+  it: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+}
+
+/** "2026-11-20" → "20 nov"; anything else as it is. */
+export function shortDate(lang: Lang, iso: string): string {
+  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso)
+  const month = m ? MONTHS[lang][Number(m[1]) - 1] : undefined
+  return m && month ? `${Number(m[2])} ${month}` : iso
+}
+
+/** One line: longer text is cut and ends with «…». */

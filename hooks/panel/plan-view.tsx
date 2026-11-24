@@ -10,14 +10,15 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { PhaseState, PlanModel, StageModel, ViewCtx } from './types'
-import { C, GLYPH, barSvg, barText, lockSvg, pillSvg, railSvg, stepLineSvg, stepMarkSvg, swapSvg, topicRailSvg } from './marks'
-import { tr } from './text'
-import { addNote, changeNote, readNotes, stageDecisions, type Decision, type Note } from './plan-extras'
+import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepLineSvg, stepMarkSvg, topicRailSvg } from './marks'
+import { shortDate, tr } from './text'
+import { addNote, changeNote, readNotes, stageDecisions, type Note } from './plan-extras'
 import { readSteps, type StepSection } from './plan-steps'
 import { TestResults } from './test-view'
 import { ReviewResults } from './review-view'
 import { WorkTree, asTodo, sessionsOf } from './tree-view'
 import { NowCard } from './now-view'
+import { DecisionCards } from './decisions-view'
 
 /**
  * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
@@ -167,19 +168,8 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
 const CURRENT = '*'
 const expanded = atom({ plugin: 'blueprint', key: 'expanded' } as const, [CURRENT] as string[], { shape: 'expanded-1' })
 
-const MONTHS = {
-  it: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
-  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-}
+export { shortDate } from './text'
 
-/** "2026-11-20" → "20 nov"; anything else as it is. */
-export function shortDate(lang: ViewCtx['lang'], iso: string): string {
-  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso)
-  const month = m ? MONTHS[lang][Number(m[1]) - 1] : undefined
-  return m && month ? `${Number(m[2])} ${month}` : iso
-}
-
-/** One line: longer text is cut and ends with «…». */
 export function cut(text: string, max: number): string {
   const room = Math.max(max, 4)
   return text.length <= room ? text : `${text.slice(0, room - 1).trimEnd()}…`
@@ -389,9 +379,9 @@ async function Decisions($: any, ctx: ViewCtx, stage: StageModel) {
   return (
     <Box flexDirection="column" gap={1}>
       {list.length > 0 && (
-        <Box flexDirection="column">
+        <Box flexDirection="column" gap={1}>
           <Text bold color={C.ink}>{tr(ctx.lang, 'decisionsList', { n: list.length, k: list.filter(d => d.oneWay).length })}</Text>
-          {list.map((d, i) => DecisionRow(ctx, `dec:${stage.id}:${i}`, d))}
+          {await DecisionCards($, ctx, stage, list)}
         </Box>
       )}
       <Box flexDirection="column">
@@ -404,18 +394,7 @@ async function Decisions($: any, ctx: ViewCtx, stage: StageModel) {
   )
 }
 
-/** One decision: a padlock when hard to change, two arrows when easy (words on the terminal), and who decided. */
-function DecisionRow(ctx: ViewCtx, key: string, d: Decision) {
-  const { Box, Text, Svg } = ctx.el
-  const kind = tr(ctx.lang, d.oneWay ? 'decHard' : 'decEasy')
-  return (
-    <Box flexDirection="row" gap={1}>
-      {hasSvg(ctx) && Keyed(ctx, key, <Svg source={d.oneWay ? lockSvg() : swapSvg()} alt={kind} />)}
-      <Box flexGrow={1} flexShrink={1}><Text wrap="wrap">{hasSvg(ctx) ? d.text : `[${kind}] ${d.text}`}</Text></Box>
-      {d.by && <Text dimColor>{tr(ctx.lang, d.by === 'claude' ? 'byClaude' : 'byYou')}</Text>}
-    </Box>
-  )
-}
+
 
 /** The note being edited, `<stage id>:<index in notes.json>`, or none: only one field at a time. */
 const editing = atom({ plugin: 'blueprint', key: 'noteEdit' } as const, null as string | null, { shape: 'note-edit-1' })
