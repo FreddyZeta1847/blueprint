@@ -314,6 +314,9 @@ function lookedAt(stage: StageModel, chosen: Lens): { at: number; isChosen: bool
  * The stage's phases, always the same for its type: a rail of marks (text list on the terminal),
  * and under it ◀ phase · state ▶ with what the phase is for. The arrows only move the view.
  */
+/** The phases whose sentence says a rule worth reading; the others («Si costruisce.») say nothing new. */
+const EXPLAINS = new Set(['test', 'review', 'first_use', 'convergence', 'recap', 'rehearse', 'deliver'])
+
 function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeof currentPhase>, at: number, isChosen: boolean) {
   const { Box, Text, Svg, Button } = ctx.el
   if (stage.phases.length === 0) return null
@@ -333,7 +336,7 @@ function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeo
         <Text bold color={color}>{`${name} · ${tr(ctx.lang, `ps_${seen.state}`)}`}</Text>
         <Button key={`phase-next:${stage.id}`} plain dimColor={at === stage.phases.length - 1} onPress={move(1)}>▶</Button>
       </Box>
-      <Text dimColor wrap="wrap">{sentence(tr(ctx.lang, `phd_${seen.id}`))}</Text>
+      {EXPLAINS.has(seen.id) && <Text dimColor wrap="wrap">{sentence(tr(ctx.lang, `phd_${seen.id}`))}</Text>}
       {phase?.stopped && <Text color={C.amber} wrap="wrap">{waitLine(ctx, stage)}</Text>}
     </Box>
   )
@@ -409,7 +412,7 @@ async function OpenStage($: any, ctx: ViewCtx, stage: StageModel, notes: Note[])
   return (
     <Box flexDirection="column" paddingLeft={2} gap={1}>
       {Pills(ctx, stage)}
-      <Text dimColor wrap="wrap">{`${tr(ctx.lang, `type_${stage.type}`)} · ${lowerFirst(tr(ctx.lang, `purpose_${stage.type}`))}`}</Text>
+      <Text dimColor wrap="wrap">{tr(ctx.lang, `type_${stage.type}`)}</Text>
       {Phases($, ctx, stage, phase, at, isChosen)}
       {await PhaseContent($, ctx, stage, at)}
       <Box flexDirection="column">
@@ -426,20 +429,6 @@ function waitLine(ctx: ViewCtx, stage: StageModel): string {
   if (stage.waitingOn.length > 0) return `${GLYPH.stopped} ${tr(ctx.lang, 'waitChild', { who: stage.waitingOn.join(', ') })}`
   const at = stage.phases.find(p => p.state === 'stopped')
   return `${GLYPH.stopped} ${tr(ctx.lang, 'waitPhase', { phase: tr(ctx.lang, `ph_${at?.id ?? ''}`) })}`
-}
-
-/** One line under the stages: the four marks and their colours, the same as the rail and the steps. */
-function Legend(ctx: ViewCtx) {
-  const { Box, Text } = ctx.el
-  const items: [string, string, string][] = [
-    [GLYPH.done, C.muted, 'lg_done'], [GLYPH.running, C.accent, 'lg_running'], [GLYPH.stopped, C.amber, 'lg_stopped'], [GLYPH.todo, C.faint, 'lg_todo'],
-  ]
-  return (
-    <Box flexDirection="row" gap={1} flexWrap="wrap">
-      <Text dimColor>{tr(ctx.lang, 'legend')}</Text>
-      {items.map(([mark, color, key]) => <Text color={color}>{`${mark} ${tr(ctx.lang, key)}`}</Text>)}
-    </Box>
-  )
 }
 
 export async function renderPlanView($: any, ctx: ViewCtx, plan: PlanModel | null) {
@@ -462,7 +451,6 @@ export async function renderPlanView($: any, ctx: ViewCtx, plan: PlanModel | nul
   return (
     <Box flexDirection="column" gap={1}>
       {rows}
-      {Legend(ctx)}
     </Box>
   )
 }

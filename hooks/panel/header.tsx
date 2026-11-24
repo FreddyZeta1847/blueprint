@@ -1,7 +1,7 @@
 /*
- * The panel's header, shared by both views: project name, «tappa N di M», the progress bar
- * (amber when the current stage is stopped) and the context card's key words in one line
- * («Progetto · difficoltà: alta · ritmo: calma»).
+ * The panel's header, shared by both views: project name, «tappa N di M» and the progress bar
+ * (amber when the current stage is stopped). The context card's key words are not repeated here:
+ * they never change while the user works (decisions «Il pannello come cruscotto»).
  * Surfaces without Svg (the terminal) get a text bar.
  */
 import type { PlanModel, ViewCtx } from './types'
@@ -16,7 +16,6 @@ export function Header(ctx: ViewCtx, plan: PlanModel) {
   const done = plan.stages.filter(s => s.status === 'done').length
   const current = plan.stages[plan.currentIndex]
   const stopped = current?.yourTurn ?? false
-  const card = plan.card
   return (
     <Box flexDirection="column">
       <Box flexDirection="row" justifyContent="space-between">
@@ -26,11 +25,6 @@ export function Header(ctx: ViewCtx, plan: PlanModel) {
       {Svg
         ? <Svg source={progressSvg(done, total, stopped)} alt={tr(ctx.lang, 'stageOf', { n: plan.currentIndex + 1, m: total })} />
         : <Text dimColor>{'■'.repeat(done) + (done < total ? (stopped ? '!' : '▶') : '') + '□'.repeat(Math.max(total - done - 1, 0))}</Text>}
-      {card && (
-        <Text dimColor wrap="truncate">
-          {`${tr(ctx.lang, `size_${card.size}`)} · ${tr(ctx.lang, 'difficulty', { d: card.difficulty })} · ${tr(ctx.lang, 'pace', { p: card.pace })}`}
-        </Text>
-      )}
     </Box>
   )
 }
