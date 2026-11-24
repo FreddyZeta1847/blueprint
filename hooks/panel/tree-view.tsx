@@ -20,7 +20,7 @@ const onPath = (state: PhaseState) => state === 'running' || state === 'stopped'
 const inkOf = (state: PhaseState) => (state === 'todo' ? C.faint : onPath(state) ? C.ink : C.muted)
 
 /** The sessions of the plan, each with its groups (the letters), in the file's order. */
-function bySession(sections: StepSection[]): { name: string; role: StepSection['role']; groups: StepSection[] }[] {
+export function sessionsOf(sections: StepSection[]): { name: string; role: StepSection['role']; groups: StepSection[] }[] {
   const out: { name: string; role: StepSection['role']; groups: StepSection[] }[] = []
   for (const s of sections) {
     const last = out[out.length - 1]
@@ -34,7 +34,7 @@ function bySession(sections: StepSection[]): { name: string; role: StepSection['
  * One row: the mark, the name and title (the name bold on a letter), what is on the right, and
  * under the title its plain words when the row is on the path being worked on.
  */
-function Row(ctx: ViewCtx, o: { state: PhaseState; label: string; expl?: string; right?: unknown; bold?: boolean; color?: string }) {
+function Row(ctx: ViewCtx, o: { state: PhaseState; label: string; expl?: string; words?: boolean; right?: unknown; bold?: boolean; color?: string }) {
   const { Box, Text, Svg } = ctx.el
   const svg = ctx.surface !== 'terminal'
   return (
@@ -46,7 +46,7 @@ function Row(ctx: ViewCtx, o: { state: PhaseState; label: string; expl?: string;
       )}
       <Box flexGrow={1} flexShrink={1} flexDirection="column">
         <Text wrap="wrap" bold={o.bold || onPath(o.state)} color={o.color ?? inkOf(o.state)}>{svg ? o.label : `${GLYPH[o.state]} ${o.label}`}</Text>
-        {o.expl && onPath(o.state) && <Text wrap="wrap" color={C.muted}>{o.expl}</Text>}
+        {o.expl && (o.words || onPath(o.state)) && <Text wrap="wrap" color={C.muted}>{o.expl}</Text>}
       </Box>
       {o.right ?? null}
     </Box>
@@ -101,7 +101,7 @@ function TaskRows($: any, ctx: ViewCtx, key: string, task: TaskNode, opened: str
  * A letter: its row («A Title» and a button with the Tasks done of all, open by default; the user
  * may shut it), then its Tasks — or its steps, in the old format.
  */
-function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g: StepSection, opened: string[]) {
+function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g: StepSection, opened: string[], asPlan: boolean) {
   const { Box } = ctx.el
   const { id, title } = splitId(g.group ?? '')
   const states = g.tasks ? g.tasks.map(t => nodeState(t.steps.map(s => s.state))) : g.steps.map(s => s.state)
@@ -115,23 +115,25 @@ function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g:
   if (!g.group) return kids
   return (
     <Box flexDirection="column" width="100%">
-      {Row(ctx, { state, label: label(id, title), expl: g.expl, right, bold: true })}
+      {Row(ctx, { state, label: label(id, title), expl: g.expl, words: asPlan, right, bold: true })}
       {open && Level(ctx, kids)}
     </Box>
   )
 }
 
-/** The whole tree: one session row each (teal for a child), its letters inside. */
+/** A group with every step to do: the plan phase, where nothing is built yet. */
+export const asTodo = (s: StepSection): StepSection => ({
+  ...s, steps: s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })),
+  ...(s.tasks ? { tasks: s.tasks.map(t => ({ ...t, steps: t.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) })) } : {}),
+})
+
+/** In the plan phase every letter shows its plain words, so the skeleton can be read in the panel. The whole tree: one session row each (teal for a child), its letters inside. */
 export async function WorkTree($: any, ctx: ViewCtx, stage: StageModel, sections: StepSection[], asPlan: boolean) {
   const { Box, Text } = ctx.el
   const opened = await read($, taskOpen)
-  // in the plan phase nothing is built yet: every row to do
-  const shown = asPlan
-    ? sections.map(s => ({ ...s, steps: s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })), tasks: s.tasks?.map(t => ({ ...t, steps: t.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) })) }))
-    : sections
   return (
     <Box key={`tree:${stage.id}`} flexDirection="column" width="100%">
-      {bySession(shown).map(s => {
+      {sessionsOf(sections).map(s => {
         const steps = s.groups.flatMap(g => g.steps)
         const state = nodeState(steps.map(st => st.state))
         const name = s.role === 'single' ? tr(ctx.lang, 'mainSession') : s.name
@@ -139,7 +141,7 @@ export async function WorkTree($: any, ctx: ViewCtx, stage: StageModel, sections
         return (
           <Box flexDirection="column" width="100%">
             {Row(ctx, { state, label: name, bold: true, color: s.role === 'child' ? C.teal : C.muted, right: <Text dimColor>{done}</Text> })}
-            {Level(ctx, s.groups.map(g => LetterRows($, ctx, stage, s.name, g, opened)))}
+            {Level(ctx, s.groups.map(g => LetterRows($, ctx, stage, s.name, g, opened, asPlan)))}
           </Box>
         )
       })}

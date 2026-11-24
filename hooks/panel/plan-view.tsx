@@ -16,7 +16,7 @@ import { addNote, changeNote, readNotes, stageDecisions, type Note } from './pla
 import { readSteps, type StepSection } from './plan-steps'
 import { TestResults } from './test-view'
 import { ReviewResults } from './review-view'
-import { WorkTree } from './tree-view'
+import { WorkTree, asTodo, sessionsOf } from './tree-view'
 
 /**
  * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
@@ -24,8 +24,9 @@ import { WorkTree } from './tree-view'
  */
 async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
   const { Box, Text, Svg, Button } = ctx.el
-  const sections = await readSteps($, ctx.main, stage)
-  if (sections.length === 0) return null
+  const found = await readSteps($, ctx.main, stage)
+  if (found.length === 0) return null
+  const sections = asPlan ? found.map(asTodo) : found
   const path = `${ctx.main}/blueprint/plans/${stage.id}.md`
   const copy = async () => {
     await $.ui.copy({ text: path })
@@ -33,11 +34,12 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
   }
   // how far each session is, by its ticked steps: «App dei soci · 3 di 4» (not in the plan phase,
   // where nothing is built yet); a single session carries it on the title
-  const progress = (s: StepSection) => asPlan ? '' : ` · ${tr(ctx.lang, 'stepsOf', { done: s.steps.filter(st => st.state === 'done').length, all: s.steps.length })}`
-  const sessions = bySession(sections)
+  const progress = (s: { steps: StepSection['steps'] }) => asPlan ? '' : ` · ${tr(ctx.lang, 'stepsOf', { done: s.steps.filter(st => st.state === 'done').length, all: s.steps.length })}`
+  const sessions = sessionsOf(sections).map(s => ({ ...s, steps: s.groups.flatMap(g => g.steps) }))
   const lone = sessions.length === 1 && sessions[0]!.role === 'single'
-  // a plan written in four levels (letters, Tasks, sub-tasks) is drawn as the work tree
-  const tree = sections.some(s => s.tasks)
+  // a plan written in four levels (letters, Tasks, sub-tasks), or its skeleton of letters with no
+  // checkbox yet, is drawn as the work tree
+  const tree = sections.some(s => s.tasks) || sections.every(s => s.steps.length === 0)
   return (
     <Box flexDirection="column" gap={1} width="100%">
       <Text bold color={C.ink}>{`${tr(ctx.lang, asPlan ? 'planSteps' : 'steps')}${lone || tree ? progress({ ...sections[0]!, steps: sections.flatMap(s => s.steps) }) : ''}`}</Text>
@@ -45,7 +47,7 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
       {tree && await WorkTree($, ctx, stage, sections, asPlan)}
       {!tree && sessions.map((s, i) => {
         const color = s.role === 'child' ? C.teal : C.muted
-        const steps = asPlan ? s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) : s.steps
+        const steps = s.steps
         const lines = steps.map(st => `${GLYPH[st.state]} ${st.text}`)
         return (
           <Box flexDirection="column" width="100%">
@@ -58,17 +60,6 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
       })}
     </Box>
   )
-}
-
-/** One column per session: its groups' steps one after the other (the groups' titles stay in the file). */
-function bySession(sections: StepSection[]): StepSection[] {
-  const out: StepSection[] = []
-  for (const s of sections) {
-    const last = out[out.length - 1]
-    if (last && last.name === s.name && last.role === s.role) last.steps = [...last.steps, ...s.steps]
-    else out.push({ ...s, steps: [...s.steps] })
-  }
-  return out
 }
 
 /**
