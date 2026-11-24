@@ -9,7 +9,7 @@ export const C = {
   ink: '#ECEBE8', muted: '#A9A7A0', faint: '#5E5C57', line: '#3A3936', surface: '#2E2D2A',
   accent: '#6AA5FA', accentSoft: '#22324A', amber: '#E5AC52', amberSoft: '#3D2F18', hole: '#1B1B1A',
   /** the line of a child session's steps (the mother's is `muted`): never a state colour */
-  teal: '#4FB8A8',
+  teal: '#4FB8A8', tealSoft: '#1D3532',
   /** a failed test or a high-severity problem: always next to words, never colour alone */
   coral: '#EE8A6E',
   /** tests all passed: always next to the fraction in words, so never colour alone */
@@ -44,9 +44,9 @@ export function barSvg(segments: PhaseState[], width = 120, tick = false): strin
   return doc(width + (tick ? 26 : 0), 16, rects + (tick ? markShape(width + 14, 8, 'done', 7) : ''))
 }
 
-export function pillSvg(label: string, tone: 'amber' | 'accent' | 'muted'): string {
+export function pillSvg(label: string, tone: 'amber' | 'accent' | 'teal' | 'muted'): string {
   const w = Math.round(label.length * 6.6 + 18)
-  const [fg, bg] = tone === 'amber' ? [C.amber, C.amberSoft] : tone === 'accent' ? [C.accent, C.accentSoft] : [C.muted, C.surface]
+  const [fg, bg] = tone === 'amber' ? [C.amber, C.amberSoft] : tone === 'accent' ? [C.accent, C.accentSoft] : tone === 'teal' ? [C.teal, C.tealSoft] : [C.muted, C.surface]
   return doc(w, 20, `<rect x="0" y="1" width="${w}" height="18" rx="9" fill="${bg}"/><text x="${w / 2}" y="14" font-size="11" font-weight="600" fill="${fg}" text-anchor="middle" ${FONT}>${esc(label)}</text>`)
 }
 
@@ -91,6 +91,25 @@ export function stepMarkSvg(state: PhaseState, line: string, first: boolean, las
 /** A mark of the work tree (18×20), with no line: the tree's guides are drawn by the levels. */
 export function treeMarkSvg(state: PhaseState): string {
   return doc(18, 20, markShape(9, 10, state, state === 'running' || state === 'stopped' ? 7 : 6))
+}
+
+/**
+ * A finding's severity as three bars of growing height: three filled for high, two for medium, one
+ * for low. Neutral colours only (ink for high, grey otherwise): amber stays for «your turn».
+ */
+export function severitySvg(sev: 'high' | 'medium' | 'low'): string {
+  const filled = sev === 'high' ? 3 : sev === 'medium' ? 2 : 1
+  const fill = sev === 'high' ? C.ink : C.muted
+  const bars = [4, 7, 10].map((h, i) => `<rect x="${1 + i * 5}" y="${12 - h}" width="3" height="${h}" rx="1" fill="${i < filled ? fill : C.line}"/>`).join('')
+  return doc(16, 12, bars)
+}
+
+/** The countdown's ring: an amber arc for the part of the 30 seconds still left. */
+export function ringSvg(fraction: number): string {
+  const r = 7; const c = 2 * Math.PI * r
+  const left = Math.min(Math.max(fraction, 0), 1) * c
+  return doc(18, 18, `<circle cx="9" cy="9" r="${r}" fill="none" stroke="${C.line}" stroke-width="2"/>` +
+    `<circle cx="9" cy="9" r="${r}" fill="none" stroke="${C.amber}" stroke-width="2" stroke-dasharray="${left.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 9 9)"/>`)
 }
 
 /** A topic's own small rail: one dot per phase of the discussion, done, current or to do. */

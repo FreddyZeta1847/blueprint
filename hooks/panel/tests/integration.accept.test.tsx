@@ -11,7 +11,10 @@ test('the parallel stage carries «2 figlie» and turns amber when a child is bl
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount(PANE(surface))
     if (surface === 'terminal') expect(await ui.find({ text: /2 figlie/ })).toBeDefined()
-    else expect(JSON.stringify(await ui.findAll({ type: 'Svg' }))).toContain('2 figlie')
+    else {
+      expect(JSON.stringify(await ui.findAll({ type: 'Svg' }))).toContain('2 figlie')
+      expect(JSON.stringify(await ui.find({ key: 'pill:kids:fb' }))).toContain('#4FB8A8') // the children's colour, not «in progress» blue
+    }
     expect((await ui.find({ key: 'stage:fb' }))?.text).toMatch(/!\s*3\./)
     expect(await ui.find({ text: /costruzione · ferma/ })).toBeDefined()
     expect(await ui.find({ text: /area-clienti aspetta te/ })).toBeDefined() // the wait line names the child

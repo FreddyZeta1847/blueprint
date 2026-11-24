@@ -30,10 +30,14 @@ test('findings by tool, each with «Correggi»; one press sends one prompt and m
   const ui = await $.ui.mount(PANE('desktop'))
   // already there when the session started: no countdown, it waits for a press
   expect(await ui.find({ text: /^2 problemi · premi «Correggi» o «Correggi tutto ora»$/ })).toBeDefined()
-  expect(await ui.find({ text: /^differential-review$/ })).toBeDefined()
-  expect(await ui.find({ text: /^ponytail-review$/ })).toBeDefined()
-  expect(await ui.find({ text: /^niente$/ })).toBeDefined() // a tool that found nothing
+  // one list from the most severe down, «trovato da» under each, the tools that ran at the end
+  expect(await ui.find({ text: /^trovato da: differential-review$/ })).toBeDefined()
+  expect(await ui.find({ text: /^Strumenti: \/code-review \(1 problema\) · differential-review \(1 problema\) · ponytail-review \(niente\)$/ })).toBeDefined()
   expect(await ui.find({ text: /^alta$/ })).toBeDefined()
+  const order = JSON.stringify(await ui.find({ type: 'Box', text: /La disdetta[\s\S]*Il posto/ }))
+  expect(order.length > 0).toBe(true) // high (the cancel check) comes before medium (the seat)
+  const all = JSON.stringify(await ui.findAll({ text: /^(alta|media|bassa)$/ }))
+  expect(all.includes('#E5AC52')).toBe(false) // no amber among the severities
   await ui.press({ key: 'fix:f2' })
   expect(seen.prompts.length).toBe(1)
   expect(seen.prompts[0]).toMatch(/Il posto viene dato due volte\. \(f2\)/)
@@ -91,4 +95,16 @@ test('a round another session has claimed is not sent again from here', async ($
   seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2 })
   await seen.clock.advance(45_000)
   expect(seen.prompts).toEqual([])
+})
+
+test('the ring of the countdown shows only while a countdown runs', async ($, on) => {
+  const seen = await open($, on, reviews({ status: 'fixed' }))
+  let ui = await $.ui.mount(PANE('desktop'))
+  expect(await ui.find({ key: 'ring' })).toBeUndefined()
+  await ui.unmount()
+  seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2 })
+  await seen.clock.advance(5_000)
+  ui = await $.ui.mount(PANE('desktop'))
+  expect(JSON.stringify(await ui.find({ key: 'ring' }))).toContain('stroke-dasharray')
+  await ui.unmount()
 })

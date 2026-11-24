@@ -224,12 +224,12 @@ function Keyed(ctx: ViewCtx, key: string, child: unknown) {
   return <Box key={key}>{child}</Box>
 }
 
-type Pill = { key: string; label: string; tone: 'amber' | 'accent' | 'muted' }
+type Pill = { key: string; label: string; tone: 'amber' | 'accent' | 'teal' | 'muted' }
 
 function pillList(ctx: ViewCtx, stage: StageModel): Pill[] {
   const pills: Pill[] = []
   if (stage.yourTurn) pills.push({ key: `pill:turn:${stage.id}`, label: tr(ctx.lang, 'yourTurn'), tone: 'amber' })
-  if (stage.kids > 0) pills.push({ key: `pill:kids:${stage.id}`, label: tr(ctx.lang, 'kids', { n: stage.kids }), tone: 'accent' })
+  if (stage.kids > 0) pills.push({ key: `pill:kids:${stage.id}`, label: tr(ctx.lang, 'kids', { n: stage.kids }), tone: 'teal' })
   if (stage.deadline) pills.push({ key: `pill:due:${stage.id}`, label: tr(ctx.lang, 'due', { d: shortDate(ctx.lang, stage.deadline) }), tone: 'muted' })
   return pills
 }
@@ -242,7 +242,7 @@ function Pills(ctx: ViewCtx, stage: StageModel) {
   const vector = hasSvg(ctx)
   const pills = pillList(ctx, stage)
   if (pills.length === 0) return null
-  const color = { amber: C.amber, accent: C.accent, muted: C.muted }
+  const color = { amber: C.amber, accent: C.accent, teal: C.teal, muted: C.muted }
   return (
     <Box flexDirection="row" gap={1}>
       {pills.map(p => Keyed(ctx, p.key, vector
