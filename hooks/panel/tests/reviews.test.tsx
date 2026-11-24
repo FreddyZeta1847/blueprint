@@ -2,7 +2,8 @@
  * Tests of the review phase (groups E and F of stage «Test e revisione»): findings grouped by tool
  * with «Correggi» each and «Correggi tutto ora»; a press sends one prompt and marks the findings
  * sent; no open finding, no banner; round 3 with open findings is the user's turn, no button; the
- * 30-second countdown in the banner and the status line, one prompt at 0 and never a second one.
+ * 30-second countdown in the banner and the status line, one prompt at 0 and never a second one,
+ * only for a round written while the session is open, and from one session only.
  * Run: claude plugin test .   (from the repository root)
  */
 import { expect, test } from 'claude-code/testing'
@@ -27,7 +28,8 @@ const saved = (seen: any) => JSON.parse(seen.files['blueprint/reviews/fb.json'])
 test('findings by tool, each with «Correggi»; one press sends one prompt and marks it sent', async ($, on) => {
   const seen = await open($, on, reviews())
   const ui = await $.ui.mount(PANE('desktop'))
-  expect(await ui.find({ text: /^2 problemi · si correggono da soli tra 20 s$/ })).toBeDefined()
+  // already there when the session started: no countdown, it waits for a press
+  expect(await ui.find({ text: /^2 problemi · premi «Correggi» o «Correggi tutto ora»$/ })).toBeDefined()
   expect(await ui.find({ text: /^differential-review$/ })).toBeDefined()
   expect(await ui.find({ text: /^ponytail-review$/ })).toBeDefined()
   expect(await ui.find({ text: /^niente$/ })).toBeDefined() // a tool that found nothing
@@ -59,12 +61,20 @@ test('no open finding: no banner, the round line; round 3 with open findings: yo
   await ui.unmount()
 })
 
-test('the countdown: status line, one prompt at 30 s with every open finding, never a second one', async ($, on) => {
-  const seen = await open($, on, reviews({ agoS: 10 }))
-  expect(seen.status.at(-1)).toBe('Blueprint · 2 problemi, correzione tra 20 s')
-  await seen.clock.advance(15_000)
+test('a round already there when the session starts never fixes itself, whatever its own clock says', async ($, on) => {
+  const seen = await open($, on, reviews({ agoS: -3600 })) // a cloned project could write any time
+  await seen.clock.advance(120_000)
   expect(seen.prompts).toEqual([])
-  await seen.clock.advance(6_000)
+})
+
+test('the countdown of a round written during the session: status line, one prompt at 30 s, never a second one', async ($, on) => {
+  const seen = await open($, on, reviews({ status: 'fixed' }))
+  seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2, agoS: 999 }) // its own time does not matter
+  await seen.clock.advance(5_000) // the next refresh sees it
+  expect(seen.status.at(-1)).toBe('Blueprint · 2 problemi, correzione tra 30 s')
+  await seen.clock.advance(20_000)
+  expect(seen.prompts).toEqual([])
+  await seen.clock.advance(11_000)
   expect(seen.prompts.length).toBe(1)
   expect(seen.prompts[0]).toMatch(/\(f1\)[\s\S]*\(f2\)/)
   expect(saved(seen)).toEqual(['sent', 'sent'])
@@ -73,4 +83,12 @@ test('the countdown: status line, one prompt at 30 s with every open finding, ne
   expect(seen.prompts.length).toBe(1)
   expect(await ui.find({ text: /^2 problemi · correzione in corso$/ })).toBeDefined()
   await ui.unmount()
+})
+
+test('a round another session has claimed is not sent again from here', async ($, on) => {
+  const seen = await open($, on, reviews({ status: 'fixed' }))
+  seen.files['blueprint/reviews/fb.r2.sent-by'] = 'another-session'
+  seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2 })
+  await seen.clock.advance(45_000)
+  expect(seen.prompts).toEqual([])
 })

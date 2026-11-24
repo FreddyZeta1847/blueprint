@@ -88,3 +88,21 @@ test('a child writes its own file, next to the main session\'s', async ($, on) =
   expect(file(seen, 'area-admin')['A. Corsi']).toMatchObject({ passed: 3, total: 3 })
   expect(file(seen)['A. Corsi']).toMatchObject({ passed: 1, total: 3 }) // the main session's file is untouched
 })
+
+test('a flag with its value after the key counts; a flag followed by another test file does not (review round 1)', async ($, on) => {
+  const seen = engine(on, { ...world('test'), toolOut: { 'npm test -- corsi -k smoke --timeout 20000': TAP(2, 0), 'npm test -- corsi --lf tests/altro.py': TAP(9, 0) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi --lf tests/altro.py' })
+  expect(file(seen)).toBe(undefined)
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi -k smoke --timeout 20000' })
+  expect(file(seen)['A. Corsi']).toMatchObject({ passed: 2, total: 2 })
+})
+
+test('a stage id that is not kebab-case is never used in a file name (review round 1)', async ($, on) => {
+  const plan = JSON.parse(planJson({ phase: 'test' }))
+  plan.stages[2].id = '../../fuori'
+  const seen = engine(on, { ...world('test'), files: { ...world('test').files, 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/../../fuori.md': STEPS } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
+  expect(Object.keys(seen.files).filter(k => k.includes('fuori') && k.endsWith('.json'))).toEqual([])
+})

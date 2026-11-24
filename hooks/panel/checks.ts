@@ -8,7 +8,7 @@
  * re-runs everything after the merge, so its results are the newest and take the children's place.
  * A file Claude writes itself (source «told») stands for output the reader could not read.
  */
-import { findRepo } from './repo'
+import { SAFE_ID, findRepo } from './repo'
 import { readPlan } from './plan-data'
 import { readSteps } from './plan-steps'
 import type { StepSection } from './plan-steps'
@@ -34,7 +34,10 @@ export async function readChecks($: any, main: string, stageId: string): Promise
   for (const entry of entries) {
     if (entry.kind !== 'file' || !entry.name.startsWith(`${stageId}--`) || !entry.name.endsWith('.json')) continue
     const file: ChecksFile | null = await $.fs.read(`${dir(main)}/${entry.name}`).then(JSON.parse).catch(() => null)
-    for (const [group, r] of Object.entries(file?.groups ?? {})) {
+    for (const [group, raw] of Object.entries(file?.groups ?? {})) {
+      // a file Claude wrote by hand may miss a field: never let it break the view
+      if (typeof raw?.passed !== 'number' || typeof raw?.total !== 'number') continue
+      const r: GroupResult = { ...raw, failed: Array.isArray(raw.failed) ? raw.failed : [], at: String(raw.at ?? '') }
       if (!out[group] || out[group]!.at < r.at) out[group] = r
     }
   }
@@ -47,12 +50,21 @@ const bare = (command: string) => command.trim().replace(/^rtk\s+(?:proxy\s+)?/,
 /** A redirection (`2>&1`, `>out.txt`, `2> err.log`'s first word): ignored after a group's command. */
 const REDIRECT = /^\d*>>?(?:&\d+)?\S*$|^\d*<\S*$/
 
-/** Flags and redirections only (a bare `>` takes the next word as its file). */
+/**
+ * A flag's value («-k smoke», «--timeout 20000»): a word that is not itself a flag, a path or a
+ * file name, so «pytest tests --lf tests/x.py» still runs another file and is not the key's.
+ */
+const flagValue = (w: string | undefined) => w !== undefined && !w.startsWith('-') && !/[\\/]|\.\w+$/.test(w)
+
+/** Flags (with their value), and redirections only (a bare `>` takes the next word as its file). */
 function onlyFlags(rest: string[]): boolean {
   for (let i = 0; i < rest.length; i++) {
     const w = rest[i]!
     if (/^\d*(?:>>?|<)$/.test(w)) { i++; continue }
-    if (!w.startsWith('-') && !REDIRECT.test(w)) return false
+    if (REDIRECT.test(w)) continue
+    if (!w.startsWith('-')) return false
+    // «--» ends the flags: what follows are arguments, never a value
+    if (w !== '--' && !w.includes('=') && flagValue(rest[i + 1])) i++
   }
   return true
 }
@@ -85,7 +97,7 @@ function countFor(key: string, command: string, out: TestOutput): Count | null {
 async function stageOf($: any, main: string, child: boolean): Promise<StageModel | null> {
   const plan = await readPlan($, main)
   const stage = plan ? plan.stages[child ? plan.parallelIndex : plan.currentIndex] : undefined
-  const ok = stage && stage.type === 'implementation' && stage.status === 'in_progress' && RECORDED_PHASES.has(stage.phase ?? '')
+  const ok = stage && SAFE_ID.test(stage.id) && stage.type === 'implementation' && stage.status === 'in_progress' && RECORDED_PHASES.has(stage.phase ?? '')
   return ok ? stage : null
 }
 
@@ -111,13 +123,24 @@ export async function recordRun($: any, command: string, output: string): Promis
     if (count) found[groupKey(section)] = { passed: count.passed, total: count.total, failed: count.failed, source: 'seen', at }
   }
   if (Object.keys(found).length === 0) {
-    return { note: missNote(stage.id, out) }
+    // only a known runner's summary is surely a test run: «2 failed attempts» in a git log is not
+    return out.sure ? { note: missNote(stage.id, out) } : {}
   }
   const path = `${dir(repo.main)}/${stage.id}--${repo.worktree ?? 'main'}.json`
-  const before: ChecksFile | null = await $.fs.read(path).then(JSON.parse).catch(() => null)
-  if (!(await $.fs.exists(`${dir(repo.main)}/.gitignore`).catch(() => false))) await $.fs.write(`${dir(repo.main)}/.gitignore`, '*\n')
-  await $.fs.write(path, JSON.stringify({ v: 1, groups: { ...(before?.groups ?? {}), ...found } }))
+  await inTurn(async () => {
+    const before: ChecksFile | null = await $.fs.read(path).then(JSON.parse).catch(() => null)
+    if (!(await $.fs.exists(`${dir(repo.main)}/.gitignore`).catch(() => false))) await $.fs.write(`${dir(repo.main)}/.gitignore`, '*\n')
+    await $.fs.write(path, JSON.stringify({ v: 1, groups: { ...(before?.groups ?? {}), ...found } }))
+  })
   return {}
+}
+
+// Writes of the counts one after the other: two test commands that end together must not read the
+// same old file and drop each other's group.
+let queue: Promise<void> = Promise.resolve()
+function inTurn(write: () => Promise<void>): Promise<void> {
+  queue = queue.then(write, write)
+  return queue
 }
 
 export function registerTestRecorder(on: any): void {

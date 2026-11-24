@@ -25,7 +25,7 @@ import { renderLegendView } from './panel/legend-view'
 import { sessionsSummary } from './panel/sessions-data'
 import { registerStatusWriter } from './panel/status-writer'
 import { registerTestRecorder } from './panel/checks'
-import { autoFix, howMany } from './panel/reviews'
+import { autoFix, howMany, markStart } from './panel/reviews'
 
 const PANE = 'blueprint'
 const REFRESH_MS = 5000
@@ -83,6 +83,7 @@ async function refresh($: any, options: any): Promise<void> {
   else if (!hasPlanFile) lastPlan = null
   if (moved && lastPlan && options?.autoOpen !== false) openTries = 24
   await updateStatus($)
+  markStart(await $.clock.now()) // a review round already there now waits for a press
   countdown = await autoFix($, main, lastPlan, lang).catch(() => null)
   if (countdown) await $.ui.status(tr(lang, 'statusFix', { what: howMany(lang, countdown.open), s: countdown.seconds }))
   await notifyIfYourTurn($, options)

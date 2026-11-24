@@ -73,8 +73,11 @@ reads the `## ` sections and the checkbox lines; keep them exactly so):
   for the other, `E` for the mother): in the test phase the panel lists the groups alone.
 - **A `Test` line says which tests are its group's**, in parentheses: the command that runs only
   them (`- Test (npm test -- soci): …`), or the name of their test file (`- Test (admin.test.ts): …`)
-  when one command runs every group and its output is split per file. The panel uses it to count
-  each group's tests; a `Test:` line without it still shows its words, with no count.
+  when one command runs every group and its output is split per file. A file name works only
+  with runners that print one block per file with each test's result (bun and `claude plugin
+  test`); with jest, vitest or pytest give each group a command that runs only its tests
+  (`npm test -- soci`, `pytest tests/soci`). The panel uses it to count each group's tests; a
+  `Test:` line without it still shows its words, with no count.
 - The panel shows the steps in the build phase, the same steps unticked in the plan phase, the
   `Test` lines with each group's count in the test phase, the review's findings in the review
   phase, and the `Finita quando:` lines in the first-use phase, as the user's checklist.
@@ -89,7 +92,7 @@ phase, every Bash or PowerShell command a session runs is matched against the `T
 output of a match is read (node, bun and `claude plugin test`, vitest, jest, pytest, and rtk's
 condensed lines) and the group's count written to that session's file. A command counts for a
 group only when it runs **exactly** that group's key: the key's words in a row, with nothing after
-them but flags, redirections and pipes (`python -m pytest tests/ml -q 2>&1 | tail -5` runs the key
+them but flags (with their value: `-k smoke`), redirections and pipes (`python -m pytest tests/ml -q 2>&1 | tail -5` runs the key
 `pytest tests/ml`; `pytest tests/ml/test_env.py` does not), so a key may be part of another without
 counting the wrong group. A test run that counts for no group gets a `[Blueprint]` note in the
 command's result: fix the key or run the command as written. The file looks like this:
