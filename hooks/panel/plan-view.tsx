@@ -143,6 +143,9 @@ function Topics(ctx: ViewCtx, stage: StageModel, at: number) {
   )
 }
 
+/** Phases that once showed nothing: each says what it waits for (decisions «Il pannello come cruscotto»). */
+const WAITS = new Set(['do', 'check', 'report', 'prepare', 'rehearse', 'deliver', 'feedback'])
+
 /** What the phase looked at shows under the rail (decisions «Piano spiegato per passi»). */
 async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number) {
   const id = stage.phases[at]?.id
@@ -150,7 +153,9 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
   if (stage.type === 'discussion') {
     return [Topics(ctx, stage, at), id === 'decision' || id === 'recap' ? await Decisions($, ctx, stage) : null]
   }
-  if (id === 'clarify' || id === 'do' || id === 'prepare') return Topics(ctx, stage, at)
+  if (id === 'clarify') return Topics(ctx, stage, at)
+  // the phases of a delivery and a quick task: the topics with their marks, and what the phase waits for
+  if (WAITS.has(id)) return [Topics(ctx, stage, at), <ctx.el.Text dimColor wrap="wrap">{tr(ctx.lang, `waits_${id}`)}</ctx.el.Text>]
   if (id === 'plan') return await Steps($, ctx, stage, true)
   if (id === 'build') return await Steps($, ctx, stage, false)
   if (id === 'test') return await TestResults($, ctx, stage)
