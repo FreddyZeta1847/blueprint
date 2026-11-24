@@ -10,7 +10,11 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { PhaseState, StageModel, ViewCtx } from './types'
-import { C, GLYPH, stepLineSvg, treeMarkSvg } from './marks'
+import { C, GLYPH, beadsSvg, stepLineSvg, treeMarkSvg } from './marks'
+import { activity } from './activity'
+import { readSessions, type SessionRow } from './sessions-data'
+import { duration } from './sessions-view'
+import { slug } from './repo'
 import { tr } from './text'
 import { nodeState, splitId, type StepSection, type TaskNode, type TreeStep } from './plan-steps'
 
@@ -76,10 +80,10 @@ const isOpen = (opened: string[], key: string, byDefault: boolean) =>
   opened.includes(`open:${key}`) || (!opened.includes(`shut:${key}`) && byDefault)
 
 /** The button that opens or shuts a row («▾ …» open, «▸ …» shut), remembering the choice. */
-function Toggle($: any, ctx: ViewCtx, key: string, open: boolean, text: string) {
+function Toggle($: any, ctx: ViewCtx, key: string, open: boolean, text = '') {
   const { Button } = ctx.el
   const flip = () => void update($, taskOpen, list => [...list.filter(k => k !== `open:${key}` && k !== `shut:${key}`), `${open ? 'shut' : 'open'}:${key}`])
-  return <Button key={`task:${key}`} plain dimColor onPress={flip}>{`${open ? '▾' : '▸'} ${text}`}</Button>
+  return <Button key={`task:${key}`} plain dimColor onPress={flip}>{`${open ? '▾' : '▸'}${text ? ` ${text}` : ''}`}</Button>
 }
 
 /** A Task with its button and, when open, its sub-tasks (shut by default, but the one in progress). */
@@ -102,13 +106,18 @@ function TaskRows($: any, ctx: ViewCtx, key: string, task: TaskNode, opened: str
  * may shut it), then its Tasks — or its steps, in the old format.
  */
 function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g: StepSection, opened: string[], asPlan: boolean) {
-  const { Box } = ctx.el
+  const { Box, Text, Svg } = ctx.el
   const { id, title } = splitId(g.group ?? '')
   const states = g.tasks ? g.tasks.map(t => nodeState(t.steps.map(s => s.state))) : g.steps.map(s => s.state)
   const state = nodeState(g.steps.map(s => s.state))
   const key = `${stage.id}:${session}:letter:${g.group ?? ''}`
   const open = isOpen(opened, key, true)
-  const right = states.length > 0 ? Toggle($, ctx, key, open, `${states.filter(s => s === 'done').length}/${states.length}`) : null
+  const count = `${states.filter(s => s === 'done').length}/${states.length}`
+  const beads = ctx.surface !== 'terminal'
+    ? <Box key={`beads:${key}`}><Svg source={beadsSvg(states)} alt={count} width={states.length * 12} height={12} /></Box>
+    : <Text dimColor>{states.map(s => GLYPH[s]).join('')}</Text>
+  // one bead per Task (the count stays in the picture's alt), then the button that shuts the letter
+  const right = states.length > 0 ? <Box flexDirection="row" gap={1} alignItems="center">{beads}{Toggle($, ctx, key, open)}</Box> : null
   const kids = g.tasks
     ? g.tasks.map((t, i) => TaskRows($, ctx, `${stage.id}:${session}:${t.id ?? `${id ?? ''}#${i}`}`, t, opened))
     : g.steps.map(s => Row(ctx, { state: s.state, label: s.text }))
@@ -121,6 +130,23 @@ function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g:
   )
 }
 
+/**
+ * What a session is doing, on its row: «al lavoro · Bash da 2 min» or «ferma da 14 min» — from
+ * the main session's own activity, or from a child's status file. Nothing when it is not known.
+ */
+function doingText(ctx: ViewCtx, role: StepSection['role'], name: string, state: PhaseState, kids: SessionRow[], now: number): string {
+  if (role === 'child') {
+    const kid = kids.find(k => k.worktree === slug(name))
+    if (!kid) return ''
+    if (kid.state === 'blocked') return tr(ctx.lang, 'stoppedFor', { t: duration(now - kid.updatedAt) })
+    return kid.tool ? tr(ctx.lang, 'atWorkTool', { tool: kid.tool }) : ''
+  }
+  const me = activity()
+  if (me.tool && me.since !== null) return tr(ctx.lang, 'atWork', { tool: me.tool, t: duration(now - me.since) })
+  if (state === 'stopped' && me.idleSince !== null) return tr(ctx.lang, 'stoppedFor', { t: duration(now - me.idleSince) })
+  return ''
+}
+
 /** A group with every step to do: the plan phase, where nothing is built yet. */
 export const asTodo = (s: StepSection): StepSection => ({
   ...s, steps: s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })),
@@ -131,6 +157,11 @@ export const asTodo = (s: StepSection): StepSection => ({
 export async function WorkTree($: any, ctx: ViewCtx, stage: StageModel, sections: StepSection[], asPlan: boolean) {
   const { Box, Text } = ctx.el
   const opened = await read($, taskOpen)
+  const now: number = await $.clock.now()
+  // the children's status files: readSessions wants a plan, and this stage is the parallel one
+  const kids = sections.some(s => s.role === 'child') && !asPlan
+    ? (await readSessions($, ctx.main, { stages: [stage], parallelIndex: 0 } as any).catch(() => ({ kids: [] as SessionRow[] }))).kids
+    : []
   return (
     <Box key={`tree:${stage.id}`} flexDirection="column" width="100%">
       {sessionsOf(sections).map(s => {
@@ -138,9 +169,10 @@ export async function WorkTree($: any, ctx: ViewCtx, stage: StageModel, sections
         const state = nodeState(steps.map(st => st.state))
         const name = s.role === 'single' ? tr(ctx.lang, 'mainSession') : s.name
         const done = tr(ctx.lang, 'stepsOf', { done: steps.filter(st => st.state === 'done').length, all: steps.length })
+        const doing = asPlan ? '' : doingText(ctx, s.role, s.name, state, kids, now)
         return (
           <Box flexDirection="column" width="100%">
-            {Row(ctx, { state, label: name, bold: true, color: s.role === 'child' ? C.teal : C.muted, right: <Text dimColor>{done}</Text> })}
+            {Row(ctx, { state, label: `${name} · ${done}`, bold: true, color: s.role === 'child' ? C.teal : C.muted, right: doing ? <Text dimColor>{doing}</Text> : null })}
             {Level(ctx, s.groups.map(g => LetterRows($, ctx, stage, s.name, g, opened, asPlan)))}
           </Box>
         )

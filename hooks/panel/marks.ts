@@ -93,6 +93,21 @@ export function treeMarkSvg(state: PhaseState): string {
   return doc(18, 20, markShape(9, 10, state, state === 'running' || state === 'stopped' ? 7 : 6))
 }
 
+/**
+ * One bead per Task of a letter (work tree): filled grey when done, a ring in the state's colour
+ * while in progress or stopped, hollow when to do — the shapes differ, not only the colours.
+ */
+export function beadsSvg(states: PhaseState[]): string {
+  const step = 12
+  const bead = (s: PhaseState, i: number) => {
+    const cx = 6 + i * step
+    if (s === 'done') return `<circle cx="${cx}" cy="6" r="4" fill="${C.muted}"/>`
+    if (s === 'running' || s === 'stopped') return `<circle cx="${cx}" cy="6" r="3.5" fill="none" stroke="${s === 'running' ? C.accent : C.amber}" stroke-width="2"/>`
+    return `<circle cx="${cx}" cy="6" r="3.5" fill="none" stroke="${C.faint}" stroke-width="1.5"/>`
+  }
+  return doc(Math.max(states.length, 1) * step, 12, states.map(bead).join(''))
+}
+
 /** A group's tests: the bar green when all passed, coral when some failed. */
 export function fractionSvg(passed: number, total: number, width = 90): string {
   const f = total > 0 ? Math.min(passed / total, 1) : 0

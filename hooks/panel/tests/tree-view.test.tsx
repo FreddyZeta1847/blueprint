@@ -23,8 +23,8 @@ test('one session: the tree, the path in progress in blue, plain words only on i
   const ui = await $.ui.mount(PANE('terminal'))
   const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
   expect(await has(/^Passi · 1 di 4$/)).toBe(true)
-  expect([await has(/^● Sessione principale$/), await has(/^1 di 4$/)]).toEqual([true, true])
-  expect([await has(/^● A Lettore$/), await has(/^▾ 0\/2$/), await has(/^Legge il piano\.$/)]).toEqual([true, true, true])
+  expect(await has(/^● Sessione principale · 1 di 4$/)).toBe(true)
+  expect([await has(/^● A Lettore$/), await has(/^●○$/), await has(/^Legge il piano\.$/)]).toEqual([true, true, true]) // one bead per Task
   expect([await has(/^● A1 Livelli$/), await has(/^Ogni livello ha un nome\.$/)]).toEqual([true, true])
   expect([await has(/^✓ A1\.1 Titoli$/), await has(/^I titoli con il nome\.$/)]).toEqual([true, false]) // done: no words
   expect([await has(/^● A1\.2 Spiegazioni$/), await has(/^Le righe sotto i titoli\.$/)]).toEqual([true, true])
@@ -49,7 +49,7 @@ test('a Task\'s button opens and shuts its sub-tasks', async ($, on) => {
   expect(await has(/^● A1\.2 Spiegazioni$/)).toBe(true)
   // a letter is open by default; its button shuts it and opens it again
   await ui.press({ key: 'task:fb::letter:A. Lettore' })
-  expect([await has(/^● A Lettore$/), await has(/^▸ 0\/2$/), await has(/A1 Livelli/)]).toEqual([true, true, false])
+  expect([await has(/^● A Lettore$/), await has(/^▸$/), await has(/^● A1 Livelli$/)]).toEqual([true, true, false])
   await ui.press({ key: 'task:fb::letter:A. Lettore' })
   expect(await has(/^● A1 Livelli$/)).toBe(true)
   await ui.unmount()
@@ -62,13 +62,15 @@ test('children: the one waiting for the user is «!» up to its session, the pla
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount(PANE('terminal'))
   const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
-  expect([await has(/^✓ Area admin$/), await has(/^✓ A Corsi$/)]).toEqual([true, true])
-  expect([await has(/^! Area clienti$/), await has(/^! C Calendario$/), await has(/^! C1 Settimana$/), await has(/^! C1\.1 Settimana$/)]).toEqual([true, true, true, true])
+  expect([await has(/^✓ Area admin · 1 di 1$/), await has(/^✓ A Corsi$/)]).toEqual([true, true])
+  expect(await has(/^ferma da \d+ min$/)).toBe(true) // the waiting child says since when
+  expect([await has(/^! Area clienti · 0 di 1$/), await has(/^! C Calendario$/), await has(/^! C1 Settimana$/), await has(/^! C1\.1 Settimana$/)]).toEqual([true, true, true, true])
   expect([await has(/^La settimana del socio\.$/), await has(/^Sette colonne\.$/)]).toEqual([true, true])
-  expect([await has(/^○ Madre$/), await has(/^○ M1 Unione$/)]).toEqual([true, true]) // the mother waits for the children
+  expect([await has(/^○ Madre · 0 di 1$/), await has(/^○ M1 Unione$/)]).toEqual([true, true]) // the mother waits for the children
   await ui.unmount()
   const desktop = await $.ui.mount(PANE('desktop'))
   expect(JSON.stringify(await desktop.find({ key: 'tree:fb' }))).toContain('#E5AC52') // the amber mark
+  expect(JSON.stringify(await desktop.find({ key: 'beads:fb:Area clienti:letter:C. Calendario' }))).toContain('0/1') // the count in the beads' alt
   await desktop.unmount()
 })
 
