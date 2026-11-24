@@ -11,7 +11,11 @@ import type { StageModel } from './types'
 
 export type Note = { stage: string; text: string; read: boolean }
 
-export type Decision = { text: string; oneWay: boolean }
+/** `by`: who decided, when the file says it (a block's «Decided by», a bullet's «; Name; date»). */
+export type Decision = { text: string; oneWay: boolean; by?: 'user' | 'claude' }
+
+const who = (name: string | undefined): Decision['by'] =>
+  !name ? undefined : /^claude$/i.test(name.trim()) ? 'claude' : 'user'
 
 /** A bullet of the single decisions file says it is hard to change: «one-way», «difficile da cambiare». */
 const hardToChange = (line: string) => /one-way|difficile da cambiare|irreversibil|hard to change/i.test(line) && !/two-way/i.test(line)
@@ -24,7 +28,8 @@ export function decisionsFromFile(text: string, name: string): Decision[] {
     const h2 = /^##\s+(.+?)\s*$/.exec(line)
     if (h2) { inside = h2[1] === name; continue }
     const bold = inside ? /^\s*[-*]\s+\*\*(.+?)\*\*/.exec(line) : null
-    if (bold?.[1]) out.push({ text: bold[1], oneWay: hardToChange(line) })
+    const by = who(/;\s*([^;]+?)\s*;\s*\d{4}-\d{2}-\d{2}\s*$/.exec(line)?.[1])
+    if (bold?.[1]) out.push({ text: bold[1], oneWay: hardToChange(line), ...(by ? { by } : {}) })
   }
   return out
 }
@@ -36,7 +41,8 @@ export function decisionsFromBlocks(text: string, stageId: string): Decision[] {
     const stage = /^\s*-\s+\*\*(?:Stage|Tappa):\*\*\s*(\S+)/m.exec(block)?.[1]
     if (stage !== stageId) return []
     const oneWay = /^\s*-\s+\*\*(?:Reversibility|Reversibilità):\*\*\s*one-way/im.test(block)
-    return [{ text: title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim(), oneWay }]
+    const by = who(/^\s*-\s+\*\*(?:Decided by|Deciso da):\*\*\s*(\w+)/im.exec(block)?.[1]?.replace(/^(utente|user)$/i, 'user'))
+    return [{ text: title.split(/\s+[—–-]\s+/).slice(1).join(' — ').trim() || title.trim(), oneWay, ...(by ? { by } : {}) }]
   })
 }
 

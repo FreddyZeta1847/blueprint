@@ -93,6 +93,20 @@ export function treeMarkSvg(state: PhaseState): string {
   return doc(18, 20, markShape(9, 10, state, state === 'running' || state === 'stopped' ? 7 : 6))
 }
 
+/** A topic's own small rail: one dot per phase of the discussion, done, current or to do. */
+export function topicRailSvg(states: PhaseState[]): string {
+  const step = 11
+  const dots = states.map((s, i) => markShape(6 + i * step, 6, s, 4)).join('')
+  const line = `<line x1="6" y1="6" x2="${6 + (states.length - 1) * step}" y2="6" stroke="${C.line}" stroke-width="1"/>`
+  return doc(Math.max(states.length, 1) * step + 1, 12, line + dots)
+}
+
+/** A one-way decision: a padlock in neutral ink (a shape, not a state colour). */
+export const lockSvg = () => doc(12, 12, `<rect x="2" y="5.5" width="8" height="6" rx="1" fill="${C.muted}"/><path d="M4 5.5 V4 a2 2 0 0 1 4 0 V5.5" fill="none" stroke="${C.muted}" stroke-width="1.4"/>`)
+
+/** A two-way decision: two opposite arrows. */
+export const swapSvg = () => doc(12, 12, `<path d="M2 4 H9 M7 2 L9.5 4 L7 6 M10 8.5 H3 M5 6.5 L2.5 8.5 L5 10.5" fill="none" stroke="${C.muted}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>`)
+
 /**
  * One bead per Task of a letter (work tree): filled grey when done, a ring in the state's colour
  * while in progress or stopped, hollow when to do — the shapes differ, not only the colours.

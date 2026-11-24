@@ -319,9 +319,9 @@ test('Legenda: the third tab lists every stage type with its phases, and explain
     await ui.press({ key: 'tab:legenda' })
     expect(await ui.find({ text: /^Le tappe e le loro fasi$/ })).toBeDefined()
     for (const type of ['discussione', 'implementazione', 'consegna', 'attività breve']) expect(await ui.find({ text: new RegExp(`^${type} — `) })).toBeDefined()
-    expect(await ui.find({ text: /3\. convergenza · tocca a te — / })).toBeDefined() // a phase that needs the user, read from loops.json
+    expect(await ui.find({ text: /3\. scelta · tocca a te — / })).toBeDefined() // a phase that needs the user, read from loops.json
     expect(await ui.find({ text: /3\. prova generale · facoltativa — / })).toBeDefined() // an optional one (in the test's loops it does not need the user)
-    expect(await ui.find({ text: /5\. revisione · tocca a te — Claude ti rilegge domanda, scelta e opzioni scartate/ })).toBeDefined()
+    expect(await ui.find({ text: /5\. rilettura · tocca a te — Claude ti rilegge domanda, scelta e opzioni scartate/ })).toBeDefined()
     expect(await ui.find({ text: /Come funziona Sessioni/ })).toBeDefined()
     expect(await ui.find({ text: /Le fasi si ripetono per ogni argomento/ })).toBeDefined()
     await ui.press({ key: 'tab:piano' })

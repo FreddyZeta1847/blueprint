@@ -10,9 +10,9 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { PhaseState, PlanModel, StageModel, ViewCtx } from './types'
-import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepLineSvg, stepMarkSvg } from './marks'
+import { C, GLYPH, barSvg, barText, lockSvg, pillSvg, railSvg, stepLineSvg, stepMarkSvg, swapSvg, topicRailSvg } from './marks'
 import { tr } from './text'
-import { addNote, changeNote, readNotes, stageDecisions, type Note } from './plan-extras'
+import { addNote, changeNote, readNotes, stageDecisions, type Decision, type Note } from './plan-extras'
 import { readSteps, type StepSection } from './plan-steps'
 import { TestResults } from './test-view'
 import { ReviewResults } from './review-view'
@@ -121,7 +121,26 @@ function Topics(ctx: ViewCtx, stage: StageModel, at: number) {
     const reached = stage.phases.findIndex(p => p.id === t.phase)
     return reached > at ? 'done' : reached === at ? 'running' : 'todo'
   }
-  return Section(ctx, tr(ctx.lang, 'topics'), stage.topics.map(t => `${GLYPH[mark(t)]} ${t.name}`))
+  // each topic also gets its own small rail: where it is among the discussion's phases
+  const rail = (t: StageModel['topics'][number]): PhaseState[] => {
+    if (t.done || stage.status === 'done') return stage.phases.map(() => 'done')
+    const reached = stage.phases.findIndex(p => p.id === t.phase)
+    return stage.phases.map((p, i) => (i < reached ? 'done' : i === reached ? (p.state === 'stopped' ? 'stopped' : 'running') : 'todo'))
+  }
+  const { Box, Text, Svg } = ctx.el
+  return (
+    <Box flexDirection="column">
+      <Text bold color={C.ink}>{tr(ctx.lang, 'topics')}</Text>
+      {stage.topics.map((t, i) => (
+        <Box flexDirection="row" gap={1}>
+          <Box flexGrow={1} flexShrink={1}><Text wrap="wrap">{`${GLYPH[mark(t)]} ${t.name}`}</Text></Box>
+          {hasSvg(ctx)
+            ? Keyed(ctx, `topic:${stage.id}:${i}`, <Svg source={topicRailSvg(rail(t))} alt={rail(t).map(s => GLYPH[s]).join('')} />)
+            : <Text dimColor>{rail(t).map(s => GLYPH[s]).join('')}</Text>}
+        </Box>
+      ))}
+    </Box>
+  )
 }
 
 /** What the phase looked at shows under the rail (decisions «Piano spiegato per passi»). */
@@ -236,6 +255,12 @@ function Pills(ctx: ViewCtx, stage: StageModel) {
 function caption(ctx: ViewCtx, stage: StageModel): string {
   const type = tr(ctx.lang, `type_${stage.type}`)
   const live = liveIndex(stage)
+  const topic = stage.topics.find(t => t.current) ?? stage.topics.find(t => !t.done)
+  if (stage.type === 'discussion' && stage.status === 'in_progress' && topic) {
+    // a discussion's bar has one segment per topic: say which topic, and its phase
+    const phase = tr(ctx.lang, `ph_${topic.phase ?? 'clarify'}`)
+    return `${type} · ${tr(ctx.lang, 'topicOf', { n: stage.topics.indexOf(topic) + 1, m: stage.topics.length, phase })}`
+  }
   if (stage.status === 'in_progress' && live >= 0) {
     const phase = tr(ctx.lang, `ph_${stage.phases[live]!.id}`)
     return `${type} · ${tr(ctx.lang, 'phaseOf', { n: live + 1, m: stage.phases.length, phase })}`
@@ -350,18 +375,39 @@ function Phases($: any, ctx: ViewCtx, stage: StageModel, phase: ReturnType<typeo
 async function Decisions($: any, ctx: ViewCtx, stage: StageModel) {
   const { Box, Text, Button } = ctx.el
   if (stage.type !== 'discussion') return null
-  const { files, home } = await stageDecisions($, ctx.main, stage)
+  const { list, files, home } = await stageDecisions($, ctx.main, stage)
   const relative = (path: string) => path.startsWith(`${ctx.main}/`) ? path.slice(ctx.main.length + 1) : path
   const copy = (path: string) => async () => {
     await $.ui.copy({ text: path })
     await $.ui.toast(tr(ctx.lang, 'decisionsFileCopied', { path }))
   }
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" gap={1}>
+      {list.length > 0 && (
+        <Box flexDirection="column">
+          <Text bold color={C.ink}>{tr(ctx.lang, 'decisionsList', { n: list.length, k: list.filter(d => d.oneWay).length })}</Text>
+          {list.map((d, i) => DecisionRow(ctx, `dec:${stage.id}:${i}`, d))}
+        </Box>
+      )}
+      <Box flexDirection="column">
       <Text bold color={C.ink}>{tr(ctx.lang, 'decisionsWhere')}</Text>
       {files.length > 0
         ? files.map((path, i) => <Button key={`decfile:${stage.id}:${i}`} plain dimColor onPress={copy(path)}>{`⧉ ${relative(path)}`}</Button>)
         : <Text dimColor wrap="wrap">{tr(ctx.lang, 'decisionsNone', { path: home })}</Text>}
+      </Box>
+    </Box>
+  )
+}
+
+/** One decision: a padlock when hard to change, two arrows when easy (words on the terminal), and who decided. */
+function DecisionRow(ctx: ViewCtx, key: string, d: Decision) {
+  const { Box, Text, Svg } = ctx.el
+  const kind = tr(ctx.lang, d.oneWay ? 'decHard' : 'decEasy')
+  return (
+    <Box flexDirection="row" gap={1}>
+      {hasSvg(ctx) && Keyed(ctx, key, <Svg source={d.oneWay ? lockSvg() : swapSvg()} alt={kind} />)}
+      <Box flexGrow={1} flexShrink={1}><Text wrap="wrap">{hasSvg(ctx) ? d.text : `[${kind}] ${d.text}`}</Text></Box>
+      {d.by && <Text dimColor>{tr(ctx.lang, d.by === 'claude' ? 'byClaude' : 'byYou')}</Text>}
     </Box>
   )
 }
