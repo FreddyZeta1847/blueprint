@@ -53,8 +53,15 @@ test('findings by tool, each with «Correggi»; one press sends one prompt and m
 test('no open finding: no banner, the round line; round 3 with open findings: your turn, no button', async ($, on) => {
   const seen = await open($, on, reviews({ status: 'fixed' }))
   let ui = await $.ui.mount(PANE('desktop'))
-  expect(await ui.find({ text: /^Nessun problema aperto · giro 1 di 3$/ })).toBeDefined()
+  // every finding fixed: say how many were found and fixed, and what each tool found (not «niente»)
+  expect(await ui.find({ text: /^2 problemi trovati, tutti corretti · giro 1 di 3$/ })).toBeDefined()
+  expect(await ui.find({ text: /^Strumenti: \/code-review \(1 problema\) · differential-review \(1 problema\) · ponytail-review \(niente\)$/ })).toBeDefined()
   expect(await ui.find({ key: 'fix-all' })).toBeUndefined()
+  expect(await ui.find({ text: /^La disdetta non controlla il socio\.$/ })).toBeUndefined() // fixed ones behind a button
+  await ui.press({ key: 'fixed:fb' })
+  expect(await ui.find({ text: /^La disdetta non controlla il socio\.$/ })).toBeDefined()
+  expect((await ui.findAll({ text: /^✓ corretto$/ })).length).toBe(2)
+  expect(await ui.find({ key: 'fix:f1' })).toBeUndefined() // nothing to fix any more
   await ui.unmount()
   seen.files['blueprint/reviews/fb.json'] = reviews({ round: 3 })
   ui = await $.ui.mount(PANE('desktop'))

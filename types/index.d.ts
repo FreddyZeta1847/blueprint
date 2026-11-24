@@ -21,6 +21,8 @@ declare module 'claude-code' {
       decFilter: Shaped<Record<string, 'all' | 'hard' | 'mine' | 'claude'>>
       /** decision cards opened or shut by hand: `open:<stage>:<index>` / `shut:…` (view only) */
       decOpen: Shaped<string[]>
+      /** review: the stages whose fixed findings are shown (view only) */
+      fixedOpen: Shaped<string[]>
     }
   }
 }
