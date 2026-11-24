@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.4.0-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.5.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -313,29 +313,34 @@ TEST-FINDINGS.md  what the live test runs found, and what was fixed
 In a project with a plan, Blueprint opens a pane beside the chat (desktop app, terminal and
 Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three screens:
 
-- **Plan** — one row per stage with a bar of its phases (grey done, blue in progress, yellow
-  waiting for you, dark to do) and a caption saying what it is («implementazione · fase 3 di 7:
-  costruzione»); the current stage is framed, finished ones are dimmed. Open a stage to see what
-  its type is for and its phases; ◀ ▶ under them move the view from
-  phase to phase (the plan itself does not change) and the stage shows what belongs to that phase:
-  its topics, the files that hold a discussion's decisions (a click copies the path) and, in an
-  implementation stage, its **work tree** — the plain plan Claude writes in `blueprint/plans/<stage>.md`
-  as the index of the technical one: sessions → letters (A, B…) → Tasks (A1, A2…) → sub-tasks
-  (A1.1…), each with a short title. Sessions, letters and Tasks are open, a Task's sub-tasks open
-  with its button; the sub-task Claude is on colours its Task, letter and session (blue while it
-  works, amber «!» when it waits for you) and only that path shows its plain words. Unticked in the
-  plan phase, ticked as each sub-task finishes in the build phase (plans in the older format show a
-  column of steps per session). In
-  the **test phase** every group of the plain plan gets a bar and a fraction («14/14») read from the
-  real output of its test command (the `Test (command or file)` line), with the failed tests by
-  name; the counts already fill up while building, and the main session's last run wins. In the
-  **review phase** the findings of the review tools are grouped by tool, each with a **Correggi**
-  (fix) button and a **Correggi tutto ora** on top; if nobody presses, they are sent to Claude by
-  themselves 30 seconds later (the countdown is in the panel and in the status line), at most
-  three rounds. In the **first-use phase** the `Finita quando:` lines become the checklist of what
-  you try yourself. The notes are always there: add one, edit it (✎) or delete it (✕).
-- **Sessions** — during a stage built in parallel: the mother session and one child per part,
-  with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
+- **Plan** — at the top, the **«Adesso» card**: who is working on what (the sub-task in progress,
+  or the topic and phase of a discussion), the tool in use and since when; «Tocca a te» with what to
+  do when the stage waits for you; and what went wrong — failed test groups, open review findings,
+  a child stopped for long — each a button that opens the stage on the phase that shows it. Then
+  one row per stage with a bar of its phases (grey done, blue in progress, yellow waiting for you,
+  dark to do) and a caption saying what it is («implementazione · fase 3 di 7: costruzione»,
+  «discussione · argomento 2 di 4: scelta»); the current stage is framed, finished ones are
+  dimmed. Open a stage to see its phases; ◀ ▶ under them move the view from phase to phase (the
+  plan itself does not change) and the stage shows what belongs to that phase. A **discussion**:
+  each topic with its own small rail of phases, and the stage's decisions with a padlock (hard to
+  change) or two arrows (easy) and who decided. An **implementation**: its **work tree** — the
+  plain plan Claude writes in `blueprint/plans/<stage>.md` as the index of the technical one:
+  sessions → letters (A, B…) → Tasks (A1, A2…) → sub-tasks (A1.1…), each with a short title, one
+  bead per Task beside each letter, and on each session's row what it is doing («al lavoro · Bash
+  da 2 min»). The sub-task Claude is on colours its Task, letter and session (blue while it works,
+  amber «!» when it waits for you) and only that path shows its plain words; in the plan phase the
+  skeleton of letters shows with its words. In the **test phase** every group gets a bar and a
+  fraction («14/14») read from the real output of its test command (the `Test (command or file)`
+  line), with the failed tests by name. In the **review phase** the findings, from the most severe
+  down (severity drawn as bars, not colour), each with «trovato da», a **Correggi** (fix) button
+  and **Correggi tutto ora** on top; a round written while the session is open is sent to Claude
+  by itself 30 seconds later (a ring and the status line count down), at most three rounds. In
+  the **first-use phase** the `Finita quando:` lines become your checklist. Delivery and quick-task
+  phases show their topics and what each phase waits for. The notes are always there: add one,
+  edit it (✎) or delete it (✕).
+- **Sessions** — the mother session, always, with what it is doing, context, cost and time; during
+  a stage built in parallel also one child per part, with state and the tool in use; a button
+  copies `claude attach <id>`.
 - **Legend** — every stage type with its phases, how Claude moves through them, and how the
   Sessions screen works.
 
@@ -345,6 +350,12 @@ is a plan) and `notifyWhenWaiting` (off: a phone notification when a stage or a 
 you). The panel follows Claude Code's language setting (Italian or English).
 
 ## Status
+
+v3.5.0 — the panel as a dashboard: the «Adesso» card at the top (who works on what, what waits
+for you, what went wrong, each signal opening the right phase); beads per Task and what each
+session is doing in the work tree; a discussion's topics with their own rails and its decisions
+with a padlock and who decided; no empty phase; severity drawn as bars and amber kept for «your
+turn»; the mother always in Sessions; fewer repeated lines; the plan-phase skeleton visible.
 
 v3.4.0 — the work tree: the plain plan in four levels (session, letter, Task, sub-task) with
 the same names as the technical plan (A, A1, A1.1), written in three moves (skeleton approved by
