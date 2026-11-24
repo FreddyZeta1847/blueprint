@@ -168,8 +168,8 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
 const CURRENT = '*'
 const expanded = atom({ plugin: 'blueprint', key: 'expanded' } as const, [CURRENT] as string[], { shape: 'expanded-1' })
 
-export { shortDate } from './text'
 
+/** One line: longer text is cut and ends with «…». */
 export function cut(text: string, max: number): string {
   const room = Math.max(max, 4)
   return text.length <= room ? text : `${text.slice(0, room - 1).trimEnd()}…`

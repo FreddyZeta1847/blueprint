@@ -5,7 +5,8 @@
  * Run: claude plugin test .   (from the repository root)
  */
 import { expect, test } from 'claude-code/testing'
-import { cut, shortDate } from '../plan-view'
+import { cut } from '../plan-view'
+import { shortDate } from '../text'
 import { addNote, decisionsFromBlocks, decisionsFromFile } from '../plan-extras'
 import { engine, MAIN, PANE } from './harness'
 

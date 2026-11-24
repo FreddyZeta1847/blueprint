@@ -29,12 +29,13 @@ function Who(ctx: ViewCtx, d: Decision) {
   return <Text bold backgroundColor={mine ? C.youSoft : C.claySoft} color={mine ? C.you : C.clay}>{` ${tr(ctx.lang, mine ? 'byYou' : 'byClaudeShort')} `}</Text>
 }
 
-function Card($: any, ctx: ViewCtx, stage: StageModel, d: Decision, key: string, open: boolean) {
+function Card($: any, ctx: ViewCtx, d: Decision, key: string, open: boolean) {
   const { Box, Text, Svg, Button } = ctx.el
   const svg = ctx.surface !== 'terminal'
   const kind = tr(ctx.lang, d.oneWay ? 'decHard' : 'decEasy')
   const flip = () => void update($, decOpen, list => [...list.filter(k => k !== `open:${key}` && k !== `shut:${key}`), `${open ? 'shut' : 'open'}:${key}`])
-  const when = d.date ? tr(ctx.lang, d.by === 'claude' ? 'decByClaudeOn' : 'decByYouOn', { d: shortDate(ctx.lang, d.date) }) : ''
+  // «decisa da te» only when the file says so: a decision found in code is nobody's
+  const when = d.date ? tr(ctx.lang, d.by === 'claude' ? 'decByClaudeOn' : d.by === 'user' ? 'decByYouOn' : 'decOn', { d: shortDate(ctx.lang, d.date) }) : ''
   return (
     <Box flexDirection="column" borderStyle="round" paddingX={1}
       borderColor={open ? (d.oneWay ? C.violet : C.muted) : C.line} {...(open && d.oneWay ? { backgroundColor: C.violetSoft } : {})}>
@@ -72,9 +73,10 @@ export async function DecisionCards($: any, ctx: ViewCtx, stage: StageModel, lis
         ))}
       </Box>
       {shown.map(({ d, i }, at) => {
-        const key = `${stage.id}:${i}`
+        // keyed by the decision, not its place: a new decision above does not open another card
+        const key = `${stage.id}:${d.text}`
         const open = opened.includes(`open:${key}`) || (!opened.includes(`shut:${key}`) && at === 0)
-        return Card($, ctx, stage, d, key, open)
+        return Card($, ctx, d, key, open)
       })}
       {hidden > 0 && (
         <Box flexDirection="row" gap={1} flexWrap="wrap">

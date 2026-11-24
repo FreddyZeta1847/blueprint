@@ -25,10 +25,6 @@ export async function readLoops($: any): Promise<Loops | null> {
   return loops?.types ? loops : null
 }
 
-/**
- * The key word of a card line: "Size: project — un sito" → "project", "Pace: Calm: we discuss…" →
- * "calm". The lines go on with the reason, which the panel's one summary line has no room for.
- */
 function perStage(stage: RawStage, phases: LoopPhase[], stopRunning: boolean) {
   const skipped = new Set((stage.skipped ?? []).map(s => s.id))
   const at = phases.findIndex(p => p.id === stage.phase)

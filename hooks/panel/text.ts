@@ -81,7 +81,7 @@ const IT = {
   waits_rehearse: 'Una prova completa insieme a te, prima della consegna.', waits_deliver: 'La mostri tu a chi è destinata.',
   waits_feedback: 'Claude raccoglie i pareri e dice dove va ognuno.',
   decisionsList: 'Decisioni della tappa · {n} scritte · {k} difficili da cambiare', decHard: 'difficile da cambiare', decEasy: 'facile da cambiare',
-  byYou: 'tu', byClaude: 'Claude', byClaudeShort: 'C',
+  byYou: 'tu', byClaudeShort: 'C', decOn: 'decisa il {d}',
   decAll: 'Tutte {n}', decHardN: 'Difficili {n}', decMine: 'Tue {n}', decClaude: 'Di Claude {n}',
   decRejected: 'Scartati: {list}', decByYouOn: 'decisa da te il {d}', decByClaudeOn: 'decisa da Claude il {d}',
   decHidden: 'Altre {n} non sono in questo filtro:', decShowAll: 'mostrale', topicOf: 'argomento {n} di {m}: {phase}',
@@ -177,7 +177,7 @@ const EN: Record<TextKey, string> = {
   waits_rehearse: 'A full rehearsal with you, before the delivery.', waits_deliver: 'You show it to the people it is for.',
   waits_feedback: 'Claude collects the feedback and says where each piece goes.',
   decisionsList: 'Stage decisions · {n} written · {k} hard to change', decHard: 'hard to change', decEasy: 'easy to change',
-  byYou: 'you', byClaude: 'Claude', byClaudeShort: 'C',
+  byYou: 'you', byClaudeShort: 'C', decOn: 'decided on {d}',
   decAll: 'All {n}', decHardN: 'Hard {n}', decMine: 'Yours {n}', decClaude: 'Claude\'s {n}',
   decRejected: 'Rejected: {list}', decByYouOn: 'decided by you on {d}', decByClaudeOn: 'decided by Claude on {d}',
   decHidden: '{n} more are not in this filter:', decShowAll: 'show them', topicOf: 'topic {n} of {m}: {phase}',
@@ -219,4 +219,3 @@ export function shortDate(lang: Lang, iso: string): string {
   return m && month ? `${Number(m[2])} ${month}` : iso
 }
 
-/** One line: longer text is cut and ends with «…». */

@@ -8,7 +8,7 @@
  * re-runs everything after the merge, so its results are the newest and take the children's place.
  * A file Claude writes itself (source «told») stands for output the reader could not read.
  */
-import { SAFE_ID, findRepo } from './repo'
+import { SAFE_ID, findRepo, slug } from './repo'
 import { readPlan } from './plan-data'
 import { readSteps } from './plan-steps'
 import type { StepSection } from './plan-steps'
@@ -101,9 +101,15 @@ async function stageOf($: any, main: string, child: boolean): Promise<StageModel
   if (child) { const s = plan.stages[plan.parallelIndex]; return ok(s) ? s : null }
   // the main session: the first stage being built or tested, not merely the first one open (an
   // earlier stage may still wait at «integrate» for its pull request)
-  // a stage built in parallel is the children's while they build it; the main session counts it
-  // only in its test phase, after the merge
-  return plan.stages.find(s => ok(s) && (s.independentParts.length === 0 || s.phase === 'test')) ?? null
+  // a stage built in parallel is the children's while they build it (their worktrees exist); the
+  // main session counts it in its test phase, or when it builds the stage alone
+  for (const s of plan.stages) {
+    if (!ok(s)) continue
+    if (s.independentParts.length === 0 || s.phase === 'test') return s
+    const kids = await Promise.all(s.independentParts.map(p => $.fs.exists(`${main}/.claude/worktrees/${slug(p)}`).catch(() => false)))
+    if (!kids.some(Boolean)) return s
+  }
+  return null
 }
 
 /** What Claude reads when a test run counted for no group. */

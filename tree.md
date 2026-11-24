@@ -21,6 +21,7 @@
 │   │   └── vault.js
 │   ├── panel/
 │   │   ├── tests/
+│   │   │   ├── activity.test.ts
 │   │   │   ├── checks.test.tsx
 │   │   │   ├── discussion-view.test.tsx
 │   │   │   ├── entry.test.tsx
@@ -40,6 +41,7 @@
 │   │   │   └── tree-view.test.tsx
 │   │   ├── activity.ts
 │   │   ├── checks.ts
+│   │   ├── decisions-view.tsx
 │   │   ├── header.tsx
 │   │   ├── legend-view.tsx
 │   │   ├── marks.ts

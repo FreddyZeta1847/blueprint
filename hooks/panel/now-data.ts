@@ -58,7 +58,8 @@ async function signalsOf($: any, main: string, plan: PlanModel, stage: StageMode
     const open = reviews ? openOnes(reviews).length : 0
     if (open > 0) out.push({ key: 'review', shape: 'wait', text: tr(lang, 'nowReview', { what: howMany(lang, open) }), stageId: stage.id, phase: 'review' })
   }
-  if (stage.independentParts.length > 0) {
+  // the children belong to the stage built in parallel: read them once, for that stage only
+  if (stage.independentParts.length > 0 && plan.stages[plan.parallelIndex] === stage) {
     for (const kid of (await readSessions($, main, plan)).kids) {
       if (kid.state !== 'blocked' || now - kid.updatedAt < STUCK_MS) continue
       out.push({ key: `kid:${kid.worktree}`, shape: 'fail', text: tr(lang, 'nowKidStuck', { who: kid.name, t: duration(now - kid.updatedAt) }), stageId: stage.id, phase: stage.phase ?? '' })

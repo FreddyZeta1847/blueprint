@@ -46,7 +46,8 @@ test('one run split per file fills each file\'s group, in the build phase too', 
 })
 
 test('while children build a parallel stage, the main session\'s runs are not that stage\'s (review round 1)', async ($, on) => {
-  const seen = engine(on, world('build'))
+  // a child's worktree exists: the children are building it
+  const seen = engine(on, { ...world('build'), files: { ...world('build').files, '.claude/worktrees/area-admin': '' } })
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'bun test' })
   expect(file(seen)).toBe(undefined)
@@ -125,4 +126,11 @@ test('an earlier stage waiting at «integrate» does not take the counts: they g
   await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
   expect(seen.files['blueprint/checks/fb--main.json']).toBe(undefined)
   expect(JSON.parse(seen.files['blueprint/checks/sec--main.json'] ?? '{}').groups['A. Corsi']).toMatchObject({ passed: 3, total: 3 })
+})
+
+test('a parallel stage built by one session (no child worktree) counts the main session\'s runs (review round 2)', async ($, on) => {
+  const seen = engine(on, { ...world('build'), toolOut: { 'npm test -- corsi': TAP(4, 0) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
+  expect(file(seen)['A. Corsi']).toMatchObject({ passed: 4, total: 4 })
 })
