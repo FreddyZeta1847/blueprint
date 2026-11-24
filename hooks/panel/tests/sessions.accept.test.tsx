@@ -145,15 +145,19 @@ test('B2: a stale child shows «terminata»; a file older than 7 days is ignored
   await ui.unmount()
 })
 
-test('B3: no parallel stage — one explaining line, no table, no sessions list run', async ($, on) => {
+test('F: no parallel stage — the mother alone, no children, and no sessions list run', async ($, on) => {
   const world = sessionsWorld()
   world.files!['blueprint/plan.json'] = JSON.stringify({ version: 3, project: 'x', stages: [{ id: 'a', name: 'Solo', type: 'quick_task', status: 'in_progress', phase: 'do' }] })
   const seen = engine(on, world)
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount(PANE('terminal'))
   await ui.press({ key: 'tab:sessioni' })
-  expect(await ui.find({ text: /Nessuna tappa in parallelo/ })).toBeDefined()
-  expect(await ui.find({ text: /Totale tappa/ })).toBeUndefined()
+  expect(await ui.find({ text: /Nessuna tappa in parallelo/ })).toBeUndefined()
+  expect(await ui.find({ text: /^tappa 1 di 1 · Solo$/ })).toBeDefined()
+  expect(await ui.find({ text: /^madre$/ })).toBeDefined()
+  expect(await ui.find({ text: /questa sessione · in attesa/ })).toBeDefined()
+  expect(await ui.find({ text: /Totale tappa: .* · 1 sessioni/ })).toBeDefined()
+  expect(await ui.find({ text: /Area admin|Area clienti/ })).toBeUndefined()
   await ui.unmount()
   expect(seen.agentRuns).toBe(0)
 })
