@@ -73,7 +73,12 @@ export async function nowModel($: any, main: string, plan: PlanModel | null, lan
   const now: number = await $.clock.now()
   const me = activity()
   const lines = await linesOf($, main, stage, lang).catch(() => [])
-  const signals = await signalsOf($, main, plan, stage, lang, now).catch(() => [])
+  // a later stage in its test phase (the current one may wait at «integrate») signals too
+  const tested = plan.stages.find(s => s !== stage && s.type === 'implementation' && s.status === 'in_progress' && s.phase === 'test')
+  const signals = [
+    ...(await signalsOf($, main, plan, stage, lang, now).catch(() => [])),
+    ...(tested ? await signalsOf($, main, plan, tested, lang, now).catch(() => []) : []),
+  ]
   if (stage.yourTurn) {
     const at = stage.phases.find(p => p.state === 'stopped')
     const wait = stage.waitingOn.length > 0

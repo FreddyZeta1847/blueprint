@@ -126,7 +126,7 @@ function Topics(ctx: ViewCtx, stage: StageModel, at: number) {
   const rail = (t: StageModel['topics'][number]): PhaseState[] => {
     if (t.done || stage.status === 'done') return stage.phases.map(() => 'done')
     const reached = stage.phases.findIndex(p => p.id === t.phase)
-    return stage.phases.map((p, i) => (i < reached ? 'done' : i === reached ? (p.state === 'stopped' ? 'stopped' : 'running') : 'todo'))
+    return stage.phases.map((p, i) => (i < reached ? 'done' : i === reached ? (p.user ? 'stopped' : 'running') : 'todo'))
   }
   const { Box, Text, Svg } = ctx.el
   return (

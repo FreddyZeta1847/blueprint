@@ -29,28 +29,17 @@ export async function readLoops($: any): Promise<Loops | null> {
  * The key word of a card line: "Size: project — un sito" → "project", "Pace: Calm: we discuss…" →
  * "calm". The lines go on with the reason, which the panel's one summary line has no room for.
  */
-function cardLine(text: string, key: string): string | undefined {
-  const m = new RegExp(`^${key}:\\s*(.+)$`, 'mi').exec(text)
-  return m?.[1]?.trim().split(/[\s.,;:(—–-]+/)[0]?.toLowerCase() || undefined
-}
-
-async function readCard($: any, main: string): Promise<PlanModel['card']> {
-  const text: string = await $.fs.read(`${main}/blueprint/context.md`).catch(() => '')
-  const size = cardLine(text, 'Size'); const difficulty = cardLine(text, 'Difficulty'); const pace = cardLine(text, 'Pace')
-  return size && difficulty && pace ? { size, difficulty, pace } : undefined
-}
-
 function perStage(stage: RawStage, phases: LoopPhase[], stopRunning: boolean) {
   const skipped = new Set((stage.skipped ?? []).map(s => s.id))
   const at = phases.findIndex(p => p.id === stage.phase)
-  const rail = phases.map((p, i): { id: string; state: PhaseState } => {
+  const rail = phases.map((p, i): { id: string; state: PhaseState; user?: boolean } => {
     let state: PhaseState = 'todo'
     if (stage.status === 'done') state = skipped.has(p.id) ? 'skipped' : 'done'
     else if (stage.status === 'in_progress' && at >= 0) {
       if (i < at) state = skipped.has(p.id) ? 'skipped' : 'done'
       else if (i === at) state = p.user || stopRunning ? 'stopped' : 'running'
     }
-    return { id: p.id, state }
+    return { id: p.id, state, ...(p.user ? { user: true } : {}) }
   })
   return { rail }
 }
@@ -60,8 +49,8 @@ function perStep(stage: RawStage, phases: LoopPhase[]) {
   const topics = stage.topics ?? []
   const lead = topics.find(t => !t.done && t.phase)
   const at = phases.findIndex(p => p.id === lead?.phase)
-  const rail = phases.map((p, i): { id: string; state: PhaseState } => ({
-    id: p.id,
+  const rail = phases.map((p, i): { id: string; state: PhaseState; user?: boolean } => ({
+    id: p.id, ...(p.user ? { user: true } : {}),
     state: stage.status === 'done' ? 'done' : at < 0 ? 'todo' : i < at ? 'done' : i === at ? (p.user ? 'stopped' : 'running') : 'todo',
   }))
   return { rail }
@@ -100,7 +89,6 @@ export async function readPlan($: any, main: string, sessions?: SessionsSummary)
   const parallel = found >= 0 ? found : current
   return {
     project: String(raw.project ?? ''),
-    card: await readCard($, main),
     stages: stages.map((s, i) => toStage(s, loops, i === parallel, sessions)),
     currentIndex: current,
     parallelIndex: parallel,

@@ -101,7 +101,9 @@ async function stageOf($: any, main: string, child: boolean): Promise<StageModel
   if (child) { const s = plan.stages[plan.parallelIndex]; return ok(s) ? s : null }
   // the main session: the first stage being built or tested, not merely the first one open (an
   // earlier stage may still wait at «integrate» for its pull request)
-  return plan.stages.find(ok) ?? null
+  // a stage built in parallel is the children's while they build it; the main session counts it
+  // only in its test phase, after the merge
+  return plan.stages.find(s => ok(s) && (s.independentParts.length === 0 || s.phase === 'test')) ?? null
 }
 
 /** What Claude reads when a test run counted for no group. */

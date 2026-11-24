@@ -3,7 +3,9 @@
  * four levels (decisions «Albero del lavoro»): session → letter → Task → sub-task, each with its
  * name (A, A1, A1.1), its short title and, only on the path being worked on, its plain words.
  * Sessions, letters and Tasks are open; a Task's sub-tasks open with its button («▸ 3» / «▾ 3»),
- * the Task in progress already open; a letter's button («▾ 1/2») shuts it, if the user wants. The state of the sub-task in progress climbs back up: its Task,
+ * the Task in progress already open. Beside each letter one bead per Task (done, in progress, «!»
+ * when it waits, to do), then its ▾ button, which shuts the letter if the user wants. Each
+ * session's row says what it is doing («al lavoro · Bash da 2 min», «ferma da 14 min»). The state of the sub-task in progress climbs back up: its Task,
  * letter and session are blue while the session works, amber when it waits for the user. Which
  * Tasks were opened or shut by hand lives in the `taskOpen` $.state atom. The terminal gets the
  * same tree with text marks and no guides. Data: plan-steps.ts.
@@ -114,7 +116,7 @@ function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g:
   const open = isOpen(opened, key, true)
   const count = `${states.filter(s => s === 'done').length}/${states.length}`
   const beads = ctx.surface !== 'terminal'
-    ? <Box key={`beads:${key}`}><Svg source={beadsSvg(states)} alt={count} width={states.length * 12} height={12} /></Box>
+    ? <Box key={`beads:${key}`}><Svg source={beadsSvg(states)} alt={`${count} · ${states.map(s => GLYPH[s]).join('')}`} width={states.length * 12} height={12} /></Box>
     : <Text dimColor>{states.map(s => GLYPH[s]).join('')}</Text>
   // one bead per Task (the count stays in the picture's alt), then the button that shuts the letter
   const right = states.length > 0 ? <Box flexDirection="row" gap={1} alignItems="center">{beads}{Toggle($, ctx, key, open)}</Box> : null
@@ -153,7 +155,10 @@ export const asTodo = (s: StepSection): StepSection => ({
   ...(s.tasks ? { tasks: s.tasks.map(t => ({ ...t, steps: t.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) })) } : {}),
 })
 
-/** In the plan phase every letter shows its plain words, so the skeleton can be read in the panel. The whole tree: one session row each (teal for a child), its letters inside. */
+/**
+ * The whole tree: one session row each (teal for a child), its letters inside. In the plan phase
+ * every letter shows its plain words, so the skeleton can be read in the panel.
+ */
 export async function WorkTree($: any, ctx: ViewCtx, stage: StageModel, sections: StepSection[], asPlan: boolean) {
   const { Box, Text } = ctx.el
   const opened = await read($, taskOpen)

@@ -34,12 +34,22 @@ test('in the test phase a group\'s command writes its counts; the last run wins;
 })
 
 test('one run split per file fills each file\'s group, in the build phase too', async ($, on) => {
-  const seen = engine(on, world('build'))
+  // a stage built in one session: the main session builds it, so its runs count while building
+  const single = JSON.parse(planJson({ phase: 'build' }))
+  single.stages[2].independent_parts = []
+  const seen = engine(on, { ...world('build'), files: { ...world('build').files, 'blueprint/plan.json': JSON.stringify(single) } })
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'bun test' })
   expect(file(seen)['B. Chiusure']).toMatchObject({ passed: 1, total: 2, failed: ['ordine'] })
   expect(file(seen)['C. Calendario']).toMatchObject({ passed: 1, total: 1 })
   expect(file(seen)['A. Corsi']).toBe(undefined)
+})
+
+test('while children build a parallel stage, the main session\'s runs are not that stage\'s (review round 1)', async ($, on) => {
+  const seen = engine(on, world('build'))
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'bun test' })
+  expect(file(seen)).toBe(undefined)
 })
 
 test('outside build and test, or with a command of no group, nothing is written', async ($, on) => {

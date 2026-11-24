@@ -146,7 +146,8 @@ export function beadsSvg(states: PhaseState[]): string {
   const bead = (s: PhaseState, i: number) => {
     const cx = 6 + i * step
     if (s === 'done') return `<circle cx="${cx}" cy="6" r="4" fill="${C.muted}"/>`
-    if (s === 'running' || s === 'stopped') return `<circle cx="${cx}" cy="6" r="3.5" fill="none" stroke="${s === 'running' ? C.accent : C.amber}" stroke-width="2"/>`
+    if (s === 'stopped') return `<circle cx="${cx}" cy="6" r="5" fill="${C.amber}"/><text x="${cx}" y="9" font-size="8" font-weight="800" fill="${C.hole}" text-anchor="middle" ${FONT}>!</text>`
+    if (s === 'running') return `<circle cx="${cx}" cy="6" r="3.5" fill="none" stroke="${C.accent}" stroke-width="2"/>`
     return `<circle cx="${cx}" cy="6" r="3.5" fill="none" stroke="${C.faint}" stroke-width="1.5"/>`
   }
   return doc(Math.max(states.length, 1) * step, 12, states.map(bead).join(''))
