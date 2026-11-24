@@ -44,7 +44,7 @@ test('a Task\'s button opens and shuts its sub-tasks', async ($, on) => {
   await ui.press({ key: 'task:fb::A2' })
   expect(await has(/^○ A2\.1 Risale$/)).toBe(true)
   await ui.press({ key: 'task:fb::A1' })
-  expect(await has(/A1\.2 Spiegazioni/)).toBe(false)
+  expect(await has(/^● A1\.2 Spiegazioni$/)).toBe(false)
   await ui.press({ key: 'task:fb::A1' })
   expect(await has(/^● A1\.2 Spiegazioni$/)).toBe(true)
   // a letter is open by default; its button shuts it and opens it again

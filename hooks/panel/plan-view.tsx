@@ -17,6 +17,7 @@ import { readSteps, type StepSection } from './plan-steps'
 import { TestResults } from './test-view'
 import { ReviewResults } from './review-view'
 import { WorkTree, asTodo, sessionsOf } from './tree-view'
+import { NowCard } from './now-view'
 
 /**
  * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
@@ -436,7 +437,15 @@ export async function renderPlanView($: any, ctx: ViewCtx, plan: PlanModel | nul
   if (!plan) return <Text dimColor>{tr(ctx.lang, 'noPlan')}</Text>
   const list = await read($, expanded)
   const notes = await readNotes($, ctx.main)
-  const rows = []
+  // a signal of the «Adesso» card opens its stage on the phase that shows it
+  const openAt = (stageId: string, phase: string) => {
+    const stage = plan.stages.find(s => s.id === stageId)
+    const at = stage ? stage.phases.findIndex(p => p.id === phase) : -1
+    if (!stage) return
+    void update($, expanded, l => (isOpen(l, stage, plan) ? l : toggle(l, stage.id, plan)))
+    if (at >= 0) void update($, lens, m => ({ ...m, [stageId]: { at, live: liveIndex(stage) } }))
+  }
+  const rows = [await NowCard($, ctx, plan, openAt)]
   for (const [i, stage] of plan.stages.entries()) {
     const open = isOpen(list, stage, plan)
     const current = i === plan.currentIndex
