@@ -56,7 +56,7 @@ function Dashboard(ctx: ViewCtx, r: Reviews, all: Found[]) {
   const live = all.length - fixed
   const tools = [...new Set([...(r.history ?? []).flatMap(h => h.tools ?? []), ...(r.tools ?? []), ...all.map(f => f.tool)])]
   const most = Math.max(1, ...tools.map(t => all.filter(f => f.tool === t).length))
-  const title = rounds > 1 ? tr(ctx.lang, 'reviewInRounds', { what: howMany(ctx.lang, all.length), n: rounds }) : tr(ctx.lang, 'reviewInRound', { what: howMany(ctx.lang, all.length), r: r.round })
+  const title = rounds > 1 ? tr(ctx.lang, 'reviewInRounds', { what: howMany(ctx.lang, all.length), n: rounds }) : tr(ctx.lang, 'reviewInRound', { what: howMany(ctx.lang, all.length), r: all[0]?.round ?? r.round }) // the round that found them
   return (
     <Box key="review-dash" flexDirection="column" gap={1} borderStyle="round" borderColor={C.line} paddingX={1}>
       <Box flexDirection="row" justifyContent="space-between" gap={1}>
@@ -99,7 +99,9 @@ export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
   const left = secondsLeft(stage.id, r, await $.clock.now())
   const fixAll = () => void sendFixes($, ctx.main, stage.id, 'all', ctx.lang)
   const all = allFindings(r)
-  const current = all.filter(f => f.round === r.round && f.status !== 'fixed')
+  // every finding not fixed, a past round's too (it is counted as open, so it must be found here);
+  // only this round's can be sent from here
+  const current = all.filter(f => f.status !== 'fixed')
   const fixed = all.filter(f => f.status === 'fixed')
   const showFixed = (await read($, fixedOpen)).includes(stage.id)
   const flipFixed = () => void update($, fixedOpen, list => (list.includes(stage.id) ? list.filter(id => id !== stage.id) : [...list, stage.id]))
@@ -117,7 +119,7 @@ export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
         : fixed.length > 0 ? <Text wrap="wrap" color={C.muted}>{tr(ctx.lang, 'reviewAllFixed', { what: howMany(ctx.lang, fixed.length), r: r.round })}</Text>
         : <Text wrap="wrap" color={C.muted}>{tr(ctx.lang, 'reviewNone', { r: r.round })}</Text>}
       {Dashboard(ctx, r, all)}
-      {current.sort(bySeverity).map(f => FindingRow($, ctx, stage, f, !isStuck))}
+      {current.sort(bySeverity).map(f => FindingRow($, ctx, stage, f, !isStuck && f.round === r.round))}
       {fixed.length > 0 && (
         <Button key={`fixed:${stage.id}`} plain dimColor onPress={flipFixed}>
           {`${showFixed ? '▾' : '▸'} ${tr(ctx.lang, 'reviewShowFixed', { what: howMany(ctx.lang, fixed.length) })}`}

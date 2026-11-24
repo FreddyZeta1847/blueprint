@@ -168,7 +168,6 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
 const CURRENT = '*'
 const expanded = atom({ plugin: 'blueprint', key: 'expanded' } as const, [CURRENT] as string[], { shape: 'expanded-1' })
 
-
 /** One line: longer text is cut and ends with «…». */
 export function cut(text: string, max: number): string {
   const room = Math.max(max, 4)
@@ -393,8 +392,6 @@ async function Decisions($: any, ctx: ViewCtx, stage: StageModel) {
     </Box>
   )
 }
-
-
 
 /** The note being edited, `<stage id>:<index in notes.json>`, or none: only one field at a time. */
 const editing = atom({ plugin: 'blueprint', key: 'noteEdit' } as const, null as string | null, { shape: 'note-edit-1' })

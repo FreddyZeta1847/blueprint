@@ -56,7 +56,7 @@ export async function DecisionCards($: any, ctx: ViewCtx, stage: StageModel, lis
   const { Box, Text, Button } = ctx.el
   const chosen = (await read($, decFilter))[stage.id] ?? (list.some(d => d.oneWay) ? 'hard' : 'all')
   const opened = await read($, decOpen)
-  const shown = list.map((d, i) => ({ d, i })).filter(({ d }) => PASS[chosen](d))
+  const shown = list.filter(d => PASS[chosen](d))
   const hidden = list.length - shown.length
   const pick = (f: Filter) => () => void update($, decFilter, m => ({ ...m, [stage.id]: f }))
   const filters: [Filter, string][] = [
@@ -72,9 +72,10 @@ export async function DecisionCards($: any, ctx: ViewCtx, stage: StageModel, lis
           <Button key={`decfilter:${stage.id}:${f}`} variant={f === chosen ? 'primary' : 'secondary'} onPress={pick(f)}>{label}</Button>
         ))}
       </Box>
-      {shown.map(({ d, i }, at) => {
-        // keyed by the decision, not its place: a new decision above does not open another card
-        const key = `${stage.id}:${d.text}`
+      {shown.map((d, at) => {
+        // keyed by the decision, not its place: a new decision above does not open another card; the
+        // topic too, since a section may repeat a short title («Dettagli», «Formato»)
+        const key = `${stage.id}:${d.topic ?? ''}:${d.text}`
         const open = opened.includes(`open:${key}`) || (!opened.includes(`shut:${key}`) && at === 0)
         return Card($, ctx, d, key, open)
       })}

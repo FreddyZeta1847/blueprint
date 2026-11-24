@@ -142,3 +142,14 @@ test('past rounds add up: «4 problemi in 2 giri», the fixed ones of round 1 be
   expect(JSON.stringify(await ui.find({ key: 'review-tool:/code-review' }))).toContain('#E5AC52') // found again this round: an amber part
   await ui.unmount()
 })
+
+test('a past round\'s finding still open is listed (without «Correggi»); one round of findings is titled with its own round', async ($, on) => {
+  const r = JSON.parse(reviews({ round: 2, status: 'fixed' }))
+  r.findings = []
+  r.history = [{ round: 1, findings: [{ id: 'old', tool: '/code-review', severity: 'low', text: 'Rimasto aperto.', status: 'open' }] }]
+  await open($, on, JSON.stringify(r))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect([await ui.find({ text: /^Rimasto aperto\.$/ }), await ui.find({ text: /^1 problema nel giro 1$/ })].every(Boolean)).toBe(true)
+  expect(await ui.find({ key: 'fix:old' })).toBeUndefined()
+  await ui.unmount()
+})

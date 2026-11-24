@@ -17,10 +17,12 @@ import { tr } from './text'
 import { SAFE_ID } from './repo'
 
 export type Finding = { id: string; tool: string; severity: 'high' | 'medium' | 'low'; text: string; status: 'open' | 'sent' | 'fixed' }
-/** `tools`: every tool that ran this round, so one that found nothing can say so. */
 /** A past round, as it ended (its findings fixed or still open). */
 export type PastRound = { round: number; foundAt?: string; tools?: string[]; findings: Finding[] }
-/** `history`: the rounds before this one, so the panel can add them up («12 problemi in 2 giri»). */
+/**
+ * `tools`: every tool that ran this round, so one that found nothing can say so. `history`: the
+ * rounds before this one, so the panel can add them up («12 problemi in 2 giri»).
+ */
 export type Reviews = { v: 1; round: number; foundAt: string; tools?: string[]; findings: Finding[]; history?: PastRound[] }
 
 /** Every finding of every round, each with the round that found it, the past rounds first. */

@@ -54,13 +54,16 @@ const some = (o: Record<string, string | undefined>) => Object.fromEntries(Objec
 function bulletParts(line: string): Pick<Decision, 'by' | 'why' | 'rejected' | 'date'> {
   // what follows the bold title, with or without a dash («**Title** — why», «**Title** (why)»)
   const rest = /^\s*[-*]\s+\*\*.+?\*\*\s*(?:[—–-]\s*)?(.*)$/.exec(line)?.[1] ?? ''
-  const dated = /^(.*?)(?:;\s*|\s+)(\d{4}-\d{2}-\d{2})\s*$/.exec(rest)
+  // the date may carry a note in brackets after it («2026-11-16 (all'apertura della Costruzione)»)
+  const dated = /^(.*?)(?:;\s*|\s+)(\d{4}-\d{2}-\d{2})(?:\s*\([^)]*\))?\s*$/.exec(rest)
   let body = (dated ? dated[1]! : rest).trim()
   let by: Decision['by']
   if (dated) {
     const segment = body.slice(body.lastIndexOf(';') + 1)
     const last = segment.split(/(?<=[.!?»)])\s+/).pop()?.trim() ?? ''
-    if (last && last.length <= 60 && !/[.!?]$/.test(last)) {
+    // a name only after something else (a «;» or a full stop): «ogni notte alle 3; 2026-…» is a why
+    const named = last !== body || /^(claude\b|decided by|deciso da)/i.test(last)
+    if (last && named && last.length <= 60 && !/[.!?]$/.test(last)) {
       by = isReversibility(last) ? undefined : who(last)
       body = body.slice(0, body.length - last.length).replace(/[;\s]+$/, '')
     }

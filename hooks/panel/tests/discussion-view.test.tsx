@@ -60,7 +60,7 @@ test('the decisions as cards: the hard ones by default, the first open with why,
   expect([await has(/^Backup ogni notte$/), await has(/^Altre 1 non sono in questo filtro:$/)]).toEqual([false, true])
   await ui.press({ key: 'decshowall:db' })
   expect([await has(/^Backup ogni notte$/), await has(/^ C $/)]).toEqual([true, true])
-  await ui.press({ key: 'decopen:db:PostgreSQL gestito' }) // shut the first card
+  await ui.press({ key: 'decopen:db:Dove stanno i dati:PostgreSQL gestito' }) // shut the first card
   expect(await has(/^i dati sono relazionali\.$/)).toBe(false)
   await ui.press({ key: 'decfilter:db:claude' })
   expect([await has(/^PostgreSQL gestito$/), await has(/^Backup ogni notte$/)]).toEqual([false, true])
@@ -92,4 +92,11 @@ test('review round 2: the real ways the decisions file is written', async () => 
   const block = '### a — Q?\n- **Alternative scartate:** MongoDB — dati relazionali\n- **Deciso da:** scoperta (2026-11-20)\n- **Tappa:** db\n'
   expect(decisionsFromBlocks(block, 'db')[0]).toMatchObject({ rejected: 'MongoDB — dati relazionali', date: '2026-11-20' })
   expect(decisionsFromBlocks(block, 'db')[0]!.by).toBeUndefined()
+})
+
+test('review round 3: a short why is no author; a note after the date; same titles in different topics', async () => {
+  const d = decisionsFromFile('## X\n- **Backup** — ogni notte alle 3; 2026-11-20\n- **Cerchio** — x. Federico, guardando; 2026-11-16 (all\'apertura della Costruzione)\n', 'X')
+  expect(d[0]).toMatchObject({ why: 'ogni notte alle 3', date: '2026-11-20' })
+  expect(d[0]!.by).toBeUndefined()
+  expect(d[1]).toMatchObject({ by: 'user', date: '2026-11-16', why: 'x.' })
 })
