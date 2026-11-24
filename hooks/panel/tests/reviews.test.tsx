@@ -108,3 +108,12 @@ test('the ring of the countdown shows only while a countdown runs', async ($, on
   expect(JSON.stringify(await ui.find({ key: 'ring' }))).toContain('stroke-dasharray')
   await ui.unmount()
 })
+
+test('in the review phase with no findings file yet, the tools are at work — not «not started»', async ($, on) => {
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'review' }) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('terminal'))
+  expect(await ui.find({ text: /^Gli strumenti di revisione stanno lavorando/ })).toBeDefined()
+  expect(await ui.find({ text: /^La revisione non è ancora partita/ })).toBeUndefined()
+  await ui.unmount()
+})

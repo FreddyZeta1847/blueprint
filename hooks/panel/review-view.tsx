@@ -39,7 +39,8 @@ function FindingRow($: any, ctx: ViewCtx, stage: StageModel, f: Finding, canFix:
 export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
   const { Box, Text, Button, Svg } = ctx.el
   const r = await readReviews($, ctx.main, stage.id)
-  if (!r) return <Text wrap="wrap" dimColor>{tr(ctx.lang, 'reviewNotYet')}</Text>
+  // no findings file yet: in the review phase the tools are still running; elsewhere it has not started
+  if (!r) return <Text wrap="wrap" dimColor>{tr(ctx.lang, stage.phase === 'review' && stage.status === 'in_progress' ? 'reviewRunning' : 'reviewNotYet')}</Text>
   const open = openOnes(r).length
   const sent = r.findings.filter(f => f.status === 'sent').length
   const isStuck = stuck(r)
