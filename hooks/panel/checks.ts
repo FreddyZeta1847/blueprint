@@ -96,9 +96,12 @@ function countFor(key: string, command: string, out: TestOutput): Count | null {
 /** The stage this session works on: the parallel one in a child, the current one in the main session. */
 async function stageOf($: any, main: string, child: boolean): Promise<StageModel | null> {
   const plan = await readPlan($, main)
-  const stage = plan ? plan.stages[child ? plan.parallelIndex : plan.currentIndex] : undefined
-  const ok = stage && SAFE_ID.test(stage.id) && stage.type === 'implementation' && stage.status === 'in_progress' && RECORDED_PHASES.has(stage.phase ?? '')
-  return ok ? stage : null
+  if (!plan) return null
+  const ok = (s?: StageModel): s is StageModel => !!s && SAFE_ID.test(s.id) && s.type === 'implementation' && s.status === 'in_progress' && RECORDED_PHASES.has(s.phase ?? '')
+  if (child) { const s = plan.stages[plan.parallelIndex]; return ok(s) ? s : null }
+  // the main session: the first stage being built or tested, not merely the first one open (an
+  // earlier stage may still wait at «integrate» for its pull request)
+  return plan.stages.find(ok) ?? null
 }
 
 /** What Claude reads when a test run counted for no group. */

@@ -106,3 +106,13 @@ test('a stage id that is not kebab-case is never used in a file name (review rou
   await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
   expect(Object.keys(seen.files).filter(k => k.includes('fuori') && k.endsWith('.json'))).toEqual([])
 })
+
+test('an earlier stage waiting at «integrate» does not take the counts: they go to the stage in test', async ($, on) => {
+  const plan = JSON.parse(planJson({ phase: 'integrate' }))
+  plan.stages[3] = { id: 'sec', name: 'Controllo', type: 'implementation', status: 'in_progress', phase: 'test' }
+  const seen = engine(on, { ...world('test'), files: { ...world('test').files, 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/sec.md': STEPS } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
+  expect(seen.files['blueprint/checks/fb--main.json']).toBe(undefined)
+  expect(JSON.parse(seen.files['blueprint/checks/sec--main.json'] ?? '{}').groups['A. Corsi']).toMatchObject({ passed: 3, total: 3 })
+})
