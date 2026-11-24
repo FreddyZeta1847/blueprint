@@ -1,10 +1,11 @@
 /*
  * Tests of the plain plan's steps (blueprint/plans/<stage id>.md): the parser, the column in the
- * open stage, and a child's ticks read from its own worktree copy.
+ * open stage, a child's ticks read from its own worktree copy, and the four levels (letter, Task,
+ * sub-task) with the state of the sub-task in progress.
  * Run: claude plugin test .   (from the repository root)
  */
 import { expect, test } from 'claude-code/testing'
-import { parseSteps } from '../plan-steps'
+import { nodeState, parseSteps, splitId } from '../plan-steps'
 import { engine, MAIN, PANE, defaultFiles } from './harness'
 
 const PLAN = '# Piano — Frontend e backend\n\n## Area admin\n- [x] 1. Corsi e iscritti.\n- [ ] 2. Chiusure.\n- Test: un corso chiuso non si prenota.\n\n## Area clienti\n- [ ] 1. Calendario.\n- [ ] 2. Prenotazione.\n\n## Madre\n- [ ] Unione, test d\'integrazione, prova, PR.\n'
@@ -29,6 +30,41 @@ test('parseSteps: sections, their ### groups, checkbox lines, and the «Test:» 
   const marked = parseSteps('## G. Azure — *con te, prossimo passo*\n- [ ] **Review**: `differential-review` e 2*3 casi, _vedi_ __qui__ [la guida](docs/x.md).\n')
   expect(marked[0]!.name).toBe('G. Azure — con te, prossimo passo')
   expect(marked[0]!.groups[0]!.steps[0]!.text).toBe('Review: differential-review e 2*3 casi, vedi qui la guida.')
+})
+
+test('parseSteps: a «Test (key):» line keeps its key (a command or a test file); a plain «Test:» has none', async () => {
+  const keyed = parseSteps('## A. Uno\n- [ ] 1. x\n- Test (npm test -- uno): corso pieno.\n## B. Due\n- [ ] 2. y\n- Test (`due.test.ts`): disdetta.\n## C. Tre\n- [ ] 3. z\n- Test: niente chiave.\n')
+  expect(keyed.map(s => s.groups[0]!.test)).toEqual(['corso pieno.', 'disdetta.', 'niente chiave.'])
+  expect(keyed.map(s => s.groups[0]!.testKey)).toEqual(['npm test -- uno', 'due.test.ts', undefined])
+})
+
+const FOUR = '# Piano\nIntro che non è di nessuno.\n### A. Lettore\nLegge il piano.\n- Test (a.test.tsx): legge.\nTesto dopo il Test, di nessuno.\n#### A1. Livelli\nOgni livello ha un nome.\n- [x] A1.1 Titoli\n  I titoli con il nome.\n- [ ] A1.2 Spiegazioni\nTesto non rientrato, di nessuno.\n#### A2. Stato\n- [ ] A2.1 Risale\n'
+
+test('parseSteps: four levels — letter, Task, sub-task — with their names and plain words', async () => {
+  const g = parseSteps(FOUR)[0]!.groups[0]!
+  expect(g.title).toBe('A. Lettore')
+  expect(g.expl).toBe('Legge il piano.')
+  expect(g.steps.map(s => s.text)).toEqual(['A1.1 Titoli', 'A1.2 Spiegazioni', 'A2.1 Risale']) // still flat for the rest of the panel
+  expect(g.tasks).toEqual([
+    { title: 'A1. Livelli', expl: 'Ogni livello ha un nome.', steps: [{ text: 'A1.1 Titoli', done: true, expl: 'I titoli con il nome.' }, { text: 'A1.2 Spiegazioni', done: false }] },
+    { title: 'A2. Stato', steps: [{ text: 'A2.1 Risale', done: false }] },
+  ])
+  // steps written before the first Task go to a Task with no title
+  expect(parseSteps('### A. X\n- [ ] sciolto\n#### A1. Y\n- [ ] A1.1 dentro\n')[0]!.groups[0]!.tasks!.map(t => [t.title, t.steps.length])).toEqual([[undefined, 1], ['A1. Y', 1]])
+  // the old format has no tasks
+  expect(parseSteps('### A. X\n- [ ] uno\n')[0]!.groups[0]!.tasks).toBeUndefined()
+  expect(splitId('A1.2 Spiegazioni')).toEqual({ id: 'A1.2', title: 'Spiegazioni' })
+  expect(splitId('A. Lettore')).toEqual({ id: 'A', title: 'Lettore' })
+  expect(splitId('Area admin')).toEqual({ title: 'Area admin' })
+  expect(splitId('1. Corsi.')).toEqual({ title: '1. Corsi.' })
+})
+
+test('nodeState: in progress or stopped if one child is, done if all are, else to do', async () => {
+  expect(nodeState(['done', 'running', 'todo'])).toBe('running')
+  expect(nodeState(['done', 'stopped'])).toBe('stopped')
+  expect(nodeState(['done', 'done'])).toBe('done')
+  expect(nodeState(['done', 'todo'])).toBe('todo')
+  expect(nodeState([])).toBe('todo')
 })
 
 // a stage built in one session (no independent parts) whose plan has several ## sections: they are

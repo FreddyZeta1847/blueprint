@@ -52,12 +52,16 @@ export type World = {
   language?: string
   /** what $.session.id() answers (default: the mother's id) */
   sessionId?: string
+  /** stdout of a Bash / PowerShell command, by the command as typed */
+  toolOut?: Record<string, string>
 }
 
 export type Seen = {
   commands: string[]; opened: string[]; closed: string[]; status: (string | undefined)[]; pushes: string[]
   writes: { path: string; text: string }[]; copies: string[]; toasts: string[]; config: { key: string; value: unknown }[]
   agentRuns: number
+  /** the prompts the mod submitted ($.prompt.submit) */
+  prompts: string[]
   /** where the session works now (what $.session.cwd() answers); a test may move it */
   cwd: string
   /** the mock clock: `await seen.clock.advance(ms)` moves time and fires due timers */
@@ -78,7 +82,7 @@ const norm = (p: string) => p.replace(/\\/g, '/')
 export function engine(on: any, world: World = {}): Seen {
   const clock = mock.clock(on, { now: NOW })
   const files: Record<string, string | undefined> = { ...defaultFiles(), ...(world.files ?? {}) }
-  const seen: Seen = { commands: [], opened: [], closed: [], status: [], pushes: [], writes: [], copies: [], toasts: [], config: [], agentRuns: 0, clock, cwd: world.cwd ?? MAIN, files }
+  const seen: Seen = { commands: [], opened: [], closed: [], status: [], pushes: [], writes: [], copies: [], toasts: [], config: [], agentRuns: 0, prompts: [], clock, cwd: world.cwd ?? MAIN, files }
   // exact paths under MAIN; the plugin's loops.json and a worktree's .git by their ending
   const rel = (p: string): string | undefined => {
     const n = norm(p)
@@ -141,7 +145,12 @@ export function engine(on: any, world: World = {}): Seen {
     }
     return { value: { exitCode: 1, stdout: '', stderr: 'not stubbed', isStdoutTruncated: false, isStderrTruncated: false } }
   })
-  on('tool.call', (_: any, e: any) => { if (e.tool === 'PushNotification') seen.pushes.push(e.message); return { result: {} } })
+  on('tool.call', (_: any, e: any) => {
+    if (e.tool === 'PushNotification') seen.pushes.push(e.message)
+    if (e.tool === 'Bash' || e.tool === 'PowerShell') return { result: { stdout: world.toolOut?.[e.command] ?? '', stderr: '', interrupted: false } }
+    return { result: {} }
+  })
+  on('prompt.submit', (_: any, e: any) => { seen.prompts.push(e.text); return { text: e.text } })
   // where the session works: the folder it started in, or the one the test moves it to
   on('session.cwd', () => ({ value: seen.cwd }))
   on('session.start', (_: any, e: any) => { seen.cwd = e.cwd ?? seen.cwd; return { cwd: e.cwd } })

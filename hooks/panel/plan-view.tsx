@@ -14,6 +14,9 @@ import { C, GLYPH, barSvg, barText, pillSvg, railSvg, stepLineSvg, stepMarkSvg }
 import { tr } from './text'
 import { addNote, changeNote, readNotes, stageDecisions, type Note } from './plan-extras'
 import { readSteps, type StepSection } from './plan-steps'
+import { TestResults } from './test-view'
+import { ReviewResults } from './review-view'
+import { WorkTree } from './tree-view'
 
 /**
  * The steps of the stage's plain plan (blueprint/plans/<id>.md): one column per session, one under
@@ -33,11 +36,14 @@ async function Steps($: any, ctx: ViewCtx, stage: StageModel, asPlan: boolean) {
   const progress = (s: StepSection) => asPlan ? '' : ` · ${tr(ctx.lang, 'stepsOf', { done: s.steps.filter(st => st.state === 'done').length, all: s.steps.length })}`
   const sessions = bySession(sections)
   const lone = sessions.length === 1 && sessions[0]!.role === 'single'
+  // a plan written in four levels (letters, Tasks, sub-tasks) is drawn as the work tree
+  const tree = sections.some(s => s.tasks)
   return (
     <Box flexDirection="column" gap={1} width="100%">
-      <Text bold color={C.ink}>{`${tr(ctx.lang, asPlan ? 'planSteps' : 'steps')}${lone ? progress(sessions[0]!) : ''}`}</Text>
+      <Text bold color={C.ink}>{`${tr(ctx.lang, asPlan ? 'planSteps' : 'steps')}${lone || tree ? progress({ ...sections[0]!, steps: sections.flatMap(s => s.steps) }) : ''}`}</Text>
       {asPlan && <Button key={`plan-file:${stage.id}`} plain dimColor onPress={copy}>{`⧉ blueprint/plans/${stage.id}.md`}</Button>}
-      {sessions.map((s, i) => {
+      {tree && await WorkTree($, ctx, stage, sections, asPlan)}
+      {!tree && sessions.map((s, i) => {
         const color = s.role === 'child' ? C.teal : C.muted
         const steps = asPlan ? s.steps.map(st => ({ ...st, state: 'todo' as PhaseState })) : s.steps
         const lines = steps.map(st => `${GLYPH[st.state]} ${st.text}`)
@@ -92,7 +98,7 @@ function StepRow(ctx: ViewCtx, step: { state: PhaseState; text: string }, line: 
   )
 }
 
-/** The «Test:» (test phase) or «Finita quando:» (review phase) line of each session or group. */
+/** The «Test:» or «Finita quando:» (first-use phase: the user's checklist) line of each session or group. */
 async function Checks($: any, ctx: ViewCtx, stage: StageModel, key: 'test' | 'doneWhen') {
   const { Box, Text } = ctx.el
   const rows = (await readSteps($, ctx.main, stage)).filter(s => s[key])
@@ -136,8 +142,9 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
   if (id === 'clarify' || id === 'do' || id === 'prepare') return Topics(ctx, stage, at)
   if (id === 'plan') return await Steps($, ctx, stage, true)
   if (id === 'build') return await Steps($, ctx, stage, false)
-  if (id === 'test') return await Checks($, ctx, stage, 'test')
-  if (id === 'review') return await Checks($, ctx, stage, 'doneWhen')
+  if (id === 'test') return await TestResults($, ctx, stage)
+  if (id === 'review') return await ReviewResults($, ctx, stage)
+  if (id === 'first_use') return await Checks($, ctx, stage, 'doneWhen') // the user's checklist
   return null
 }
 

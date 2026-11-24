@@ -15,6 +15,8 @@ declare module 'claude-code' {
       /** the note shown as a field, `<stage id>:<index in notes.json>`, or null */
       noteEdit: Shaped<string | null>
       waiting: Shaped<boolean>
+      /** Tasks of the work tree opened or shut by hand: `open:<key>` / `shut:<key>` (view only) */
+      taskOpen: Shaped<string[]>
     }
   }
 }

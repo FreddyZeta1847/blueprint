@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.2.1-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.4.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/Obsidian-readable-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white" />
@@ -319,11 +319,21 @@ Remote Control). It rereads `blueprint/plan.json` every 5 seconds and has three 
   its type is for and its phases; ◀ ▶ under them move the view from
   phase to phase (the plan itself does not change) and the stage shows what belongs to that phase:
   its topics, the files that hold a discussion's decisions (a click copies the path) and, in an
-  implementation stage, its **steps** (with how many each session has done) — the plain plan Claude writes in `blueprint/plans/<stage>.md`
-  next to the technical one, a column of marks per session (teal line for a child, grey for the
-  main session), unticked in the plan phase, ticked as each step finishes in the build phase, its
-  `Test:` lines in the test phase and its `Finita quando:` lines in the review phase. The notes are
-  always there: add one, edit it (✎) or delete it (✕).
+  implementation stage, its **work tree** — the plain plan Claude writes in `blueprint/plans/<stage>.md`
+  as the index of the technical one: sessions → letters (A, B…) → Tasks (A1, A2…) → sub-tasks
+  (A1.1…), each with a short title. Sessions, letters and Tasks are open, a Task's sub-tasks open
+  with its button; the sub-task Claude is on colours its Task, letter and session (blue while it
+  works, amber «!» when it waits for you) and only that path shows its plain words. Unticked in the
+  plan phase, ticked as each sub-task finishes in the build phase (plans in the older format show a
+  column of steps per session). In
+  the **test phase** every group of the plain plan gets a bar and a fraction («14/14») read from the
+  real output of its test command (the `Test (command or file)` line), with the failed tests by
+  name; the counts already fill up while building, and the main session's last run wins. In the
+  **review phase** the findings of the review tools are grouped by tool, each with a **Correggi**
+  (fix) button and a **Correggi tutto ora** on top; if nobody presses, they are sent to Claude by
+  themselves 30 seconds later (the countdown is in the panel and in the status line), at most
+  three rounds. In the **first-use phase** the `Finita quando:` lines become the checklist of what
+  you try yourself. The notes are always there: add one, edit it (✎) or delete it (✕).
 - **Sessions** — during a stage built in parallel: the mother session and one child per part,
   with state, the tool in use, context, cost and time; a button copies `claude attach <id>`.
 - **Legend** — every stage type with its phases, how Claude moves through them, and how the
@@ -335,6 +345,16 @@ is a plan) and `notifyWhenWaiting` (off: a phone notification when a stage or a 
 you). The panel follows Claude Code's language setting (Italian or English).
 
 ## Status
+
+v3.4.0 — the work tree: the plain plan in four levels (session, letter, Task, sub-task) with
+the same names as the technical plan (A, A1, A1.1), written in three moves (skeleton approved by
+you, technical plan on the letters, then sub-tasks); letters go to children by the files they
+touch; the panel draws it as a tree whose «in progress» climbs from the sub-task to the session.
+
+v3.3.0 — tests and review in the panel: each group's test count read from the real command
+output (also while building, from the children too), and the review's findings with Correggi,
+Correggi tutto and an automatic fix after 30 seconds. The test and review phases belong to the
+main session; the plain plan's `Test` lines name their command or test file.
 
 v3.2.1 — a clearer panel: a frame only around the current and the open stage, finished stages
 dimmed, a caption beside each bar saying what the stage is and where it stands, step counts per

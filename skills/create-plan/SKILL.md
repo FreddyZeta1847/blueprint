@@ -268,12 +268,36 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   says it `produces`;
 - a phase marked `user: true` needs the user (a choice, a delivery, an outcome to see): stop there
   and ask;
-- **`plan` (implementation) gives the user a plain plan too.** Next to the technical plan, write
-  `blueprint/plans/<stage id>.md` (format in `blueprint:docs-management` §1): a few numbered steps
-  per section, with their tests and when the section is finished, one section per independent part
-  plus «Madre» when the parts run in parallel. Show it to the user in the chat as well. Then tick
-  each step as it finishes, each session in its own section and its own copy; the panel shows the
-  steps as a column of marks in the open stage;
+- **`plan` (implementation) gives the user a plain plan too, in three moves.** The plain plan
+  `blueprint/plans/<stage id>.md` (format in `blueprint:docs-management` §1) is the index of the
+  technical plan, with the same names:
+  1. **Skeleton first.** Group the work into letters (`### A. Title`): work whose tests are alike
+     and that touches the same files. Each letter gets its plain words, its `Test (…)` line, its
+     `Finita quando` line and the session that builds it. Show the skeleton to the user and wait
+     for the OK.
+  2. **Technical plan on the letters.** The technical plan (whatever tool the user uses) takes the
+     letters as its chapters and names its Tasks after them: `A1`, `A2`, `B1`… Then check the
+     files: a Task that touches files of letters given to two different sessions means the letters
+     are grouped wrong; fix the grouping before any child starts.
+  3. **Tasks and sub-tasks.** Copy each Task into the plain plan (`#### A1. Title` with its plain
+     words) and split it into 2–4 sub-tasks (`- [ ] A1.1 Title`): results you can stop after and
+     resume from.
+
+  **Letters to sessions** (when the stage has independent parts): letters that touch the same files
+  go to the same session; a child only for an independent part whose contract is written; at most
+  3–4 children; merging and integration letters stay with the main session («Madre»).
+  Then work by sub-tasks and tick each as it finishes, each session in its own section and its own
+  copy; the panel shows the work tree in the open stage;
+- **`test` and `review` (implementation) belong to the main session.** While building, every
+  session (the children too) runs its tests, and the panel already counts them per group. When the
+  stage reaches `test`, the children are merged and closed: the main session runs every group's
+  tests again on the merged work, and those counts are the ones that hold. In `review` the main
+  session runs the review tools chosen at the opening, by an agent that did not write the code,
+  writes what they found to `blueprint/reviews/<stage id>.json` (format in
+  `blueprint:docs-management`) and stops: the user fixes them from the panel, or the panel sends
+  them by itself 30 seconds later. After fixing, run the tools again and write the next round. The
+  review is done when a round finds nothing; on round 3 with findings still open, stop and ask the
+  user;
 - **`first_use` (implementation) is never a formality.** Green tests prove the code does what the
   tests ask, not that the product works for the person who opens it. Start the work exactly with
   the instructions you will give the user, in every way of starting it you offer (e.g. a single

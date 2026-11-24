@@ -21,15 +21,21 @@
 │   │   └── vault.js
 │   ├── panel/
 │   │   ├── tests/
+│   │   │   ├── checks.test.tsx
 │   │   │   ├── entry.test.tsx
 │   │   │   ├── harness.ts
 │   │   │   ├── integration.accept.test.tsx
 │   │   │   ├── plan-steps.test.tsx
 │   │   │   ├── plan-view.accept.test.tsx
 │   │   │   ├── plan-view.test.tsx
+│   │   │   ├── reviews.test.tsx
 │   │   │   ├── sessions.accept.test.tsx
 │   │   │   ├── sessions.test.tsx
-│   │   │   └── shared.test.ts
+│   │   │   ├── shared.test.ts
+│   │   │   ├── test-output.test.ts
+│   │   │   ├── test-view.test.tsx
+│   │   │   └── tree-view.test.tsx
+│   │   ├── checks.ts
 │   │   ├── header.tsx
 │   │   ├── legend-view.tsx
 │   │   ├── marks.ts
@@ -38,10 +44,15 @@
 │   │   ├── plan-steps.ts
 │   │   ├── plan-view.tsx
 │   │   ├── repo.ts
+│   │   ├── review-view.tsx
+│   │   ├── reviews.ts
 │   │   ├── sessions-data.ts
 │   │   ├── sessions-view.tsx
 │   │   ├── status-writer.ts
+│   │   ├── test-output.ts
+│   │   ├── test-view.tsx
 │   │   ├── text.ts
+│   │   ├── tree-view.tsx
 │   │   └── types.ts
 │   ├── tests/
 │   │   ├── decisions.test.js
