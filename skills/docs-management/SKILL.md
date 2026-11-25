@@ -1,6 +1,6 @@
 ---
 name: docs-management
-description: "Blueprint's file schema — the blueprint/ folder (context card, plan, notes, decisions), the decisions folder layout and how to create it, the decision-block format, tags, how the hooks talk and the save sequence. Load before writing, reading or locating anything in blueprint/decisions/."
+description: "Blueprint's file formats: the blueprint/ folder, the decisions folder and its decision blocks, the plain plan, test counts and review files. Load before writing or reading them."
 ---
 
 # Docs Management

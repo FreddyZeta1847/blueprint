@@ -1,6 +1,6 @@
 ---
 name: using-blueprint
-description: "How Blueprint works: the pipeline (context → plan → stages), the hard rules, the routing table to the six skills, the boundary (Blueprint plans and discusses, it doesn't execute) and the shared concepts (one-way/two-way, who decides, how decisions are organised, plain-language summaries). Read at the start of every session in a Blueprint project and before any Blueprint step."
+description: "How Blueprint works: the pipeline, the hard rules, routing to its skills, what it does not do, shared concepts (one-way/two-way, who decides). Read at the start of a session in a Blueprint project."
 ---
 
 # Using Blueprint

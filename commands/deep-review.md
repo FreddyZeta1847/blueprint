@@ -1,5 +1,5 @@
 ---
-description: Opt-in, expensive semantic review of a foundation area, contract or section (or all the decisions) — catches meaning-level contradictions the free deterministic checks cannot see
+description: "Opt-in, costly review of the decisions' meaning: contradictions the free checks cannot see"
 ---
 
 # /deep-review

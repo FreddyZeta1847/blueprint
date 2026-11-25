@@ -1,6 +1,6 @@
 ---
 name: create-plan
-description: "Build, change and run Blueprint's plan. From the confirmed context card, the planning best practices, the user's CLAUDE.md rules and data/loops.json it proposes the stages (type, name, one-line topics where they help, deadlines, independent parts), discusses them and writes blueprint/plan.json only after the user's OK. Also covers re-planning (before → after) and the life of a stage: opening, phases, closing."
+description: "Build, change and run Blueprint's plan: proposes the stages from the confirmed context card and writes blueprint/plan.json after the user's OK; re-planning (before → after); opening, phases and closing of a stage."
 ---
 
 # Create Plan

@@ -1,6 +1,6 @@
 ---
 name: get-context
-description: "The first step of every new request in a Blueprint project. Derives from the context what Blueprint's data/context-questions.json says must be known, asks only what cannot be derived (other questions too, when the work needs them), draws the conclusions — size, difficulty, pace — and routes: tiny → one line and do it; fits the plan → re-planning; new work → writes blueprint/context.md and waits for the user's confirmation."
+description: "First step of every new request in a Blueprint project: derive what must be known, ask only the gaps, draw size, difficulty and pace, then route (tiny: do it; fits the plan: re-plan; new work: blueprint/context.md)."
 ---
 
 # Get Context
