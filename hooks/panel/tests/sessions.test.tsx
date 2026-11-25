@@ -116,3 +116,11 @@ test('a session left «blocked» for days is ended, not waiting; a recent one wa
   expect(toRow(file(5 * 60_000), agents, now, 'C:/proj').state).toBe('blocked')
   expect(money('it', Number.NaN)).toBe('0,00 $')
 })
+
+test('with no child status file the sessions list is never run: rows come only from those files (3.5.1)', async () => {
+  // each list is a `claude agents` process (about 650 ms): every 5 s while a parallel stage runs
+  const { $, runs } = fake('C:/r9', {}, [agent('area-admin', 'a-1', 'working')])
+  const s = await readSessions($, 'C:/r9', plan(['Area admin']))
+  expect(s.kids).toEqual([])
+  expect(runs.count).toBe(0)
+})

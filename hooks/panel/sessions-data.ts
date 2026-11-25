@@ -132,6 +132,8 @@ export async function readSessions($: any, main: string, plan: PlanModel | null)
   if (parts.length === 0) return { parts, kids: [], others: [] }
   const now: number = await $.clock.now()
   const files = (await readStatusFiles($, main)).filter(f => now - Date.parse(f.updatedAt) <= IGNORE_MS)
+  // rows come only from the files: with none, skip the list (a `claude agents` process each time)
+  if (files.length === 0) return { parts, kids: [], others: [] }
   const agents = await listAgents($, main, now)
   const wanted = new Set(parts.map(slug))
   const rows = files.map(f => toRow(f, agents, now, main)).sort((a, b) => a.startedAt - b.startedAt)
