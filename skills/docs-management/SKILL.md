@@ -132,6 +132,8 @@ them but flags (with their value: `-k smoke`), redirections and pipes (`python -
 counting the wrong group. A test run that counts for no group gets a `[Blueprint]` note in the
 command's result: fix the key or run the command as written. The file looks like this:
 `{ "v": 1, "groups": { "A. Corsi": { "passed": 14, "total": 14, "failed": [], "source": "seen", "at": "<ISO time>" } } }`.
+A run that ends with an error counts too: red tests make most runners exit with an error, and
+they are exactly what the panel must show (never add `|| true` to hide the exit code).
 The panel keeps the newest result per group, so the main session's run in the test phase, after
 the merge, replaces the children's. When the panel cannot read a runner's output, Claude may write
 the counts itself in `blueprint/checks/<stage id>--claude.json` with `"source": "told"`: the panel

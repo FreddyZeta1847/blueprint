@@ -54,6 +54,8 @@ export type World = {
   sessionId?: string
   /** stdout of a Bash / PowerShell command, by the command as typed */
   toolOut?: Record<string, string>
+  /** a Bash / PowerShell command that ends with an error: the text the model reads, by the command */
+  toolErr?: Record<string, string>
 }
 
 export type Seen = {
@@ -147,6 +149,8 @@ export function engine(on: any, world: World = {}): Seen {
   })
   on('tool.call', (_: any, e: any) => {
     if (e.tool === 'PushNotification') seen.pushes.push(e.message)
+    const err = world.toolErr?.[e.command]
+    if ((e.tool === 'Bash' || e.tool === 'PowerShell') && err !== undefined) return { isError: true, result: err, text: err }
     if (e.tool === 'Bash' || e.tool === 'PowerShell') return { result: { stdout: world.toolOut?.[e.command] ?? '', stderr: '', interrupted: false } }
     return { result: {} }
   })

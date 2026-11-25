@@ -134,3 +134,22 @@ test('a parallel stage built by one session (no child worktree) counts the main 
   await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
   expect(file(seen)['A. Corsi']).toMatchObject({ passed: 4, total: 4 })
 })
+
+/** The plan with the stage built by one session (no independent parts), at a phase. */
+const singleSession = (phase: string) => { const p = JSON.parse(planJson({ phase })); p.stages[2].independent_parts = []; return JSON.stringify(p) }
+
+test('a command that ends with an error and prints red tests still counts for its group (3.5.1)', async ($, on) => {
+  // claude plugin test, and most runners, end with an error exactly when a test is red
+  const seen = engine(on, { files: { ...world('build').files, 'blueprint/plan.json': singleSession('build') }, toolErr: { 'bun test': `Exit code 1\n${SPLIT}` } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'bun test' })
+  expect(file(seen)['B. Chiusure']).toMatchObject({ passed: 1, total: 2, failed: ['ordine'] })
+  expect(file(seen)['C. Calendario']).toMatchObject({ passed: 1, total: 1 })
+})
+
+test('a command that ends with an error and prints no test summary writes nothing (3.5.1)', async ($, on) => {
+  const seen = engine(on, { files: { ...world('build').files, 'blueprint/plan.json': singleSession('build') }, toolErr: { 'ls nope': 'Exit code 2\nls: cannot access \'nope\': No such file or directory' } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'ls nope' })
+  expect(file(seen)).toBe(undefined)
+})
