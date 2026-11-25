@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.5.1-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.5.3-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
@@ -270,4 +270,4 @@ TEST-FINDINGS.md  what the live test runs found, and what was fixed
 
 ## Status
 
-v3.5.1 — fixes from a real parallel build: the plan holds only the build and is approved whole, red test runs are counted, child sessions tick a copy of the plan and are warned when it is missing, a contract is tried before the children start, and a lighter panel and skill list. v3.5.0 — the panel as a dashboard. Older versions: see [PROGRESS.md](PROGRESS.md).
+v3.5.3 — the same as v3.5.1 (the 3.5.2 work tree is withdrawn for now). v3.5.1 — fixes from a real parallel build: the plan holds only the build and is approved whole, red test runs are counted, child sessions tick a copy of the plan and are warned when it is missing, a contract is tried before the children start, and a lighter panel and skill list. v3.5.0 — the panel as a dashboard. Older versions: see [PROGRESS.md](PROGRESS.md).
