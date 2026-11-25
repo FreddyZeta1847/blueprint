@@ -1,6 +1,6 @@
 ---
 name: topic-discussion
-description: "Blueprint's discussion engine. Runs the phases of every topic of a discussion stage in blueprint/plan.json — context check, divergent proposal, convergence, decision, recap — for a shared area, contract, section or note. Specialists first, one proposal that opens many options and then recommends, a plain one-way/two-way summary, then you write the decisions yourself, lock, and review what was written with the user before the next topic."
+description: "Blueprint's discussion engine, for each topic of a discussion stage: specialists, one divergent proposal with a recommendation, the user's choice, the decision written, then read back with the user."
 ---
 
 # Topic-Discussion

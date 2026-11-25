@@ -49,3 +49,21 @@ test('the discussion\'s phases read «scelta» and «rilettura», in English «c
   expect(await ui.find({ text: /^choice · / })).toBeDefined()
   await ui.unmount()
 })
+
+test('the plan phase waits for the user only once both plans are written: the plain plan has its sub-tasks (3.5.1, review round 1)', async ($, on) => {
+  // while Claude writes the skeleton and the technical plan, nothing waits: no «tocca a te», no push
+  const seen = engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'plan' }), 'blueprint/plans/fb.md': '# Piano\n\n### A. Corsi\nLe parole.\n\n### B. Chiusure\nAltre.\n' } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('terminal'))
+  expect(await ui.find({ text: /piano · ferma/ })).toBeUndefined()
+  expect(await ui.find({ text: /tocca a te/ })).toBeUndefined()
+  // half written (review round 2): A has its sub-tasks, B not yet — still not the user's turn
+  seen.files['blueprint/plans/fb.md'] = '# Piano\n\n### A. Corsi\nLe parole.\n\n#### A1. Elenco\n- [ ] A1.1 Corsi dal server\n\n### B. Chiusure\nAltre.\n'
+  await seen.clock.advance(5000)
+  expect(await ui.find({ text: /tocca a te/ })).toBeUndefined()
+  seen.files['blueprint/plans/fb.md'] = '# Piano\n\n### A. Corsi\nLe parole.\n\n#### A1. Elenco\n- [ ] A1.1 Corsi dal server\n\n### B. Chiusure\nAltre.\n\n#### B1. Giorni chiusi\n- [ ] B1.1 Elenco dei giorni\n'
+  await seen.clock.advance(5000)
+  expect(await ui.find({ text: /piano · ferma/ })).toBeDefined()
+  expect(await ui.find({ text: /tocca a te/ })).toBeDefined()
+  await ui.unmount()
+})

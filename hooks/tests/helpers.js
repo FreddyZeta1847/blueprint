@@ -82,4 +82,11 @@ function cleanup() {
   created.clear();
 }
 
-module.exports = { makeProject, write, read, touchFuture, runHook, contextOf, cleanup };
+/** A child's folder inside `mainDir`, as `claude -w <name>` makes it: a `.git` file pointing home. */
+function makeWorktree(mainDir, name) {
+  const dir = path.join(mainDir, '.claude', 'worktrees', name);
+  write(path.join(dir, '.git'), `gitdir: ${mainDir.split(path.sep).join('/')}/.git/worktrees/${name}\n`);
+  return dir;
+}
+
+module.exports = { makeProject, makeWorktree, write, read, touchFuture, runHook, contextOf, cleanup };

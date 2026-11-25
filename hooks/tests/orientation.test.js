@@ -157,3 +157,154 @@ test('a confirmed card without a plan: go on with create-plan; with a plan: noth
   ctx = contextOf(runHook('orientation.js', start(dir)));
   assert.doesNotMatch(ctx, /Context (confirmed|in progress)|No plan here/);
 });
+
+// ---------------------------------------------------------------- child sessions (3.5.1)
+
+const { makeWorktree } = require('./helpers');
+const { worktreeOf } = require('../lib/common');
+
+const BUILD = { id: 'raccolta-e-pannello', name: 'Costruzione', type: 'implementation', status: 'in_progress', phase: 'build',
+  independent_parts: ['Raccolta', 'Pannello'], topics: [{ name: 'Raccolta', done: false }, { name: 'Pannello', done: false }] };
+
+function child(stage = BUILD) {
+  const { dir } = makeProject({ vault: null });
+  if (stage) writePlan(dir, [stage]);
+  return { main: dir, wt: makeWorktree(dir, 'raccolta') };
+}
+
+test('worktreeOf: a child folder points home; a normal checkout, no .git or a garbage .git is not a child', () => {
+  const { main, wt } = child();
+  assert.deepEqual(worktreeOf(wt), { main: path.resolve(main), name: 'raccolta', root: path.resolve(wt) });
+  const { dir: repo } = makeProject({ vault: null, git: true });
+  assert.equal(worktreeOf(repo), null);
+  assert.equal(worktreeOf(main), null);
+  write(path.join(wt, '.git'), 'nonsense');
+  assert.equal(worktreeOf(wt), null);
+});
+
+test('a child with no plan of its own reads the main folder\'s plan, never «No plan here»', () => {
+  const { wt } = child();
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /«Costruzione»/);
+  assert.match(ctx, /Child session «raccolta»/);
+  assert.doesNotMatch(ctx, /No plan here/);
+});
+
+test('a child without the copy of the plain plan is told to warn the main session', () => {
+  const { wt } = child();
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /No copy of the plain plan in this folder \(blueprint\/plans\/raccolta-e-pannello\.md\)/);
+  assert.match(ctx, /main session/);
+  assert.ok(ctx.length <= 1500, `context is ${ctx.length} characters`);
+});
+
+test('with the copy, or outside the build phase, the warning is silent', () => {
+  const { wt } = child();
+  write(path.join(wt, 'blueprint', 'plans', 'raccolta-e-pannello.md'), '# Piano\n');
+  assert.doesNotMatch(contextOf(runHook('orientation.js', start(wt))), /No copy/);
+  const other = child({ ...BUILD, phase: 'plan' });
+  assert.doesNotMatch(contextOf(runHook('orientation.js', start(other.wt))), /No copy/);
+});
+
+test('the main session sees no child line and no warning', () => {
+  const { main } = child();
+  const ctx = contextOf(runHook('orientation.js', start(main)));
+  assert.match(ctx, /«Costruzione»/);
+  assert.doesNotMatch(ctx, /Child session|No copy/);
+});
+
+test('a child of a project with no plan keeps the old line; a garbage .git never fails the session', () => {
+  const { wt } = child(null);
+  const res = runHook('orientation.js', start(wt));
+  assert.equal(res.status, 0);
+  assert.match(contextOf(res), /No plan here/);
+  const broken = child();
+  write(path.join(broken.wt, '.git'), 'nonsense');
+  const again = runHook('orientation.js', start(broken.wt));
+  assert.equal(again.status, 0);
+  assert.doesNotMatch(contextOf(again), /No copy/);
+});
+
+// ---------------------------------------------------------------- review round 1 of 3.5.1
+
+test('two stages in progress: the child of the parallel one is warned, not only of the first (review round 1)', () => {
+  const { main, wt } = child();
+  writePlan(main, [{ id: 'prima', name: 'Prima', type: 'implementation', status: 'in_progress', phase: 'integrate' }, BUILD]);
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /No copy of the plain plan in this folder \(blueprint\/plans\/raccolta-e-pannello\.md\)/);
+});
+
+test('a worktree that is no part of the parallel stage (the main session in a worktree) is not told it is a child (review round 1)', () => {
+  const { main } = child();
+  const other = makeWorktree(main, 'altro');
+  const ctx = contextOf(runHook('orientation.js', start(other)));
+  assert.match(ctx, /«Costruzione»/);
+  assert.match(ctx, /Worktree of /);
+  assert.doesNotMatch(ctx, /Child session|No copy|write only inside/);
+});
+
+test('a relative gitdir is read from the worktree folder, not from where the hook runs (review round 1)', () => {
+  const { main, wt } = child();
+  write(path.join(wt, '.git'), 'gitdir: ../../../.git/worktrees/raccolta\n');
+  assert.deepEqual(worktreeOf(wt), { main: path.resolve(main), name: 'raccolta', root: path.resolve(wt) });
+});
+
+test('in a folder without its own plan, the Plan line names the main folder\'s plan (first use)', () => {
+  const { main, wt } = child();
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.ok(ctx.includes(`Plan: ${main.split(path.sep).join('/')}/blueprint/plan.json`), ctx);
+});
+
+// ---------------------------------------------------------------- review round 2 of 3.5.1
+
+test('in a worktree with its own committed plan, the main folder\'s live plan wins (review round 2)', () => {
+  const { wt } = child();
+  write(path.join(wt, 'blueprint', 'plan.json'), JSON.stringify({ version: 3, project: 'Gym bookings', stages: [{ ...BUILD, phase: 'plan' }] }));
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /phase build/);
+  assert.match(ctx, /No copy of the plain plan/);
+});
+
+test('an unreadable main plan is named by its real path in a worktree (review round 2)', () => {
+  const { main, wt } = child();
+  write(path.join(main, 'blueprint', 'plan.json'), '{ not json');
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.ok(ctx.includes(`${main.split(path.sep).join('/')}/blueprint/plan.json is unreadable`), ctx);
+});
+
+test('a child is shown the stage built in parallel, not the first running one (review round 2)', () => {
+  const { main, wt } = child();
+  writePlan(main, [{ id: 'prima', name: 'Prima', type: 'implementation', status: 'in_progress', phase: 'integrate' }, BUILD]);
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /stage 2\/2 «Costruzione»/);
+  assert.doesNotMatch(ctx, /«Prima»/);
+});
+
+// ---------------------------------------------------------------- review round 3 of 3.5.1
+
+test('a worktree that is not a child keeps its own plan: the main session may work in one (review round 3)', () => {
+  const { main } = child();
+  const other = makeWorktree(main, 'feat-x');
+  write(path.join(other, 'blueprint', 'plan.json'), JSON.stringify({ version: 3, project: 'Gym bookings', stages: [
+    { id: 'nuova', name: 'Nuova', type: 'implementation', status: 'in_progress', phase: 'plan' }] }));
+  const ctx = contextOf(runHook('orientation.js', start(other)));
+  assert.match(ctx, /«Nuova»/);
+  assert.doesNotMatch(ctx, /«Costruzione»|Worktree of /);
+  assert.match(ctx, /Plan: blueprint\/plan\.json/);
+});
+
+test('a child is told where the notes it is counted live (review round 3)', () => {
+  const { main, wt } = child();
+  write(path.join(main, 'blueprint', 'notes.json'), JSON.stringify({ notes: [{ text: 'x', read: false }] }));
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.ok(ctx.includes(`1 new note (${main.split(path.sep).join('/')}/blueprint/notes.json)`), ctx);
+});
+
+test('a child started in a subfolder of its worktree is still a child (review round 2)', () => {
+  const { wt } = child();
+  const sub = path.join(wt, 'app');
+  write(path.join(sub, 'x.txt'), 'x');
+  const ctx = contextOf(runHook('orientation.js', start(sub)));
+  assert.match(ctx, /Child session «raccolta»/);
+  assert.match(ctx, /No copy of the plain plan in this folder/);
+});

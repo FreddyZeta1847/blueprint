@@ -7,6 +7,7 @@
  * other; the reader keeps, per group, the most recent result. In the test phase the main session
  * re-runs everything after the merge, so its results are the newest and take the children's place.
  * A file Claude writes itself (source «told») stands for output the reader could not read.
+ * A command that ends with an error is read too (outputOf): red tests make most runners exit so.
  */
 import { SAFE_ID, findRepo, slug } from './repo'
 import { readPlan } from './plan-data'
@@ -154,13 +155,27 @@ function inTurn(write: () => Promise<void>): Promise<void> {
   return queue
 }
 
+/**
+ * What a Bash or PowerShell call printed: stdout and stderr when it answered, or the text the model
+ * read when it ended with an error (red tests make most runners exit with an error, and those are
+ * exactly the runs the panel must count). Null when there is nothing to read.
+ */
+export function outputOf(result: any): string | null {
+  if (result?.isError === true) {
+    if (typeof result.text === 'string') return result.text
+    return typeof result.result === 'string' ? result.result : null
+  }
+  const stdout = result?.result?.stdout
+  return typeof stdout === 'string' ? `${stdout}\n${result.result.stderr ?? ''}` : null
+}
+
 export function registerTestRecorder(on: any): void {
   on('tool.call', { tool: /^(?:Bash|PowerShell)$/ }, async ($: any, e: any, next: any) => {
     const result = await next(e)
-    const stdout = result?.result?.stdout
-    if (typeof e.command !== 'string' || typeof stdout !== 'string') return result
+    const output = outputOf(result)
+    if (typeof e.command !== 'string' || output === null) return result
     // never fails the tool call: an error becomes a note for Claude instead of a silent stop
-    const { note } = await recordRun($, e.command, `${stdout}\n${result.result.stderr ?? ''}`)
+    const { note } = await recordRun($, e.command, output)
       .catch((err: unknown) => ({ note: `[Blueprint] The panel could not record these test counts: ${String((err as any)?.message ?? err).slice(0, 200)}` }))
     return note ? { ...result, context: [...(result.context ?? []), note] } : result
   })

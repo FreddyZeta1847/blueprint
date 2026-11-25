@@ -1,6 +1,6 @@
 ---
 name: discovery
-description: "Read existing code Claude doesn't know yet and turn it into Blueprint material — records the git baseline, prefills the context answers the code already gives, and (when a decisions folder is wanted) drafts foundation areas, contracts, sections and the decisions found in the code as unconfirmed, with one file per external system. Run on request (/blueprint:discovery) or when get-context proposes it and the user agrees."
+description: "Read existing code Claude doesn't know and turn it into Blueprint material: git baseline, the context answers the code gives, unconfirmed draft decisions. On /blueprint:discovery or when get-context proposes it."
 ---
 
 # Discovery

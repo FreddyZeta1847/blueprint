@@ -12,7 +12,7 @@ export const MAIN = 'C:/proj'
 
 export const LOOPS = JSON.stringify({ types: {
   discussion: { cycle: 'per_step', phases: [{ id: 'clarify' }, { id: 'proposal' }, { id: 'convergence', user: true }, { id: 'decision' }, { id: 'recap', user: true }] },
-  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan' }, { id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use', user: true }, { id: 'integrate', optional: true }] },
+  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan', user: true },{ id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use', user: true }, { id: 'integrate', optional: true }] },
   delivery: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'prepare' }, { id: 'rehearse', optional: true }, { id: 'deliver', user: true }, { id: 'feedback', user: true }] },
   quick_task: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'do' }, { id: 'check' }, { id: 'report' }] },
 } })
@@ -54,6 +54,8 @@ export type World = {
   sessionId?: string
   /** stdout of a Bash / PowerShell command, by the command as typed */
   toolOut?: Record<string, string>
+  /** a Bash / PowerShell command that ends with an error: the text the model reads, by the command */
+  toolErr?: Record<string, string>
 }
 
 export type Seen = {
@@ -147,6 +149,8 @@ export function engine(on: any, world: World = {}): Seen {
   })
   on('tool.call', (_: any, e: any) => {
     if (e.tool === 'PushNotification') seen.pushes.push(e.message)
+    const err = world.toolErr?.[e.command]
+    if ((e.tool === 'Bash' || e.tool === 'PowerShell') && err !== undefined) return { isError: true, result: err, text: err }
     if (e.tool === 'Bash' || e.tool === 'PowerShell') return { result: { stdout: world.toolOut?.[e.command] ?? '', stderr: '', interrupted: false } }
     return { result: {} }
   })

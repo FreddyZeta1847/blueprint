@@ -1,5 +1,5 @@
 ---
-description: Start Blueprint in a repository — creates the blueprint/ folder, offers Discovery when there is code Claude doesn't know, then starts get-context (the decisions folder is created later, only if the context says so)
+description: "Start Blueprint in a repository: creates blueprint/, offers Discovery on unknown code, then starts get-context"
 ---
 
 # /blueprint

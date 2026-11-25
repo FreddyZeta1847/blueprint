@@ -58,6 +58,42 @@ function blueprintDirOf(projectDir) {
   return path.join(projectDir, 'blueprint');
 }
 
+/**
+ * A child session's folder: a linked git worktree, whose `.git` is a file
+ * "gitdir: <main>/.git/worktrees/<x>". Returns the main folder, the worktree's root folder and its
+ * name (the folder's own name: git's entry may carry a suffix), or null for a normal checkout, no
+ * `.git`, or anything unreadable. Never throws.
+ */
+function worktreeOf(dir) {
+  try {
+    // the session may start in a subfolder: the nearest `.git` up the tree decides, as the panel's findRepo
+    let at = path.resolve(dir);
+    for (let i = 0; i < 12; i++) {
+      const gitPath = path.join(at, '.git');
+      let stat = null;
+      try { stat = fs.statSync(gitPath); } catch { stat = null; }
+      if (stat) {
+        if (!stat.isFile()) return null;
+        const m = /^gitdir:\s*(.+?)[\\/]\.git[\\/]worktrees[\\/][^\\/\s]+[\\/]?$/.exec(fs.readFileSync(gitPath, 'utf8').trim());
+        // a relative gitdir (git's worktree.useRelativePaths) is relative to the worktree, not to us
+        return m ? { main: path.resolve(at, m[1]), name: path.basename(at), root: at } : null;
+      }
+      const up = path.dirname(at);
+      if (up === at) return null;
+      at = up;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** A plan part's name as a worktree name («Area admin» → area-admin), as the panel's repo.ts slug. */
+function slug(name) {
+  return String(name).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 /** blueprint/plan.json parsed, null when absent, or { unreadable: true } when it is not valid JSON. */
 function readPlan(projectDir) {
   const text = readText(path.join(blueprintDirOf(projectDir), 'plan.json'));
@@ -146,6 +182,8 @@ module.exports = {
   projectDirOf,
   findVaultRoot,
   blueprintDirOf,
+  worktreeOf,
+  slug,
   readPlan,
   toPosix,
   relInside,
