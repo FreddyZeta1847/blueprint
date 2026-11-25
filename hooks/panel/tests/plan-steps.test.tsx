@@ -7,6 +7,7 @@
 import { expect, test } from 'claude-code/testing'
 import { nodeState, parseSteps, splitId } from '../plan-steps'
 import { engine, MAIN, PANE, defaultFiles } from './harness'
+import { C } from '../marks'
 
 const PLAN = '# Piano — Frontend e backend\n\n## Area admin\n- [x] 1. Corsi e iscritti.\n- [ ] 2. Chiusure.\n- Test: un corso chiuso non si prenota.\n\n## Area clienti\n- [ ] 1. Calendario.\n- [ ] 2. Prenotazione.\n\n## Madre\n- [ ] Unione, test d\'integrazione, prova, PR.\n'
 // the child «Area clienti» has ticked its first step in its own worktree copy
@@ -190,5 +191,18 @@ test('a letter shows one short line: its words cut at 90 characters with «…»
   expect(await has(/^Legge i costi \(es\. Azure e AWS\) ogni giorno\.$/)).toBe(true)
   const cutLine = `${long.slice(0, 89).trimEnd()}…`
   expect([await has(new RegExp(`^${cutLine}$`)), await has(/mese scorso/)]).toEqual([true, false])
+  await ui.unmount()
+})
+
+test('in the plan phase a letter\'s title is brighter than its words, never the other way round (3.5.2)', async ($, on) => {
+  const skeleton = '# Piano\n### A. Costi\nI costi di ogni risorsa, letti da Azure.\n- Test (a.test.tsx): i costi.\n'
+  const plan = JSON.parse(singleSession())
+  plan.stages[2].phase = 'plan'
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/fb.md': skeleton } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('desktop'))
+  const title: any = await ui.find({ text: /^A Costi$/ })
+  const words: any = await ui.find({ text: /^I costi di ogni risorsa, letti da Azure\.$/ })
+  expect([title?.props?.color, words?.props?.color]).toEqual([C.ink, C.muted])
   await ui.unmount()
 })

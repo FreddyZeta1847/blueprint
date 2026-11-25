@@ -131,7 +131,8 @@ function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g:
   if (!g.group) return kids
   return (
     <Box flexDirection="column" width="100%">
-      {Row(ctx, { state, label: label(id, title), expl: short(g.expl), words: asPlan, right, bold: true })}
+      {/* in the plan phase every letter is «to do»: its title stays the brightest line, above its words */}
+      {Row(ctx, { state, label: label(id, title), expl: short(g.expl), words: asPlan, right, bold: true, ...(asPlan ? { color: C.ink } : {}) })}
       {open && Level(ctx, kids)}
     </Box>
   )
