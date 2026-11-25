@@ -85,8 +85,8 @@ Sette colonne, una per giorno, con i posti liberi di ogni corso.
   sub-task always belongs to a Task. Work found on the way goes into the technical plan first, then
   here.
 - **A letter's plain words are one short sentence**, about 90 characters («I costi di ogni risorsa,
-  questo mese e il mese scorso, letti da Azure.»): the panel shows only the first sentence and cuts
-  it there. How it works, how often and what happens on errors go in the technical plan.
+  questo mese e il mese scorso, letti da Azure.»): the panel cuts anything longer at 90 characters
+  with «…». How it works, how often and what happens on errors go in the technical plan.
 - **Titles stay short and stay titles**: what is done or missing goes in the plain words below,
   never appended to the title («… — scritte; manca la prova» is a note, not a title).
 - **Sub-tasks are where the work moves**: 2–4 per Task, each a result you could stop after and

@@ -178,16 +178,16 @@ test('the plan phase shows the skeleton: letters with their words and no checkbo
   await ui.unmount()
 })
 
-test('a letter shows one short line: its first sentence, cut at 90 characters with «…» (3.5.2)', async ($, on) => {
+test('a letter shows one short line: its words cut at 90 characters with «…», an abbreviation never cuts them (3.5.2)', async ($, on) => {
   const long = 'La mod chiede ad Azure quanto costa questo mese ogni risorsa del progetto, e quanto è costata il mese scorso'
-  const skeleton = `# Piano\n### A. Costi\nI costi di ogni risorsa, letti da Azure. Lo fa due volte al giorno e quando premi il bottone.\n- Test (a.test.tsx): i costi.\n### B. Attività\n${long}.\n- Test (b.test.tsx): le attività.\n`
+  const skeleton = `# Piano\n### A. Costi\nLegge i costi (es. Azure e AWS) ogni giorno.\n- Test (a.test.tsx): i costi.\n### B. Attività\n${long}.\n- Test (b.test.tsx): le attività.\n`
   const plan = JSON.parse(singleSession())
   plan.stages[2].phase = 'plan'
   engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/fb.md': skeleton } })
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   const ui = await $.ui.mount(PANE('terminal'))
   const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
-  expect([await has(/^I costi di ogni risorsa, letti da Azure\.$/), await has(/due volte al giorno/)]).toEqual([true, false])
+  expect(await has(/^Legge i costi \(es\. Azure e AWS\) ogni giorno\.$/)).toBe(true)
   const cutLine = `${long.slice(0, 89).trimEnd()}…`
   expect([await has(new RegExp(`^${cutLine}$`)), await has(/mese scorso/)]).toEqual([true, false])
   await ui.unmount()
