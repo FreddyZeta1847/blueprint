@@ -272,7 +272,8 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   `blueprint/plans/<stage id>.md` (format in `blueprint:docs-management` §1) is the index of the
   technical plan, with the same names:
   1. **Skeleton first.** Group the work into letters (`### A. Title`): work whose tests are alike
-     and that touches the same files. Each letter gets its plain words, its `Test (…)` line, its
+     and that touches the same files. Each letter gets its plain words (one short sentence, about
+     90 characters: the panel shows no more; the detail goes in the technical plan), its `Test (…)` line, its
      `Finita quando` line and the session that builds it. Show the skeleton to the user and wait
      for the OK.
   2. **Technical plan on the letters.** The technical plan (whatever tool the user uses) takes the

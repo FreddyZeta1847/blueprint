@@ -7,6 +7,7 @@
 import { expect, test } from 'claude-code/testing'
 import { nodeState, parseSteps, splitId } from '../plan-steps'
 import { engine, MAIN, PANE, defaultFiles } from './harness'
+import { C, treeMarkSvg } from '../marks'
 
 const PLAN = '# Piano — Frontend e backend\n\n## Area admin\n- [x] 1. Corsi e iscritti.\n- [ ] 2. Chiusure.\n- Test: un corso chiuso non si prenota.\n\n## Area clienti\n- [ ] 1. Calendario.\n- [ ] 2. Prenotazione.\n\n## Madre\n- [ ] Unione, test d\'integrazione, prova, PR.\n'
 // the child «Area clienti» has ticked its first step in its own worktree copy
@@ -175,5 +176,47 @@ test('the plan phase shows the skeleton: letters with their words and no checkbo
   const ui = await $.ui.mount(PANE('terminal'))
   const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
   expect([await has(/^○ A Scheda$/), await has(/^In cima al Piano\.$/), await has(/^○ B Albero$/), await has(/^Una pallina per Task\.$/)]).toEqual([true, true, true, true])
+  await ui.unmount()
+})
+
+test('a letter shows one short line: its words cut at 90 characters with «…», an abbreviation never cuts them (3.5.2)', async ($, on) => {
+  const long = 'La mod chiede ad Azure quanto costa questo mese ogni risorsa del progetto, e quanto è costata il mese scorso'
+  const skeleton = `# Piano\n### A. Costi\nLegge i costi (es. Azure e AWS) ogni giorno.\n- Test (a.test.tsx): i costi.\n### B. Attività\n${long}.\n- Test (b.test.tsx): le attività.\n`
+  const plan = JSON.parse(singleSession())
+  plan.stages[2].phase = 'plan'
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/fb.md': skeleton } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('terminal'))
+  const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
+  expect(await has(/^Legge i costi \(es\. Azure e AWS\) ogni giorno\.$/)).toBe(true)
+  const cutLine = `${long.slice(0, 89).trimEnd()}…`
+  expect([await has(new RegExp(`^${cutLine}$`)), await has(/mese scorso/)]).toEqual([true, false])
+  await ui.unmount()
+})
+
+test('in the plan phase a letter\'s title is brighter than its words, never the other way round (3.5.2)', async ($, on) => {
+  const skeleton = '# Piano\n### A. Costi\nI costi di ogni risorsa, letti da Azure.\n- Test (a.test.tsx): i costi.\n'
+  const plan = JSON.parse(singleSession())
+  plan.stages[2].phase = 'plan'
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/fb.md': skeleton } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('desktop'))
+  const title: any = await ui.find({ text: /^A Costi$/ })
+  const words: any = await ui.find({ text: /^I costi di ogni risorsa, letti da Azure\.$/ })
+  expect([title?.props?.color, words?.props?.color]).toEqual([C.ink, C.muted])
+  await ui.unmount()
+})
+
+test('the tree\'s line passes through the marks of a level, from the first to the last, never beside them (3.5.2)', async ($, on) => {
+  const skeleton = '# Piano\n### A. Costi\nI costi di ogni risorsa, letti da Azure.\n- Test (a.test.tsx): i costi.\n#### A1. Domanda\n- [ ] A1.1 Uno\n#### A2. Raccolta\n- [ ] A2.1 Uno\n### B. Attività\nLe modifiche degli ultimi 7 giorni.\n- Test (b.test.tsx): le attività.\n'
+  const plan = JSON.parse(singleSession())
+  plan.stages[2].phase = 'plan'
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/plans/fb.md': skeleton } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('desktop'))
+  const lines = (await ui.findAll({ type: 'Svg' })).filter((s: any) => s.props?.alt === '│')
+  // letters A→B and Tasks A1→A2: from the first mark's centre (half a row, then down), to the last one's (half a row)
+  expect(lines.length).toBe(6)
+  expect(treeMarkSvg('todo')).toContain(C.hole) // the mark is filled, so the line runs behind it
   await ui.unmount()
 })
