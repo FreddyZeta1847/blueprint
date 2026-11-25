@@ -280,6 +280,26 @@ test('a child is shown the stage built in parallel, not the first running one (r
   assert.doesNotMatch(ctx, /«Prima»/);
 });
 
+// ---------------------------------------------------------------- review round 3 of 3.5.1
+
+test('a worktree that is not a child keeps its own plan: the main session may work in one (review round 3)', () => {
+  const { main } = child();
+  const other = makeWorktree(main, 'feat-x');
+  write(path.join(other, 'blueprint', 'plan.json'), JSON.stringify({ version: 3, project: 'Gym bookings', stages: [
+    { id: 'nuova', name: 'Nuova', type: 'implementation', status: 'in_progress', phase: 'plan' }] }));
+  const ctx = contextOf(runHook('orientation.js', start(other)));
+  assert.match(ctx, /«Nuova»/);
+  assert.doesNotMatch(ctx, /«Costruzione»|Worktree of /);
+  assert.match(ctx, /Plan: blueprint\/plan\.json/);
+});
+
+test('a child is told where the notes it is counted live (review round 3)', () => {
+  const { main, wt } = child();
+  write(path.join(main, 'blueprint', 'notes.json'), JSON.stringify({ notes: [{ text: 'x', read: false }] }));
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.ok(ctx.includes(`1 new note (${main.split(path.sep).join('/')}/blueprint/notes.json)`), ctx);
+});
+
 test('a child started in a subfolder of its worktree is still a child (review round 2)', () => {
   const { wt } = child();
   const sub = path.join(wt, 'app');

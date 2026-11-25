@@ -15,8 +15,8 @@
  *   - no plan and no card: one line — every new request starts with get-context (a tiny one: one
  *     line of confirmation, no files). Blueprint is the start of every piece of work, so this line
  *     appears in every project where the plugin is enabled.
- *   - in a linked worktree (lib/common.js worktreeOf): the main folder's plan when the folder has
- *     none (blueprint/ not committed). A child session is a worktree named after a part of the
+ *   - in a linked worktree (lib/common.js worktreeOf): a child always reads the main folder's live
+ *     plan; any other worktree its own plan, else the main folder's. A child session is a worktree named after a part of the
  *     stage built in parallel: one line says so and, while it builds without its copy of the plain
  *     plan, one line tells it to warn the main session (it cannot write outside its folder). Any
  *     other worktree (the main session opened in one) only learns where the plan is;
@@ -75,7 +75,7 @@ function planLines(projectDir, plan, where = 'blueprint/plan.json', focus = null
   }
   const project = plan.project || 'This project';
   const notes = unreadNotes(projectDir);
-  const noteLine = notes ? [`${notes} new note${notes > 1 ? 's' : ''} (blueprint/notes.json)`] : [];
+  const noteLine = notes ? [`${notes} new note${notes > 1 ? 's' : ''} (${where.replace(/plan\.json$/, 'notes.json')})`] : [];
   const current = focus ? { stage: focus, index: plan.stages.indexOf(focus), total: plan.stages.length } : currentStage(plan);
   if (!current) {
     return [[`[Blueprint] ${project} · every stage is done or postponed: ask the user what comes next`, ...noteLine].join(' · '), LOAD_SKILL];
@@ -195,18 +195,20 @@ function copyLines(wt, plan) {
 // ---------------------------------------------------------------- assembly
 
 function buildContext(projectDir) {
-  // in a worktree the main folder's plan is the live one (only the main session writes it): a
-  // worktree may hold no blueprint/ (not committed) or a copy as old as its first commit
+  // a child reads the main folder's live plan (only the main session writes it; its own copy, if
+  // blueprint/ is committed, is as old as its first commit). Any other worktree (the main session
+  // opened in one) keeps its own plan, and falls back to the main folder's when it has none.
   const wt = worktreeOf(projectDir);
   const mainPlan = wt ? readPlan(wt.main) : null;
-  const own = mainPlan ? null : readPlan(projectDir);
-  const plan = mainPlan || own;
-  const planDir = mainPlan ? wt.main : projectDir;
+  const ownPlan = readPlan(projectDir);
+  const plan = isChild(wt, mainPlan) ? mainPlan : ownPlan || mainPlan;
+  const own = Boolean(plan) && plan === ownPlan;
+  const planDir = plan && !own ? wt.main : projectDir;
   const vaultRoot = findVaultRoot(projectDir);
   let lines = [];
   const where = planDir === projectDir ? undefined : `${toPosix(planDir)}/blueprint/plan.json`;
   const focus = isChild(wt, plan) ? parallelStage(plan) : null;
-  try { if (plan) lines = [...worktreeLines(wt, Boolean(own), plan), ...planLines(planDir, plan, where, focus), ...copyLines(wt, plan)]; } catch { lines = []; }
+  try { if (plan) lines = [...worktreeLines(wt, own, plan), ...planLines(planDir, plan, where, focus), ...copyLines(wt, plan)]; } catch { lines = []; }
   if (vaultRoot) lines.push(...vaultLines(projectDir, vaultRoot, Boolean(plan)));
   try { lines.push(...cardLines(projectDir, Boolean(plan), Boolean(plan || vaultRoot))); } catch { /* never fail the session */ }
   const fixed = lines.join('\n');
