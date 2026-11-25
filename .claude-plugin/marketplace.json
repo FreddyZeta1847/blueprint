@@ -6,7 +6,7 @@
     {
       "name": "blueprint",
       "source": ".",
-      "version": "3.5.2",
+      "version": "3.5.3",
       "description": "A documentation-driven development methodology for Claude Code."
     }
   ]
