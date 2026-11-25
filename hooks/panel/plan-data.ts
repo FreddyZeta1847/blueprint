@@ -27,14 +27,39 @@ export async function readLoops($: any): Promise<Loops | null> {
 }
 
 /**
- * The plan phase waits for the user only once both plans are written: the plain plan has its
- * sub-tasks. Before that Claude is still writing them, and a «tocca a te» (and its push) would
- * come too early and never again when the plans are ready.
+ * Whether the plain plan is written to the end: every letter (`### `) has its Tasks (`#### `), each
+ * with sub-tasks — or, in the older format, its checkbox steps. A plan written letter by letter is
+ * not complete after the first one.
+ */
+export function plansComplete(text: string): boolean {
+  let letters = 0; let ok = true
+  let inLetter = false; let letterTasks = 0; let letterBoxes = 0
+  let inTask = false; let taskBoxes = 0
+  const closeTask = () => { if (inTask && taskBoxes === 0) ok = false; inTask = false; taskBoxes = 0 }
+  const closeLetter = () => {
+    closeTask()
+    if (inLetter && letterTasks === 0 && letterBoxes === 0) ok = false
+    inLetter = false; letterTasks = 0; letterBoxes = 0
+  }
+  for (const line of text.split(/\r?\n/)) {
+    if (/^### /.test(line)) { closeLetter(); inLetter = true; letters++ }
+    else if (/^#### /.test(line)) { closeTask(); inTask = true; letterTasks++ }
+    else if (/^## /.test(line)) closeLetter()
+    else if (/^[ \t]*- \[[ xX]\] /.test(line)) { taskBoxes++; letterBoxes++ }
+  }
+  closeLetter()
+  return ok && letters > 0
+}
+
+/**
+ * The plan phase waits for the user only once both plans are written: the plain plan is complete.
+ * Before that Claude is still writing them, and a «tocca a te» (and its push) would come too early
+ * and never again when the plans are ready.
  */
 async function plansReady($: any, main: string, stage: RawStage): Promise<boolean> {
   if (stage.status !== 'in_progress' || stage.phase !== 'plan' || !SAFE_ID.test(stage.id)) return false
   const text: string = await $.fs.read(`${main}/blueprint/plans/${stage.id}.md`).catch(() => '')
-  return /^[ \t]*- \[[ xX]\] /m.test(text)
+  return plansComplete(text)
 }
 
 function perStage(stage: RawStage, phases: LoopPhase[], stopRunning: boolean, planReady: boolean) {

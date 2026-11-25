@@ -78,6 +78,10 @@ test('findRepo: a .git folder is the main checkout, a .git file is a worktree', 
   const mother = fake({}, { cwd: `${MAIN}/src`, kinds: { 'proj/.git': 'dir' } })
   expect(await findRepo(mother)).toEqual({ main: MAIN, worktree: null })
   expect(await findRepo(fake({}, { cwd: 'C:/nowhere' }))).toBeNull()
+  // git's worktree.useRelativePaths: the gitdir is relative to the worktree folder (review round 2 of 3.5.1)
+  const relative = fake({ 'area-admin/.git': 'gitdir: ../../../.git/worktrees/area-admin\n' },
+    { cwd: `${MAIN}/.claude/worktrees/area-admin`, kinds: { 'area-admin/.git': 'file' } })
+  expect(await findRepo(relative)).toEqual({ main: MAIN, worktree: 'area-admin' })
 })
 
 test('readPlan builds segments and the current stage', async () => {

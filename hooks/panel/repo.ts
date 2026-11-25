@@ -14,6 +14,17 @@ export function slug(name: string): string {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
 
+/** A gitdir relative to the worktree folder (git's worktree.useRelativePaths) made absolute. */
+function absolute(from: string, p: string): string {
+  if (/^(?:[a-zA-Z]:)?\//.test(p)) return p
+  const parts = from.split('/')
+  for (const seg of p.split('/')) {
+    if (seg === '..') parts.pop()
+    else if (seg && seg !== '.') parts.push(seg)
+  }
+  return parts.join('/')
+}
+
 export async function findRepo($: any, cwd?: string): Promise<{ main: string; worktree: string | null } | null> {
   let dir = norm(cwd ?? (await $.session.cwd()))
   for (let i = 0; i < 12 && dir; i++, dir = parent(dir)) {
@@ -24,7 +35,7 @@ export async function findRepo($: any, cwd?: string): Promise<{ main: string; wo
     const m = /gitdir:\s*(.+?)\/\.git\/worktrees\/([^/\s]+)/.exec(norm(text.trim()))
     // the worktree's name is its folder: git's own entry may carry a suffix ("area-admin1")
     // when an earlier worktree of the same name was removed
-    return m?.[1] ? { main: m[1], worktree: dir.slice(dir.lastIndexOf('/') + 1) } : { main: dir, worktree: null }
+    return m?.[1] ? { main: absolute(dir, m[1]), worktree: dir.slice(dir.lastIndexOf('/') + 1) } : { main: dir, worktree: null }
   }
   return null
 }

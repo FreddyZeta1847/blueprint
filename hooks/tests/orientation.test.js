@@ -174,7 +174,7 @@ function child(stage = BUILD) {
 
 test('worktreeOf: a child folder points home; a normal checkout, no .git or a garbage .git is not a child', () => {
   const { main, wt } = child();
-  assert.deepEqual(worktreeOf(wt), { main: path.resolve(main), name: 'raccolta' });
+  assert.deepEqual(worktreeOf(wt), { main: path.resolve(main), name: 'raccolta', root: path.resolve(wt) });
   const { dir: repo } = makeProject({ vault: null, git: true });
   assert.equal(worktreeOf(repo), null);
   assert.equal(worktreeOf(main), null);
@@ -246,11 +246,45 @@ test('a worktree that is no part of the parallel stage (the main session in a wo
 test('a relative gitdir is read from the worktree folder, not from where the hook runs (review round 1)', () => {
   const { main, wt } = child();
   write(path.join(wt, '.git'), 'gitdir: ../../../.git/worktrees/raccolta\n');
-  assert.deepEqual(worktreeOf(wt), { main: path.resolve(main), name: 'raccolta' });
+  assert.deepEqual(worktreeOf(wt), { main: path.resolve(main), name: 'raccolta', root: path.resolve(wt) });
 });
 
 test('in a folder without its own plan, the Plan line names the main folder\'s plan (first use)', () => {
   const { main, wt } = child();
   const ctx = contextOf(runHook('orientation.js', start(wt)));
   assert.ok(ctx.includes(`Plan: ${main.split(path.sep).join('/')}/blueprint/plan.json`), ctx);
+});
+
+// ---------------------------------------------------------------- review round 2 of 3.5.1
+
+test('in a worktree with its own committed plan, the main folder\'s live plan wins (review round 2)', () => {
+  const { wt } = child();
+  write(path.join(wt, 'blueprint', 'plan.json'), JSON.stringify({ version: 3, project: 'Gym bookings', stages: [{ ...BUILD, phase: 'plan' }] }));
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /phase build/);
+  assert.match(ctx, /No copy of the plain plan/);
+});
+
+test('an unreadable main plan is named by its real path in a worktree (review round 2)', () => {
+  const { main, wt } = child();
+  write(path.join(main, 'blueprint', 'plan.json'), '{ not json');
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.ok(ctx.includes(`${main.split(path.sep).join('/')}/blueprint/plan.json is unreadable`), ctx);
+});
+
+test('a child is shown the stage built in parallel, not the first running one (review round 2)', () => {
+  const { main, wt } = child();
+  writePlan(main, [{ id: 'prima', name: 'Prima', type: 'implementation', status: 'in_progress', phase: 'integrate' }, BUILD]);
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /stage 2\/2 «Costruzione»/);
+  assert.doesNotMatch(ctx, /«Prima»/);
+});
+
+test('a child started in a subfolder of its worktree is still a child (review round 2)', () => {
+  const { wt } = child();
+  const sub = path.join(wt, 'app');
+  write(path.join(sub, 'x.txt'), 'x');
+  const ctx = contextOf(runHook('orientation.js', start(sub)));
+  assert.match(ctx, /Child session «raccolta»/);
+  assert.match(ctx, /No copy of the plain plan in this folder/);
 });

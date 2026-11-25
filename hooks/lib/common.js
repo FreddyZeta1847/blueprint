@@ -60,17 +60,29 @@ function blueprintDirOf(projectDir) {
 
 /**
  * A child session's folder: a linked git worktree, whose `.git` is a file
- * "gitdir: <main>/.git/worktrees/<x>". Returns the main folder and the child's name (its folder's
- * own name: git's entry may carry a suffix), or null for a normal checkout, no `.git`, or anything
- * unreadable. Never throws.
+ * "gitdir: <main>/.git/worktrees/<x>". Returns the main folder, the worktree's root folder and its
+ * name (the folder's own name: git's entry may carry a suffix), or null for a normal checkout, no
+ * `.git`, or anything unreadable. Never throws.
  */
 function worktreeOf(dir) {
   try {
-    const gitPath = path.join(dir, '.git');
-    if (!fs.statSync(gitPath).isFile()) return null;
-    const m = /^gitdir:\s*(.+?)[\\/]\.git[\\/]worktrees[\\/][^\\/\s]+[\\/]?$/.exec(fs.readFileSync(gitPath, 'utf8').trim());
-    // a relative gitdir (git's worktree.useRelativePaths) is relative to the worktree, not to us
-    return m ? { main: path.resolve(dir, m[1]), name: path.basename(path.resolve(dir)) } : null;
+    // the session may start in a subfolder: the nearest `.git` up the tree decides, as the panel's findRepo
+    let at = path.resolve(dir);
+    for (let i = 0; i < 12; i++) {
+      const gitPath = path.join(at, '.git');
+      let stat = null;
+      try { stat = fs.statSync(gitPath); } catch { stat = null; }
+      if (stat) {
+        if (!stat.isFile()) return null;
+        const m = /^gitdir:\s*(.+?)[\\/]\.git[\\/]worktrees[\\/][^\\/\s]+[\\/]?$/.exec(fs.readFileSync(gitPath, 'utf8').trim());
+        // a relative gitdir (git's worktree.useRelativePaths) is relative to the worktree, not to us
+        return m ? { main: path.resolve(at, m[1]), name: path.basename(at), root: at } : null;
+      }
+      const up = path.dirname(at);
+      if (up === at) return null;
+      at = up;
+    }
+    return null;
   } catch {
     return null;
   }

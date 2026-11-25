@@ -68,14 +68,15 @@ function deadlineOf(stage) {
   return [`deadline ${stage.deadline}${overdue ? ' (overdue)' : ''}`];
 }
 
-function planLines(projectDir, plan, where = 'blueprint/plan.json') {
+/** `where` names the plan file as this session reaches it; `focus` is a child's own stage. */
+function planLines(projectDir, plan, where = 'blueprint/plan.json', focus = null) {
   if (plan.unreadable) {
-    return ['[Blueprint] blueprint/plan.json is unreadable (not valid JSON, or no "stages"). Fix it before relying on the plan.', LOAD_SKILL];
+    return [`[Blueprint] ${where} is unreadable (not valid JSON, or no "stages"). Fix it before relying on the plan.`, LOAD_SKILL];
   }
   const project = plan.project || 'This project';
   const notes = unreadNotes(projectDir);
   const noteLine = notes ? [`${notes} new note${notes > 1 ? 's' : ''} (blueprint/notes.json)`] : [];
-  const current = currentStage(plan);
+  const current = focus ? { stage: focus, index: plan.stages.indexOf(focus), total: plan.stages.length } : currentStage(plan);
   if (!current) {
     return [[`[Blueprint] ${project} · every stage is done or postponed: ask the user what comes next`, ...noteLine].join(' · '), LOAD_SKILL];
   }
@@ -182,27 +183,30 @@ function worktreeLines(wt, own, plan) {
  * A child building a parallel stage needs its own copy of the plain plan to tick: it cannot write
  * outside its folder, and a worktree has no copy when blueprint/ is not committed.
  */
-function copyLines(projectDir, wt, plan) {
+function copyLines(wt, plan) {
   if (!isChild(wt, plan)) return [];
   const stage = parallelStage(plan);
   if (stage.type !== 'implementation' || stage.phase !== 'build') return [];
   const rel = `blueprint/plans/${stage.id}.md`;
-  if (fs.existsSync(path.join(projectDir, rel))) return [];
+  if (fs.existsSync(path.join(wt.root, rel))) return [];
   return [`[Blueprint] No copy of the plain plan in this folder (${rel}): you cannot tick your sub-tasks and must not write outside this folder. Tell the main session now (SendMessage), keep building, and write your report inside this folder.`];
 }
 
 // ---------------------------------------------------------------- assembly
 
 function buildContext(projectDir) {
-  // a child's folder may hold no blueprint/ (not committed): its plan is the main folder's
+  // in a worktree the main folder's plan is the live one (only the main session writes it): a
+  // worktree may hold no blueprint/ (not committed) or a copy as old as its first commit
   const wt = worktreeOf(projectDir);
-  const own = readPlan(projectDir);
-  const planDir = !own && wt ? wt.main : projectDir;
-  const plan = own || (wt ? readPlan(wt.main) : null);
+  const mainPlan = wt ? readPlan(wt.main) : null;
+  const own = mainPlan ? null : readPlan(projectDir);
+  const plan = mainPlan || own;
+  const planDir = mainPlan ? wt.main : projectDir;
   const vaultRoot = findVaultRoot(projectDir);
   let lines = [];
   const where = planDir === projectDir ? undefined : `${toPosix(planDir)}/blueprint/plan.json`;
-  try { if (plan) lines = [...worktreeLines(wt, own, plan), ...planLines(planDir, plan, where), ...copyLines(projectDir, wt, plan)]; } catch { lines = []; }
+  const focus = isChild(wt, plan) ? parallelStage(plan) : null;
+  try { if (plan) lines = [...worktreeLines(wt, Boolean(own), plan), ...planLines(planDir, plan, where, focus), ...copyLines(wt, plan)]; } catch { lines = []; }
   if (vaultRoot) lines.push(...vaultLines(projectDir, vaultRoot, Boolean(plan)));
   try { lines.push(...cardLines(projectDir, Boolean(plan), Boolean(plan || vaultRoot))); } catch { /* never fail the session */ }
   const fixed = lines.join('\n');
