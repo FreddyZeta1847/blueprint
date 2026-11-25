@@ -61,17 +61,34 @@ function Row(ctx: ViewCtx, o: { state: PhaseState; label: string; expl?: string;
   )
 }
 
-/** The children of a row, one level in, with a thin guide under the parent's mark (none on the terminal). */
-function Level(ctx: ViewCtx, children: unknown) {
+/**
+ * The children of a row, one level in. A thin line passes through their marks (filled, so it runs
+ * behind them), from the first mark's centre to the last one's, through the words and the levels
+ * between them: the first child starts it at its mark, the middle ones carry it from top to bottom,
+ * the last ends it at its mark. None on the terminal, and none for an only child.
+ */
+function Level(ctx: ViewCtx, children: unknown[]) {
   const { Box, Svg } = ctx.el
+  const svg = ctx.surface !== 'terminal'
+  const last = children.length - 1
+  // half: one row, the top or bottom half of it; all: from row `from` to the bottom
+  const half = (part: 'top' | 'bottom') => (
+    <Box position="absolute" top={0} height={1} left={0}><Svg source={stepLineSvg(C.line, part)} alt="│" width={18} height={20} /></Box>
+  )
+  const all = (from: number) => (
+    <Box position="absolute" top={from} bottom={0} left={0} overflow="hidden">
+      <Svg source={stepLineSvg(C.line)} alt="│" width={18} height={4000} />
+    </Box>
+  )
+  const pieces = (i: number) => (i === 0 ? [half('bottom'), all(1)] : i < last ? [all(0)] : [half('top')])
   return (
     <Box flexDirection="column" width="100%" paddingLeft={3}>
-      {ctx.surface !== 'terminal' && (
-        <Box position="absolute" top={0} bottom={0} left={0} overflow="hidden">
-          <Svg source={stepLineSvg(C.line)} alt="│" width={18} height={4000} />
+      {children.map((child, i) => (
+        <Box flexDirection="column" width="100%">
+          {svg && last > 0 && pieces(i)}
+          {child}
         </Box>
-      )}
-      {children}
+      ))}
     </Box>
   )
 }

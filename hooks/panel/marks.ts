@@ -74,10 +74,12 @@ export function railSvg(phases: { state: PhaseState }[], width = 300, chosen?: n
  * The rest of a step's line, under its mark: a Box placed from the second text row to the row's
  * bottom stretches it, so the line goes on however many lines the text takes.
  */
-export function stepLineSvg(line: string): string {
-  // a plain stroke that may be stretched to any height (preserveAspectRatio none)
+export function stepLineSvg(line: string, part: 'all' | 'top' | 'bottom' = 'all'): string {
+  // a plain stroke that may be stretched to any height (preserveAspectRatio none); `top` and
+  // `bottom` are the halves of one row, to start or end the line at a mark's centre
+  const [y1, y2] = part === 'top' ? [0, 10] : part === 'bottom' ? [10, 20] : [0, 20]
   return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="20" viewBox="0 0 18 20" preserveAspectRatio="none">` +
-    `<line x1="9" y1="0" x2="9" y2="20" stroke="${line}" stroke-width="2"/></svg>`
+    `<line x1="9" y1="${y1}" x2="9" y2="${y2}" stroke="${line}" stroke-width="2"/></svg>`
 }
 
 /**
@@ -94,7 +96,9 @@ export function stepMarkSvg(state: PhaseState, line: string, first: boolean, las
 
 /** A mark of the work tree (18×20), with no line: the tree's guides are drawn by the levels. */
 export function treeMarkSvg(state: PhaseState): string {
-  return doc(18, 20, markShape(9, 10, state, state === 'running' || state === 'stopped' ? 7 : 6))
+  const r = state === 'running' || state === 'stopped' ? 7 : 6
+  // filled with the pane's dark, so the tree's line runs behind the mark and not through a ring
+  return doc(18, 20, `<circle cx="9" cy="10" r="${r}" fill="${C.hole}"/>${markShape(9, 10, state, r)}`)
 }
 
 /**
