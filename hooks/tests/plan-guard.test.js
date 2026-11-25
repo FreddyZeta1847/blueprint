@@ -243,3 +243,13 @@ test('plans written before the recap phase stay valid: a topic already done at "
   const q = setup(closed);
   expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { status: 'done' }), impl({ status: 'in_progress', phase: 'clarify' })])), 'allow');
 });
+
+test('implementation: the plan phase is a phase for the user (3.5.1)', () => {
+  const { loadLoops } = require('../lib/plan');
+  const phases = loadLoops().types.implementation.phases;
+  const user = (id) => phases.find((p) => p.id === id).user === true;
+  assert.equal(user('plan'), true);
+  assert.equal(user('first_use'), true);
+  assert.equal(user('integrate'), true);
+  assert.equal(user('build'), false);
+});

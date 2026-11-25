@@ -49,3 +49,12 @@ test('the discussion\'s phases read «scelta» and «rilettura», in English «c
   expect(await ui.find({ text: /^choice · / })).toBeDefined()
   await ui.unmount()
 })
+
+test('an implementation stage at the plan phase is stopped for the user (3.5.1)', async ($, on) => {
+  engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'plan' }) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  const ui = await $.ui.mount(PANE('terminal'))
+  expect(await ui.find({ text: /piano · ferma/ })).toBeDefined()
+  expect(await ui.find({ text: /tocca a te/ })).toBeDefined()
+  await ui.unmount()
+})
