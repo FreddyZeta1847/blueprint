@@ -58,6 +58,23 @@ function blueprintDirOf(projectDir) {
   return path.join(projectDir, 'blueprint');
 }
 
+/**
+ * A child session's folder: a linked git worktree, whose `.git` is a file
+ * "gitdir: <main>/.git/worktrees/<x>". Returns the main folder and the child's name (its folder's
+ * own name: git's entry may carry a suffix), or null for a normal checkout, no `.git`, or anything
+ * unreadable. Never throws.
+ */
+function worktreeOf(dir) {
+  try {
+    const gitPath = path.join(dir, '.git');
+    if (!fs.statSync(gitPath).isFile()) return null;
+    const m = /^gitdir:\s*(.+?)[\\/]\.git[\\/]worktrees[\\/][^\\/\s]+[\\/]?$/.exec(fs.readFileSync(gitPath, 'utf8').trim());
+    return m ? { main: path.resolve(m[1]), name: path.basename(path.resolve(dir)) } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** blueprint/plan.json parsed, null when absent, or { unreadable: true } when it is not valid JSON. */
 function readPlan(projectDir) {
   const text = readText(path.join(blueprintDirOf(projectDir), 'plan.json'));
@@ -146,6 +163,7 @@ module.exports = {
   projectDirOf,
   findVaultRoot,
   blueprintDirOf,
+  worktreeOf,
   readPlan,
   toPosix,
   relInside,

@@ -15,6 +15,10 @@
  *   - no plan and no card: one line — every new request starts with get-context (a tiny one: one
  *     line of confirmation, no files). Blueprint is the start of every piece of work, so this line
  *     appears in every project where the plugin is enabled.
+ *   - in a child session (a linked worktree, lib/common.js worktreeOf): one line saying so, the
+ *     main folder's plan when the child's folder has none (blueprint/ not committed), and, while it
+ *     builds a parallel stage without its copy of the plain plan, a line telling it to warn the
+ *     main session (it cannot write outside its folder);
  * The current stage is the first `in_progress` one, else the first `todo` one.
  * Errors never fail the session (exit 0).
  *
@@ -22,8 +26,9 @@
  * CLAUDE_PROJECT_DIR) to find the project. Output: JSON hookSpecificOutput.additionalContext.
  */
 
+const fs = require('fs');
 const path = require('path');
-const { readStdinJson, projectDirOf, findVaultRoot, blueprintDirOf, readPlan, relInside, readText, readJson } = require('./lib/common');
+const { readStdinJson, projectDirOf, findVaultRoot, blueprintDirOf, worktreeOf, readPlan, relInside, readText, readJson, toPosix } = require('./lib/common');
 const { loadLoops, currentStage } = require('./lib/plan');
 const { readCard, openList } = require('./lib/card');
 
@@ -147,13 +152,41 @@ function cardLines(projectDir, hasPlan, hasHead) {
   return [`${NEW_REQUEST}${load}`];
 }
 
+// ---------------------------------------------------------------- child sessions
+
+/** In a child's folder: who it is and where the plan lives (it may read there, write only here). */
+function childLines(wt, own) {
+  if (!wt) return [];
+  const where = own ? 'this folder' : `${toPosix(wt.main)}/blueprint`;
+  return [`[Blueprint] Child session «${wt.name}»: the plan lives in ${where} (read it; write only inside this folder).`];
+}
+
+/**
+ * A child building a parallel stage needs its own copy of the plain plan to tick: it cannot write
+ * outside its folder, and a worktree has no copy when blueprint/ is not committed.
+ */
+function copyLines(projectDir, wt, plan) {
+  if (!wt || !plan || plan.unreadable) return [];
+  const current = currentStage(plan);
+  const stage = current && current.stage;
+  if (!stage || stage.type !== 'implementation' || stage.status !== 'in_progress' || stage.phase !== 'build') return [];
+  if (!Array.isArray(stage.independent_parts) || stage.independent_parts.length === 0) return [];
+  const rel = `blueprint/plans/${stage.id}.md`;
+  if (fs.existsSync(path.join(projectDir, rel))) return [];
+  return [`[Blueprint] No copy of the plain plan in this folder (${rel}): you cannot tick your sub-tasks and must not write outside this folder. Tell the main session now (SendMessage), keep building, and write your report inside this folder.`];
+}
+
 // ---------------------------------------------------------------- assembly
 
 function buildContext(projectDir) {
-  const plan = readPlan(projectDir);
+  // a child's folder may hold no blueprint/ (not committed): its plan is the main folder's
+  const wt = worktreeOf(projectDir);
+  const own = readPlan(projectDir);
+  const planDir = !own && wt ? wt.main : projectDir;
+  const plan = own || (wt ? readPlan(wt.main) : null);
   const vaultRoot = findVaultRoot(projectDir);
   let lines = [];
-  try { if (plan) lines = planLines(projectDir, plan); } catch { lines = []; }
+  try { if (plan) lines = [...childLines(wt, own), ...planLines(planDir, plan), ...copyLines(projectDir, wt, plan)]; } catch { lines = []; }
   if (vaultRoot) lines.push(...vaultLines(projectDir, vaultRoot, Boolean(plan)));
   try { lines.push(...cardLines(projectDir, Boolean(plan), Boolean(plan || vaultRoot))); } catch { /* never fail the session */ }
   const fixed = lines.join('\n');

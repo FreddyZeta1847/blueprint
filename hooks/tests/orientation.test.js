@@ -157,3 +157,70 @@ test('a confirmed card without a plan: go on with create-plan; with a plan: noth
   ctx = contextOf(runHook('orientation.js', start(dir)));
   assert.doesNotMatch(ctx, /Context (confirmed|in progress)|No plan here/);
 });
+
+// ---------------------------------------------------------------- child sessions (3.5.1)
+
+const { makeWorktree } = require('./helpers');
+const { worktreeOf } = require('../lib/common');
+
+const BUILD = { id: 'raccolta-e-pannello', name: 'Costruzione', type: 'implementation', status: 'in_progress', phase: 'build',
+  independent_parts: ['Raccolta', 'Pannello'], topics: [{ name: 'Raccolta', done: false }, { name: 'Pannello', done: false }] };
+
+function child(stage = BUILD) {
+  const { dir } = makeProject({ vault: null });
+  if (stage) writePlan(dir, [stage]);
+  return { main: dir, wt: makeWorktree(dir, 'raccolta') };
+}
+
+test('worktreeOf: a child folder points home; a normal checkout, no .git or a garbage .git is not a child', () => {
+  const { main, wt } = child();
+  assert.deepEqual(worktreeOf(wt), { main: path.resolve(main), name: 'raccolta' });
+  const { dir: repo } = makeProject({ vault: null, git: true });
+  assert.equal(worktreeOf(repo), null);
+  assert.equal(worktreeOf(main), null);
+  write(path.join(wt, '.git'), 'nonsense');
+  assert.equal(worktreeOf(wt), null);
+});
+
+test('a child with no plan of its own reads the main folder\'s plan, never «No plan here»', () => {
+  const { wt } = child();
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /«Costruzione»/);
+  assert.match(ctx, /Child session «raccolta»/);
+  assert.doesNotMatch(ctx, /No plan here/);
+});
+
+test('a child without the copy of the plain plan is told to warn the main session', () => {
+  const { wt } = child();
+  const ctx = contextOf(runHook('orientation.js', start(wt)));
+  assert.match(ctx, /No copy of the plain plan in this folder \(blueprint\/plans\/raccolta-e-pannello\.md\)/);
+  assert.match(ctx, /main session/);
+  assert.ok(ctx.length <= 1500, `context is ${ctx.length} characters`);
+});
+
+test('with the copy, or outside the build phase, the warning is silent', () => {
+  const { wt } = child();
+  write(path.join(wt, 'blueprint', 'plans', 'raccolta-e-pannello.md'), '# Piano\n');
+  assert.doesNotMatch(contextOf(runHook('orientation.js', start(wt))), /No copy/);
+  const other = child({ ...BUILD, phase: 'plan' });
+  assert.doesNotMatch(contextOf(runHook('orientation.js', start(other.wt))), /No copy/);
+});
+
+test('the main session sees no child line and no warning', () => {
+  const { main } = child();
+  const ctx = contextOf(runHook('orientation.js', start(main)));
+  assert.match(ctx, /«Costruzione»/);
+  assert.doesNotMatch(ctx, /Child session|No copy/);
+});
+
+test('a child of a project with no plan keeps the old line; a garbage .git never fails the session', () => {
+  const { wt } = child(null);
+  const res = runHook('orientation.js', start(wt));
+  assert.equal(res.status, 0);
+  assert.match(contextOf(res), /No plan here/);
+  const broken = child();
+  write(path.join(broken.wt, '.git'), 'nonsense');
+  const again = runHook('orientation.js', start(broken.wt));
+  assert.equal(again.status, 0);
+  assert.doesNotMatch(contextOf(again), /No copy/);
+});
