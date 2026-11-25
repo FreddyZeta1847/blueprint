@@ -27,19 +27,27 @@ Blueprint plans and discusses. **How** a stage is built (your tools, sessions, g
 ## How it works
 
 ```mermaid
-flowchart LR
-    A[Request] --> C[get-context]
+flowchart TD
+    A[Your request] --> C[get-context]
+    A -. code Claude does not know .-> X[Discovery reads it first]
+    X -.-> C
     C --> B{Size?}
-    B -- tiny --> T[Confirm in one line, do it]
+    B -- tiny --> T[One line, do it]
     B -- fits the plan --> R[Re-plan: before to after]
-    B -- new work --> K[Context card you confirm]
-    K --> P[create-plan: stages you confirm]
-    P --> S[Each stage: context check, phases, close]
+    B -- new work --> K[Context card: you confirm]
+    K --> P[create-plan: the stages, you confirm]
+    R --> O
+    P --> O[Open a stage: you say OK]
+    O --> Y{Type of stage}
+    Y --> DI["discussion, for each topic:<br/>clarify, proposal,<br/>choice (you), decision,<br/>recap (you)"]
+    Y --> IM["implementation:<br/>clarify, plan, build, test,<br/>review, first use (you),<br/>merge (you). A failed<br/>check goes back to build"]
+    Y --> DE["delivery:<br/>clarify, prepare,<br/>rehearse (you),<br/>deliver (you), feedback"]
+    Y --> QT["quick task:<br/>clarify, do, check,<br/>report (you)"]
 ```
 
-1. **Context.** `get-context` works out what a plan needs from the repo and the conversation. It asks only what is missing, then states the size, difficulty and pace. The result is the card `blueprint/context.md`, which you confirm.
+1. **Context.** `get-context` works out what a plan needs from the repo and the conversation. It asks only what is missing, then states the size, difficulty and pace. The result is the card `blueprint/context.md`, which you confirm. On code Claude does not know, `/blueprint:blueprint` first offers Discovery.
 2. **Plan.** `create-plan` proposes stages with one-line topics, built on written best practices. After your OK it writes `blueprint/plan.json`.
-3. **Stages.** Each stage runs the fixed loop of its type: `discussion`, `implementation`, `delivery` or `quick_task`. Every loop starts with a context check: does Claude know enough to do this stage alone?
+3. **Stages.** Each stage runs the fixed loop of its type. Every loop starts with a context check: does Claude know enough to do this stage alone? A phase marked **(you)** waits for your answer.
 4. **Hooks.** Plain Node scripts check the plan, the decisions and the phase changes. No model is involved, so they cost nothing.
 
 ## The panel
@@ -52,7 +60,8 @@ In a project with a plan, Blueprint opens a pane beside the chat. It rereads `bl
 - **Test counts.** Each group shows a fraction like «14/14», read from the real output of its test command.
 - **Review dashboard.** Every round added up (fixed and open, per severity, per tool). Each open finding has a **Correggi** (fix) button. A new round is sent to Claude after 30 seconds. At most 3 rounds.
 - **Decision cards** (discussion). Each decision shows if it is hard to change, who decided, and when opened, why and what was rejected.
-- **Sessions and Legend.** The mother session and one child per parallel part. A legend of every stage type.
+- **Notes.** Add, edit or delete a note on a stage. Claude reads the new ones when the next session starts.
+- **Sessions and Legend.** The mother session and one child per parallel part. A legend of the marks and of every stage type.
 
 `/blueprint-panel` opens or closes it (`/blueprint-panel piano | sessioni | legenda` picks a screen). Two plugin options: `autoOpen` (on) opens it where there is a plan; `notifyWhenWaiting` (off) sends a phone notification when something waits for you. The panel follows Claude Code's language setting (Italian or English).
 
@@ -100,7 +109,7 @@ claude plugin update blueprint@blueprint
 | `constraints` | Budget, mandatory technologies, rules? | choices already decided |
 | `roles` | What do you decide, and what do you leave to Claude? | who decides each area |
 | `parts` | Which parts is the work made of? | parallel work: contracts first |
-| `documentation` | A decisions folder, or is the card enough? | Claude proposes, you confirm |
+| `documentation` | A decisions folder, a single decisions file, or the card alone? | Claude proposes, you confirm |
 
 The **size** is tiny, small, medium or project. The **pace** is never asked: «personal, no deadline» is calm, «demo tomorrow» is rushed.
 
@@ -177,15 +186,17 @@ blueprint/
 ├── plan.json       stages, topics, current phase, how, deadlines
 ├── notes.json      optional notes per stage
 ├── plans/          the plain plan of each implementation stage
+├── checks/         test counts per group, read by the panel
 ├── reviews/        review findings per stage, with past rounds
-└── decisions/      only when the card says the project needs it
+├── decisions.md    the single decisions file, for light work
+└── decisions/      the decisions folder, only when the card says the project needs it
     ├── _architecture.md, _sections.md, _current-task.md, _audit.md
     ├── foundations/    shared choices
     ├── contracts/      API, types, events
     └── sections/       pieces of value for your users
 ```
 
-The decisions folder holds only decisions. Each is a small Markdown block: choice, reversibility, who decided, rejected options, why, and the stage. Your decisions and every hard-to-change one go in the main file. Details Claude settled alone go in `--details.md`. It is plain Markdown, readable in Obsidian.
+You get one place for decisions, chosen with the card: the folder, the single file `decisions.md`, or the card alone. The folder holds only decisions. Each is a small Markdown block: choice, reversibility, who decided, rejected options, why, and the stage. Your decisions and every hard-to-change one go in the main file. Details Claude settled alone go in `--details.md`. It is plain Markdown, readable in Obsidian.
 
 </details>
 
@@ -194,8 +205,8 @@ The decisions folder holds only decisions. Each is a small Markdown block: choic
 
 | Hook | Event | What it guarantees |
 |---|---|---|
-| `orientation` | SessionStart | Claude reads where the work stands: a few short lines from `plan.json`, plus any discussion to resume or draft card to finish |
-| `plan-guard` | PreToolUse on `plan.json` | A valid plan: known types and phases, phases in order, optional ones skipped only with a reason, done only after the last mandatory phase |
+| `orientation` | SessionStart | Claude reads where the work stands: a few short lines from `plan.json`, new notes, plus any discussion to resume or draft card to finish |
+| `plan-guard` | PreToolUse on `plan.json` | A valid plan: known types and phases, phases in order, optional ones skipped only with a reason, done only after the last mandatory phase with every topic done. A finished stage cannot be changed without asking you |
 | `file-watcher` | PostToolUse | Saved decisions are indexed and checked for contradictions and broken links |
 | `one-way-guard` | PreToolUse on the decisions folder | A hard-to-change decision is never saved as decided by Claude alone. No permission mode bypasses it |
 | `step-close` | Stop | At the end of a turn: is the card still a draft? Is a phase finished? Did the work change a decision? Each asked once |
@@ -248,7 +259,9 @@ commands/         blueprint.md, deep-review.md
 data/             context-questions.json, loops.json
 skills/           6 skills (one folder each, SKILL.md)
 hooks/            hooks.json, the Node hooks, lib/, tests/ (node --test hooks/tests/*.test.js)
-hooks/panel.tsx   the panel (TSX), with its parts in hooks/panel/
+hooks/panel.tsx   the panel (TSX), with its parts and tests in hooks/panel/ (claude plugin test .)
+types/            the panel's types
+assets/           the logo
 PROGRESS.md       log of design milestones
 TEST-FINDINGS.md  what the live test runs found, and what was fixed
 ```
