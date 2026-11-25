@@ -67,9 +67,10 @@ Sette colonne, una per giorno, con i posti liberi di ogni corso.
   …
 
 ## Madre
-### E. Unione
-#### E1. Unione delle parti
-- [ ] E1.1 Unione e test d'integrazione
+### E. Unione delle figlie
+#### E1. Controllo e unione
+- [ ] E1.1 Controllo di ogni figlia
+- [ ] E1.2 Unione sul ramo di integrazione
 ```
 
 - **The four levels**: `## ` a **session**; `### A. Title` a **letter** (a group of Tasks with
@@ -87,6 +88,9 @@ Sette colonne, una per giorno, con i posti liberi di ogni corso.
   never appended to the title («… — scritte; manca la prova» is a note, not a title).
 - **Sub-tasks are where the work moves**: 2–4 per Task, each a result you could stop after and
   resume from, not the technical plan's mechanical steps («write the failing test», «commit»).
+- **Only the build**: the plan holds what is built, up to the merge of the children's work (the
+  main session's merge letter has no `Test` line). Test, review, first use and the pull request
+  are phases of the loop, never letters or Tasks (`blueprint:create-plan` §7).
 - **A `## ` section is a session**: one per independent part, named **exactly as the part in
   `plan.json`**, plus `## Madre` (in English `## Mother`) for the main session's own letters. A
   stage built in one session has no `## ` section: it starts with its letters.
@@ -105,12 +109,18 @@ Sette colonne, una per giorno, con i posti liberi di ogni corso.
   `Test` lines with each group's count in the test phase, the review's findings in the review
   phase, and the `Finita quando:` lines in the first-use phase, as the user's checklist.
 - Tick a sub-task (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
-  own copy of the file**: a child in its worktree (the panel reads it there), the main session in
-  the project. At the merge, keep every section's ticks.
+  own copy of the file**: the main session in the project; a child in its own folder
+  (`<worktree>/blueprint/plans/<stage id>.md`, the panel reads it there), never outside it. When
+  `blueprint/` is not committed the worktree has no copy: the main session puts one there before
+  the launch. A child writes its report in its own folder too
+  (`<worktree>/.claude/coordination/report-<part>.md`). At the gate the main session reads copy and
+  report from `.claude/worktrees/<part>/`, checks the work, and carries the ticks into the main
+  file.
 - The file is written in the `plan` phase in three moves (`blueprint:create-plan` §7): the skeleton
   (letters with title, plain words, `Test` line and session) for the user's OK; then the technical
-  plan with the letters as its chapters; then the Tasks and sub-tasks. After that it changes only
-  by ticks, or when the plan changes (say so to the user).
+  plan with the letters as its chapters; then the Tasks and sub-tasks. Then both complete plans go
+  to the user for the OK before the build. After that it changes only by ticks, or when the plan
+  changes (say so to the user).
 
 **Test counts** (`blueprint/checks/`). While an implementation stage is in its `build` or `test`
 phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the

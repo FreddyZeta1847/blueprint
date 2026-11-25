@@ -282,10 +282,31 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   3. **Tasks and sub-tasks.** Copy each Task into the plain plan (`#### A1. Title` with its plain
      words) and split it into 2–4 sub-tasks (`- [ ] A1.1 Title`): results you can stop after and
      resume from.
+  4. **Approval of both plans.** Show the user the complete plain plan and the complete
+     implementation plan (every letter, Task and sub-task) and wait for the OK before moving to
+     `build`. The skeleton's OK alone never starts the build: this is why `plan` is a phase that
+     waits for the user.
+
+  **What the plain plan holds**: only what is built, up to the merge of the children's work into
+  the integration branch. The main session may have a letter that checks each child and merges
+  their work (no `Test` line: the counts that hold come in the `test` phase). `test`, `review`,
+  `first_use` and `integrate` are phases of the loop: never letters or Tasks. The rule is about the
+  phases, not about words: a letter that is real work and happens to be called «Revisione dei
+  testi» is fine.
 
   **Letters to sessions** (when the stage has independent parts): letters that touch the same files
-  go to the same session; a child only for an independent part whose contract is written; at most
-  3–4 children; merging and integration letters stay with the main session («Madre»).
+  go to the same session; a child only for an independent part whose contract is written **and
+  tried the way the parts will use it** (a contract made of code is tried across at least two
+  files, not only in the file that defines it: a limit found after the launch costs every child's
+  work); at most 3–4 children; the letter that checks and merges the children's work stays with
+  the main session («Madre»).
+
+  **The child's copy**: a child ticks its own section in its own folder and never writes outside
+  it. When `blueprint/` is not committed, a worktree has no copy of the plan: before launching a
+  child, the main session puts a copy of the plain plan in the child's folder
+  (`<worktree>/blueprint/plans/<stage id>.md`). The child ticks and writes its report there; the
+  main session reads both from `.claude/worktrees/<part>/`, checks the work, and carries the ticks
+  into the main plan. The panel reads the child's copy while it works.
   Then work by sub-tasks and tick each as it finishes, each session in its own section and its own
   copy; the panel shows the work tree in the open stage;
 - **`test` and `review` (implementation) belong to the main session.** While building, every
