@@ -1,7 +1,8 @@
 /*
  * The work tree of an implementation stage's build (and plan) phase, for a plain plan written in
  * four levels (decisions «Albero del lavoro»): session → letter → Task → sub-task, each with its
- * name (A, A1, A1.1), its short title and, only on the path being worked on, its plain words.
+ * name (A, A1, A1.1), its short title and, only on the path being worked on, its plain words (a
+ * letter's cut to one short line: its first sentence, at most 90 characters).
  * Sessions, letters and Tasks are open; a Task's sub-tasks open with its button («▸ 3» / «▾ 3»),
  * the Task in progress already open. Beside each letter one bead per Task (done, in progress, «!»
  * when it waits, to do), then its ▾ button, which shuts the letter if the user wants. Each
@@ -15,7 +16,7 @@ import type { PhaseState, StageModel, ViewCtx } from './types'
 import { C, GLYPH, beadsSvg, stepLineSvg, treeMarkSvg } from './marks'
 import { activity } from './activity'
 import { readSessions, type SessionRow } from './sessions-data'
-import { duration } from './sessions-view'
+import { cut, duration } from './sessions-view'
 import { slug } from './repo'
 import { tr } from './text'
 import { nodeState, splitId, type StepSection, type TaskNode, type TreeStep } from './plan-steps'
@@ -44,7 +45,8 @@ function Row(ctx: ViewCtx, o: { state: PhaseState; label: string; expl?: string;
   const { Box, Text, Svg } = ctx.el
   const svg = ctx.surface !== 'terminal'
   return (
-    <Box flexDirection="row" gap={1} width="100%">
+    // the mark and the buttons stay level with the title, not in the middle of the words below it
+    <Box flexDirection="row" gap={1} width="100%" alignItems="flex-start">
       {svg && (
         <Box width={3} flexShrink={0}>
           <Svg source={treeMarkSvg(o.state)} alt={GLYPH[o.state]} width={18} height={20} />
@@ -75,6 +77,9 @@ function Level(ctx: ViewCtx, children: unknown) {
 }
 
 const label = (id: string | undefined, title: string) => (id ? `${id} ${title}` : title)
+
+/** A letter's plain words as one short line: the first sentence, cut at 90 characters. */
+const firstSentence = (text?: string) => (text ? cut(text.split(/(?<=[.!?])\s+/)[0]!, 90) : text)
 const stepRow = (ctx: ViewCtx, s: TreeStep) => Row(ctx, { state: s.state, label: label(s.id, s.text), expl: s.expl })
 
 /** Whether a row is open: what the user chose last for it, else its default. */
@@ -126,7 +131,7 @@ function LetterRows($: any, ctx: ViewCtx, stage: StageModel, session: string, g:
   if (!g.group) return kids
   return (
     <Box flexDirection="column" width="100%">
-      {Row(ctx, { state, label: label(id, title), expl: g.expl, words: asPlan, right, bold: true })}
+      {Row(ctx, { state, label: label(id, title), expl: firstSentence(g.expl), words: asPlan, right, bold: true })}
       {open && Level(ctx, kids)}
     </Box>
   )
