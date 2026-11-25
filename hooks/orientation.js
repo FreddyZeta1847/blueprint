@@ -15,10 +15,11 @@
  *   - no plan and no card: one line — every new request starts with get-context (a tiny one: one
  *     line of confirmation, no files). Blueprint is the start of every piece of work, so this line
  *     appears in every project where the plugin is enabled.
- *   - in a child session (a linked worktree, lib/common.js worktreeOf): one line saying so, the
- *     main folder's plan when the child's folder has none (blueprint/ not committed), and, while it
- *     builds a parallel stage without its copy of the plain plan, a line telling it to warn the
- *     main session (it cannot write outside its folder);
+ *   - in a linked worktree (lib/common.js worktreeOf): the main folder's plan when the folder has
+ *     none (blueprint/ not committed). A child session is a worktree named after a part of the
+ *     stage built in parallel: one line says so and, while it builds without its copy of the plain
+ *     plan, one line tells it to warn the main session (it cannot write outside its folder). Any
+ *     other worktree (the main session opened in one) only learns where the plan is;
  * The current stage is the first `in_progress` one, else the first `todo` one.
  * Errors never fail the session (exit 0).
  *
@@ -28,7 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { readStdinJson, projectDirOf, findVaultRoot, blueprintDirOf, worktreeOf, readPlan, relInside, readText, readJson, toPosix } = require('./lib/common');
+const { readStdinJson, projectDirOf, findVaultRoot, blueprintDirOf, worktreeOf, slug, readPlan, relInside, readText, readJson, toPosix } = require('./lib/common');
 const { loadLoops, currentStage } = require('./lib/plan');
 const { readCard, openList } = require('./lib/card');
 
@@ -67,7 +68,7 @@ function deadlineOf(stage) {
   return [`deadline ${stage.deadline}${overdue ? ' (overdue)' : ''}`];
 }
 
-function planLines(projectDir, plan) {
+function planLines(projectDir, plan, where = 'blueprint/plan.json') {
   if (plan.unreadable) {
     return ['[Blueprint] blueprint/plan.json is unreadable (not valid JSON, or no "stages"). Fix it before relying on the plan.', LOAD_SKILL];
   }
@@ -86,7 +87,7 @@ function planLines(projectDir, plan) {
     ...deadlineOf(stage),
     ...noteLine,
   ].join(' · ');
-  const lines = [first, `Plan: blueprint/plan.json (written only by the main session, checked by the plan-guard). ${LOAD_SKILL}`];
+  const lines = [first, `Plan: ${where} (written only by the main session, checked by the plan-guard). ${LOAD_SKILL}`];
   if (stage.status === 'todo') lines.push(NOT_OPENED);
   return lines;
 }
@@ -154,11 +155,27 @@ function cardLines(projectDir, hasPlan, hasHead) {
 
 // ---------------------------------------------------------------- child sessions
 
-/** In a child's folder: who it is and where the plan lives (it may read there, write only here). */
-function childLines(wt, own) {
+/** The stage built in parallel: the first running one with independent parts (as the panel's). */
+function parallelStage(plan) {
+  const stages = plan && !plan.unreadable && Array.isArray(plan.stages) ? plan.stages : [];
+  return stages.find((s) => s && s.status === 'in_progress' && Array.isArray(s.independent_parts) && s.independent_parts.length > 0) || null;
+}
+
+/** A child is a worktree named after a part of the parallel stage («Area admin» → area-admin). */
+function isChild(wt, plan) {
+  const stage = parallelStage(plan);
+  return Boolean(wt && stage && stage.independent_parts.some((p) => slug(p) === wt.name));
+}
+
+/**
+ * In a worktree: who it is and where the plan lives. Only a child is told to write inside its
+ * folder alone; another worktree (the main session opened in one) only learns where the plan is.
+ */
+function worktreeLines(wt, own, plan) {
   if (!wt) return [];
   const where = own ? 'this folder' : `${toPosix(wt.main)}/blueprint`;
-  return [`[Blueprint] Child session «${wt.name}»: the plan lives in ${where} (read it; write only inside this folder).`];
+  if (isChild(wt, plan)) return [`[Blueprint] Child session «${wt.name}»: the plan lives in ${where} (read it; write only inside this folder).`];
+  return own ? [] : [`[Blueprint] Worktree of ${toPosix(wt.main)}: the plan lives in ${where}.`];
 }
 
 /**
@@ -166,11 +183,9 @@ function childLines(wt, own) {
  * outside its folder, and a worktree has no copy when blueprint/ is not committed.
  */
 function copyLines(projectDir, wt, plan) {
-  if (!wt || !plan || plan.unreadable) return [];
-  const current = currentStage(plan);
-  const stage = current && current.stage;
-  if (!stage || stage.type !== 'implementation' || stage.status !== 'in_progress' || stage.phase !== 'build') return [];
-  if (!Array.isArray(stage.independent_parts) || stage.independent_parts.length === 0) return [];
+  if (!isChild(wt, plan)) return [];
+  const stage = parallelStage(plan);
+  if (stage.type !== 'implementation' || stage.phase !== 'build') return [];
   const rel = `blueprint/plans/${stage.id}.md`;
   if (fs.existsSync(path.join(projectDir, rel))) return [];
   return [`[Blueprint] No copy of the plain plan in this folder (${rel}): you cannot tick your sub-tasks and must not write outside this folder. Tell the main session now (SendMessage), keep building, and write your report inside this folder.`];
@@ -186,7 +201,8 @@ function buildContext(projectDir) {
   const plan = own || (wt ? readPlan(wt.main) : null);
   const vaultRoot = findVaultRoot(projectDir);
   let lines = [];
-  try { if (plan) lines = [...childLines(wt, own), ...planLines(planDir, plan), ...copyLines(projectDir, wt, plan)]; } catch { lines = []; }
+  const where = planDir === projectDir ? undefined : `${toPosix(planDir)}/blueprint/plan.json`;
+  try { if (plan) lines = [...worktreeLines(wt, own, plan), ...planLines(planDir, plan, where), ...copyLines(projectDir, wt, plan)]; } catch { lines = []; }
   if (vaultRoot) lines.push(...vaultLines(projectDir, vaultRoot, Boolean(plan)));
   try { lines.push(...cardLines(projectDir, Boolean(plan), Boolean(plan || vaultRoot))); } catch { /* never fail the session */ }
   const fixed = lines.join('\n');

@@ -5,6 +5,7 @@
  * phase becomes "stopped" when it needs the user (user: true) or a child of the stage is
  * blocked. An unreadable plan gives null; the caller keeps its last good model.
  */
+import { SAFE_ID } from './repo'
 import type { PhaseState, PlanModel, SessionsSummary, StageModel } from './types'
 
 type LoopPhase = { id: string; optional?: boolean; user?: boolean }
@@ -25,7 +26,18 @@ export async function readLoops($: any): Promise<Loops | null> {
   return loops?.types ? loops : null
 }
 
-function perStage(stage: RawStage, phases: LoopPhase[], stopRunning: boolean) {
+/**
+ * The plan phase waits for the user only once both plans are written: the plain plan has its
+ * sub-tasks. Before that Claude is still writing them, and a «tocca a te» (and its push) would
+ * come too early and never again when the plans are ready.
+ */
+async function plansReady($: any, main: string, stage: RawStage): Promise<boolean> {
+  if (stage.status !== 'in_progress' || stage.phase !== 'plan' || !SAFE_ID.test(stage.id)) return false
+  const text: string = await $.fs.read(`${main}/blueprint/plans/${stage.id}.md`).catch(() => '')
+  return /^[ \t]*- \[[ xX]\] /m.test(text)
+}
+
+function perStage(stage: RawStage, phases: LoopPhase[], stopRunning: boolean, planReady: boolean) {
   const skipped = new Set((stage.skipped ?? []).map(s => s.id))
   const at = phases.findIndex(p => p.id === stage.phase)
   const rail = phases.map((p, i): { id: string; state: PhaseState; user?: boolean } => {
@@ -33,7 +45,7 @@ function perStage(stage: RawStage, phases: LoopPhase[], stopRunning: boolean) {
     if (stage.status === 'done') state = skipped.has(p.id) ? 'skipped' : 'done'
     else if (stage.status === 'in_progress' && at >= 0) {
       if (i < at) state = skipped.has(p.id) ? 'skipped' : 'done'
-      else if (i === at) state = p.user || stopRunning ? 'stopped' : 'running'
+      else if (i === at) state = (p.user && (p.id !== 'plan' || planReady)) || stopRunning ? 'stopped' : 'running'
     }
     return { id: p.id, state, ...(p.user ? { user: true } : {}) }
   })
@@ -52,10 +64,10 @@ function perStep(stage: RawStage, phases: LoopPhase[]) {
   return { rail }
 }
 
-function toStage(stage: RawStage, loops: Loops, isCurrent: boolean, sessions?: SessionsSummary): StageModel {
+function toStage(stage: RawStage, loops: Loops, isCurrent: boolean, sessions?: SessionsSummary, planReady = false): StageModel {
   const loop = loops.types[stage.type] ?? { cycle: 'per_stage', phases: [] }
   const blocked = isCurrent && (sessions?.blocked.length ?? 0) > 0
-  const { rail } = loop.cycle === 'per_step' ? perStep(stage, loop.phases) : perStage(stage, loop.phases, blocked)
+  const { rail } = loop.cycle === 'per_step' ? perStep(stage, loop.phases) : perStage(stage, loop.phases, blocked, planReady)
   const segments = rail.map(r => r.state) // the closed bar and the open rail say the same thing: the phases
   const firstOpen = (stage.topics ?? []).findIndex(t => !t.done)
   return {
@@ -83,9 +95,10 @@ export async function readPlan($: any, main: string, sessions?: SessionsSummary)
   // the children belong to the running stage built in parallel, even when another stage runs too
   const found = stages.findIndex(s => s.status === 'in_progress' && (s.independent_parts?.length ?? 0) > 0)
   const parallel = found >= 0 ? found : current
+  const ready = await Promise.all(stages.map(s => plansReady($, main, s)))
   return {
     project: String(raw.project ?? ''),
-    stages: stages.map((s, i) => toStage(s, loops, i === parallel, sessions)),
+    stages: stages.map((s, i) => toStage(s, loops, i === parallel, sessions, ready[i])),
     currentIndex: current,
     parallelIndex: parallel,
   }

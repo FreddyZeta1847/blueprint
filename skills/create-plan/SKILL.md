@@ -285,7 +285,8 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   4. **Approval of both plans.** Show the user the complete plain plan and the complete
      implementation plan (every letter, Task and sub-task) and wait for the OK before moving to
      `build`. The skeleton's OK alone never starts the build: this is why `plan` is a phase that
-     waits for the user.
+     waits for the user (the panel shows it waiting once the plain plan has its sub-tasks, so the
+     user is called when both plans are ready, not while Claude writes them).
 
   **What the plain plan holds**: only what is built, up to the merge of the children's work into
   the integration branch. The main session may have a letter that checks each child and merges

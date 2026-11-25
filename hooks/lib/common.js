@@ -69,10 +69,17 @@ function worktreeOf(dir) {
     const gitPath = path.join(dir, '.git');
     if (!fs.statSync(gitPath).isFile()) return null;
     const m = /^gitdir:\s*(.+?)[\\/]\.git[\\/]worktrees[\\/][^\\/\s]+[\\/]?$/.exec(fs.readFileSync(gitPath, 'utf8').trim());
-    return m ? { main: path.resolve(m[1]), name: path.basename(path.resolve(dir)) } : null;
+    // a relative gitdir (git's worktree.useRelativePaths) is relative to the worktree, not to us
+    return m ? { main: path.resolve(dir, m[1]), name: path.basename(path.resolve(dir)) } : null;
   } catch {
     return null;
   }
+}
+
+/** A plan part's name as a worktree name («Area admin» → area-admin), as the panel's repo.ts slug. */
+function slug(name) {
+  return String(name).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 /** blueprint/plan.json parsed, null when absent, or { unreadable: true } when it is not valid JSON. */
@@ -164,6 +171,7 @@ module.exports = {
   findVaultRoot,
   blueprintDirOf,
   worktreeOf,
+  slug,
   readPlan,
   toPosix,
   relInside,
