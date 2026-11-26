@@ -153,18 +153,29 @@ test('a per_stage stage cannot be done before the last mandatory phase, nor with
   const sk = undefined;
   const p = setup(planOf([impl({ status: 'in_progress', phase: 'test', skipped: sk })]));
   const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
-  expectDecision(writePlan(p, planOf([impl({ status: 'done', phase: 'test', skipped: sk, topics: doneTopics })])), 'deny', /done before the phase "first_use"/);
+  expectDecision(writePlan(p, planOf([impl({ status: 'done', phase: 'test', skipped: sk, topics: doneTopics })])), 'deny', /done before the phase "integrate"/);
 
-  const q = setup(planOf([impl({ status: 'in_progress', phase: 'first_use', skipped: sk })]));
-  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'first_use', skipped: sk })])), 'deny', /some topics are not/);
-  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'first_use', skipped: sk, topics: doneTopics })])), 'allow');
+  const q = setup(planOf([impl({ status: 'in_progress', phase: 'integrate', skipped: sk })]));
+  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'integrate', skipped: sk })])), 'deny', /some topics are not/);
+  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'integrate', skipped: sk, topics: doneTopics })])), 'allow');
+});
+
+test('implementation: a stage closes only after «controllo e pubblicazione», which can send it back to build (3.6.0)', () => {
+  const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
+  const f = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
+  expectDecision(writePlan(f, planOf([impl({ status: 'done', phase: 'first_use', topics: doneTopics })])), 'deny', /done before the phase "integrate"/);
+  expectDecision(writePlan(f, planOf([impl({ status: 'in_progress', phase: 'integrate' })])), 'allow');
+  const i = setup(planOf([impl({ status: 'in_progress', phase: 'integrate' })]));
+  expectDecision(writePlan(i, planOf([impl({ status: 'in_progress', phase: 'build' })])), 'allow');
+  expectDecision(writePlan(i, planOf([impl({ status: 'in_progress', phase: 'review' })])), 'deny', /only to "build"/);
+  expectDecision(writePlan(i, planOf([impl({ status: 'in_progress', phase: 'integrate', skipped: [{ id: 'integrate', reason: 'x' }] })])), 'deny', /mandatory and cannot be skipped/);
 });
 
 test('implementation: the first-use check is mandatory — review cannot jump to integrate or done', () => {
   const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
   const r = setup(planOf([impl({ status: 'in_progress', phase: 'review' })]));
   expectDecision(writePlan(r, planOf([impl({ status: 'in_progress', phase: 'integrate' })])), 'deny', /first_use/);
-  expectDecision(writePlan(r, planOf([impl({ status: 'done', phase: 'review', topics: doneTopics })])), 'deny', /done before the phase "first_use"/);
+  expectDecision(writePlan(r, planOf([impl({ status: 'done', phase: 'review', topics: doneTopics })])), 'deny', /done before the phase "integrate"/);
   expectDecision(writePlan(r, planOf([impl({ status: 'in_progress', phase: 'first_use' })])), 'allow');
   // a failed first-use check goes back to build
   const f = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
@@ -244,12 +255,16 @@ test('plans written before the recap phase stay valid: a topic already done at "
   expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { status: 'done' }), impl({ status: 'in_progress', phase: 'clarify' })])), 'allow');
 });
 
-test('implementation: the plan phase is a phase for the user (3.5.1)', () => {
+test('implementation: the plan and «controllo e pubblicazione» are the user\'s; the simulated first use is Claude\'s (3.5.1, 3.6.0)', () => {
   const { loadLoops } = require('../lib/plan');
   const phases = loadLoops().types.implementation.phases;
-  const user = (id) => phases.find((p) => p.id === id).user === true;
+  const phase = (id) => phases.find((p) => p.id === id);
+  const user = (id) => phase(id).user === true;
   assert.equal(user('plan'), true);
-  assert.equal(user('first_use'), true);
+  assert.equal(user('first_use'), false);
   assert.equal(user('integrate'), true);
   assert.equal(user('build'), false);
+  assert.notEqual(phase('integrate').optional, true);
+  assert.equal(phase('integrate').back_to, 'build');
+  assert.equal(phases[phases.length - 1].id, 'integrate');
 });
