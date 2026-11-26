@@ -246,7 +246,7 @@ different tools serve different phases. Then wait for the OK.
 
 > Stage 2 "Frontend demo" (implementation). Topics: calendar, booking (independent).
 > Context: enough — the API contract and the stack are written in the decisions.
-> Phases: context check → plan → build → test → review → first use (started with your own instructions, a fresh database, every action tried) → integrate.
+> Phases: context check → plan → build → test → review → first use (I use it, with the concrete checks) → check and publish (you).
 > How: the two parts in parallel on the fixed API contract. OK?
 
 The "how" is yours to propose with whatever the user has (their own skills, plugins, agents,
@@ -318,17 +318,33 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   writes what they found to `blueprint/reviews/<stage id>.json` (format in
   `blueprint:docs-management`) and stops: the user fixes them from the panel, or the panel sends
   them by itself 30 seconds later. After fixing, run the tools again and write the next round. The
-  review is done when a round finds nothing; on round 3 with findings still open, stop and ask the
-  user;
-- **`first_use` (implementation) is never a formality.** Green tests prove the code does what the
-  tests ask, not that the product works for the person who opens it. Start the work exactly with
-  the instructions you will give the user, in every way of starting it you offer (e.g. a single
-  server *and* a dev server + backend), on a fresh empty store (the page must say what is missing)
-  and then with sample data, with the real clock; try every action as a first-time user would
-  (every write, every page, the first screen they see); send the screenshots and the start-up
-  instructions to the user, who tries it too. Anything that fails goes back to `build`. Never give
-  the user start-up instructions you have not run yourself;
-- if a result is not good enough, go back to the phase in its `back_to`, nowhere else;
+  review is done when a round finds nothing (the limit of 3 rounds is under Corrections);
+- **`first_use` (implementation) is Claude's simulated first use, never a formality.** Green tests
+  prove the code does what the tests ask, not that the product works for the person who uses it.
+  Start the work exactly with the instructions the user will get (every way of starting it you
+  offer) and use it as a person would, ticking the concrete checks of the plain plan's
+  `Finita quando` lines, chosen for the kind of project: an app — every button works, every page
+  opens, no console error, an empty store says what is missing; a firmware — the device reacts to
+  the real input; an LLM system — the answers to real questions. What can be checked automatically
+  and repeatably (an API answers, a limit holds) is a `Test` line, not a check here. Graphics, UX
+  and taste are the user's, at the check. Never give the user start-up instructions you have not
+  run yourself;
+- **`integrate` — check and publish (controllo e pubblicazione) — is the user's, and the last.**
+  Hand the work over: how to start it, what to try, the pull request's link; then wait. The user
+  uses it and looks inside, which no mechanical check replaces (an LLM's text, a real device).
+  Their «tutto ok, pubblica» is the approval of that pull request: merge it and, when the project
+  has versions, release it; the release (or the merge, with no versions) closes the stage. A push
+  during the stage closes nothing: it only keeps the code safe;
+- **Corrections.** Until the user says «publish», anything that is not right — a red test, a review
+  finding, the simulated first use, a screenshot or a local test of the user's at the check — goes
+  back to `build` at once, without asking. Add the next letter to the plain plan
+  (`### E. Correzione: …`, with sub-tasks such as understand, fix, test) and the same chapter to the
+  technical plan, then the usual round: build → test → review → first use, and back to the user
+  only when the correction came from the check. No discussion, no new plan to approve, no
+  confirmations in between: the plan changes only by that letter. Every fixed error leaves a test
+  that catches it; the same problem still there after 3 rounds → stop and call the user. The round
+  is always the same, whatever the correction touches: only its length changes;
+- a result that is not good enough goes back to the phase in its `back_to`, nowhere else;
 - an optional phase is skipped only with a reason in `skipped`;
 - a phase, once set, is never removed;
 - if the work shows that a written decision is wrong (an implementation hits a limit, a delivery's
@@ -349,10 +365,11 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
 When the type's `done_when` holds: tick the finished topics `done: true` (all of them in a
 per-stage type; in a discussion stage every topic must be done or carry
 `"postponed": "<reason>"`, which the plan-guard checks), set `status: "done"`, and tell the
-user in one line what the stage produced. Do it in **one coherent write** (topics, final phase and
+user in one line what the stage produced. An implementation stage closes only after the user's
+«publish» (check and publish, above). Do it in **one coherent write** (topics, final phase and
 status together; the next stage's opening may go in the same write): two separate edits leave the
 plan inconsistent in between. In a project under git where `main` takes only approved PRs, the
-closing travels in the stage's own PR — for the **last** stage too, so no extra PR is needed for
+closing travels in the stage's own PR (written once the user said «publish», before the merge) — for the **last** stage too, so no extra PR is needed for
 the plan alone. Then ask whether the rest of the plan still holds (a
 result can change later stages → re-planning, §6), and whether to open the next stage.
 
@@ -366,4 +383,5 @@ result can change later stages → re-planning, §6), and whether to open the ne
 - Don't add stages for completeness
 - Don't change a done stage unless the user explicitly asks
 - Don't jump phases, and don't skip a mandatory one
+- Don't open a new stage, nor ask for a new plan, for a correction before the user said «publish»
 - Don't start a stage without the opening and the user's OK
