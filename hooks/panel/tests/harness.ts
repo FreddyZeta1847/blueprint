@@ -12,7 +12,7 @@ export const MAIN = 'C:/proj'
 
 export const LOOPS = JSON.stringify({ types: {
   discussion: { cycle: 'per_step', phases: [{ id: 'clarify' }, { id: 'proposal' }, { id: 'convergence', user: true }, { id: 'decision' }, { id: 'recap', user: true }] },
-  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan', user: true },{ id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use', user: true }, { id: 'integrate', optional: true }] },
+  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan', user: true },{ id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use' }, { id: 'integrate', user: true, back_to: 'build' }] },
   delivery: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'prepare' }, { id: 'rehearse', optional: true }, { id: 'deliver', user: true }, { id: 'feedback', user: true }] },
   quick_task: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'do' }, { id: 'check' }, { id: 'report' }] },
 } })

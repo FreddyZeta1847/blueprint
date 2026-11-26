@@ -111,10 +111,10 @@ test('A2: a discussion stage with no decision yet says where they will go', asyn
 })
 
 test('A2: stopped at a phase that needs the user — «… · ferma» and «tocca a te»', async ($, on) => {
-  await open($, on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'first_use' }) } })
+  await open($, on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'integrate' }) } })
   for (const surface of SURFACES) {
     const ui = await $.ui.mount(PANE(surface))
-    expect(await ui.find({ text: /prova primo utente · ferma/ })).toBeDefined()
+    expect(await ui.find({ text: /controllo e pubblicazione · ferma/ })).toBeDefined()
     if (surface === 'desktop') expect(JSON.stringify(await ui.find({ key: 'pill:turn:fb' }))).toContain('tocca a te')
     else expect(await ui.find({ text: /tocca a te/ })).toBeDefined()
     await ui.unmount()
@@ -335,5 +335,12 @@ test('G: lines that repeat are gone — the card line, «serve a…», «Segni:�
   const has = async (re: RegExp) => (await ui.find({ text: re })) !== undefined
   expect([await has(/difficoltà|ritmo/), await has(/[Ss]erve a /), await has(/^Segni:/)]).toEqual([false, false, false])
   expect([await has(/Repository e struttura/), await has(/Database: scelte/)]).toEqual([true, true]) // the finished stages
+  await ui.unmount()
+})
+
+test('«controllo e pubblicazione»: under the rail, what the phase waits for (3.6.0)', async ($, on) => {
+  await open($, on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'integrate' }) } })
+  const ui = await $.ui.mount(PANE('terminal'))
+  expect(await ui.find({ text: /^Lo provi tu; con «tutto ok, pubblica» si unisce e si pubblica\.$/ })).toBeDefined()
   await ui.unmount()
 })

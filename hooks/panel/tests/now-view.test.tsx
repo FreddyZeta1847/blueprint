@@ -33,8 +33,8 @@ test('Claude at work: «Adesso» and the sub-task in progress', async ($, on) =>
 })
 
 test('your turn: «Tocca a te» with what to do', async ($, on) => {
-  const { ui, has } = await mount($, on, { 'blueprint/plan.json': plan(p => { p.stages[2].phase = 'first_use' }) })
-  expect([await has(/^Tocca a te$/), await has(/^Tocca a te: prova primo utente$/)]).toEqual([true, true])
+  const { ui, has } = await mount($, on, { 'blueprint/plan.json': plan(p => { p.stages[2].phase = 'integrate' }) })
+  expect([await has(/^Tocca a te$/), await has(/^Tocca a te: controllo e pubblicazione$/)]).toEqual([true, true])
   await ui.unmount()
 })
 
