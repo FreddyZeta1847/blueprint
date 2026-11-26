@@ -104,7 +104,7 @@ From the answers, conclude three things and say them in plain words:
 | Size | Example | What happens next |
 |---|---|---|
 | **Tiny** | "change the button colour" | One line of confirmation, then do it. **No files, no plan.** |
-| **Fits the existing plan** | a task inside a planned stage | Re-planning (`blueprint:create-plan` §6): new topics or a new stage, before → after. The card is reused. |
+| **Fits the existing plan** | a task inside a planned stage | Re-planning (`blueprint:create-plan` §6): new topics or a new stage, before → after. The card is reused. A correction to a stage not published yet («this didn't work», a screenshot) is no re-planning: it goes back to build inside that stage (`blueprint:create-plan` §7, Corrections). |
 | **Small** | "check whether our hosting supports WebSockets" | The card (§5), then a plan of 1–3 stages. |
 | **Medium** | "add Google login" | The card, then 2–5 stages (or topics in an existing stage). |
 | **Project** | "a booking site for a gym" | The card, then usually around 8–12 stages. |
