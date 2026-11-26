@@ -12,13 +12,15 @@
  *      with a single part has none); the old field name "steps" is refused; every name in
  *      `independent_parts` is one of the stage's topics;
  *   2. phase ids belong to the type's loop (on the stage for per_stage types, on the topics for
- *      per_step types); `skipped` names only optional phases, each with a reason;
+ *      per_step types); `skipped` names only optional phases, each with a reason (a phase the
+ *      stage on disk already skipped stays allowed, so plans written before a loop made it
+ *      mandatory stay valid); a stage done on disk and left unchanged is not checked again (rule 5);
  *   3. a phase moves only to the next phase (optional ones in between must be in `skipped`) or
  *      back to the old phase's `back_to`; it is never cleared; in_progress per_stage stages
  *      have a phase. New stages/topics are checked as if they started before the first phase;
  *   4. done (stage, or a per_step topic) only at or after the last mandatory phase (a topic
  *      already done at the same phase in the plan on disk is left alone, so plans written
- *      before a loop grew a phase stay valid); a done
+ *      before a loop grew a phase stay valid; a stage already done at the same phase on disk too); a done
  *      per_step stage has every topic done or postponed with a reason; a done per_stage stage
  *      has every topic done;
  *   5. a stage that was done cannot be changed or removed → ask (the user may have asked);
@@ -111,19 +113,25 @@ function checkIndependentParts(stage, deny) {
   if (missing.length) deny.push(`rule 1: stage ${label(stage)}: independent part(s) ${missing.map((p) => `"${p}"`).join(', ')} are not topics of the stage; each independent part must also be a topic with the same name.`);
 }
 
-function checkSkipped(stage, loop, deny) {
+/** A phase the stage on disk already skipped stays skipped: a loop that made it mandatory later
+ * (implementation's `integrate`, 3.6.0) must not turn the plans written before it into errors. */
+function checkSkipped(stage, loop, deny, old) {
   if (stage.skipped === undefined) return;
   if (!Array.isArray(stage.skipped)) return deny.push(`rule 2: stage ${label(stage)}: "skipped" must be an array of { id, reason }.`);
+  const before = old && old.type === stage.type ? skippedIdsOf(old) : new Set();
   for (const s of stage.skipped) {
     const phase = isObject(s) && loop.phases.find((p) => p.id === s.id);
     if (!phase) deny.push(`rule 2: stage ${label(stage)}: skipped "${isObject(s) ? s.id : s}" is not a ${stage.type} phase.`);
-    else if (!phase.optional) deny.push(`rule 2: stage ${label(stage)}: "${phase.id}" is mandatory and cannot be skipped.`);
+    else if (!phase.optional && !before.has(phase.id)) deny.push(`rule 2: stage ${label(stage)}: "${phase.id}" is mandatory and cannot be skipped.`);
     else if (!nonEmpty(s.reason)) deny.push(`rule 2: stage ${label(stage)}: skipped "${phase.id}" needs a non-empty "reason".`);
   }
   return undefined;
 }
 
-function checkStage(stage, loops, ids, deny) {
+/** A stage done on disk and left as it is: rule 5 guards it, rules 2–4 are not checked again. */
+const untouchedDone = (stage, old) => Boolean(old && old.status === 'done' && canonical(stage) === canonical(old));
+
+function checkStage(stage, loops, ids, deny, old) {
   if (!isObject(stage)) return deny.push('rule 1: every stage must be an object.');
   if (typeof stage.id !== 'string' || !ID_RE.test(stage.id)) deny.push(`rule 1: stage id "${stage.id}" must be lowercase kebab-case (e.g. "demo-frontend").`);
   else if (ids.has(stage.id)) deny.push(`rule 1: stage id "${stage.id}" is used twice; ids must be unique.`);
@@ -135,12 +143,13 @@ function checkStage(stage, loops, ids, deny) {
   checkIndependentParts(stage, deny);
   const loop = loops.types[stage.type];
   if (!loop) return deny.push(`rule 1: stage ${label(stage)}: type "${stage.type}" does not exist; use one of ${Object.keys(loops.types).join(', ')}.`);
+  if (untouchedDone(stage, old)) return undefined;
   if (stage.phase !== undefined) {
     if (loop.cycle === 'per_step') deny.push(`rule 2: stage ${label(stage)} is ${stage.type} (one phase per topic): put "phase" on each topic, not on the stage.`);
     else if (!loop.phases.some((p) => p.id === stage.phase)) deny.push(`rule 2: stage ${label(stage)}: "${stage.phase}" is not a ${stage.type} phase (${loop.phases.map((p) => p.id).join(', ')}).`);
   }
   checkTopics(stage, loop, deny);
-  checkSkipped(stage, loop, deny);
+  checkSkipped(stage, loop, deny, old);
   return undefined;
 }
 
@@ -233,7 +242,9 @@ function checkDone(stage, before, loop, deny) {
     return;
   }
   if (stage.status !== 'done') return;
-  if (ids.indexOf(stage.phase) < lastMandatory(loop)) {
+  // already done at this phase on disk: a loop that grew a mandatory phase later (3.6.0) keeps it valid
+  const keptDone = before && before.type === stage.type && before.status === 'done' && before.phase === stage.phase;
+  if (!keptDone && ids.indexOf(stage.phase) < lastMandatory(loop)) {
     deny.push(`rule 4: stage ${label(stage)} is done before the phase "${need}"; record "${need}" first.`);
   }
   if ((stage.topics || []).some((t) => !t.done)) deny.push(`rule 4: stage ${label(stage)} is done but some topics are not; mark every topic done (or keep the stage open).`);
@@ -270,11 +281,12 @@ function validatePlan(next, previous, loops) {
   checkTop(next, deny);
   if (deny.length) return { deny, ask };
   const ids = new Set();
-  for (const stage of next.stages) checkStage(stage, loops, ids, deny);
+  const before = previousStages(previous);
+  for (const stage of next.stages) checkStage(stage, loops, ids, deny, isObject(stage) ? before.get(stage.id) : undefined);
   if (deny.length) return { deny, ask };   // rules 3–6 need a well-formed plan
 
-  const before = previousStages(previous);
   for (const stage of next.stages) {
+    if (untouchedDone(stage, before.get(stage.id))) continue;
     const loop = loops.types[stage.type];
     checkMoves(stage, before.get(stage.id), loop, deny);
     checkDone(stage, before.get(stage.id), loop, deny);
