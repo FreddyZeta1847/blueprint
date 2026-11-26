@@ -223,7 +223,7 @@ test('the arrows under the rail move the view between the phases, without touchi
     expect(await ui.find({ text: /^Il piano di costruzione\.$/ })).toBeUndefined() // a sentence that says nothing new is gone
     if (surface === 'desktop') expect(JSON.stringify(await ui.find({ key: 'rail:fb' }))).toContain('stroke-dasharray') // the ring on the dot looked at
     for (let i = 0; i < 9; i++) await ui.press({ key: 'phase-next:fb' }) // past the last phase it stays there
-    expect(await ui.find({ text: /^unione · da fare$/ })).toBeDefined()
+    expect(await ui.find({ text: /^controllo e pubblicazione · da fare$/ })).toBeDefined()
     for (let i = 0; i < 9; i++) await ui.press({ key: 'phase-prev:fb' })
     expect(await ui.find({ text: /^contesto · fatta$/ })).toBeDefined()
     await ui.press({ key: 'phase-next:fb' }); await ui.press({ key: 'phase-next:fb' }) // back to «costruzione» for the next surface
