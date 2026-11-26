@@ -268,3 +268,21 @@ test('implementation: the plan and «controllo e pubblicazione» are the user\'s
   assert.equal(phase('integrate').back_to, 'build');
   assert.equal(phases[phases.length - 1].id, 'integrate');
 });
+
+test('plans written before 3.6.0 stay valid: done stages that ended at first use, or skipped the merge (3.6.0)', () => {
+  const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
+  const old = impl({ id: 'old', name: 'Old', status: 'done', phase: 'first_use', topics: doneTopics });
+  const oldSkipped = impl({ id: 'old-skip', name: 'Old skip', status: 'done', phase: 'first_use', skipped: [{ id: 'integrate', reason: 'no merge' }], topics: doneTopics });
+  const p = setup(planOf([old, oldSkipped, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(p, planOf([old, oldSkipped, impl({ status: 'in_progress', phase: 'test' })])), 'allow');
+  // a done stage that is changed still asks (rule 5)
+  expectDecision(writePlan(p, planOf([{ ...old, name: 'Renamed' }, oldSkipped, impl({ status: 'in_progress', phase: 'build' })])), 'ask', /done and would be changed/);
+});
+
+test('a running stage that already skipped the merge goes on to «controllo e pubblicazione»; a new skip is refused (3.6.0)', () => {
+  const skipped = [{ id: 'integrate', reason: 'no merge' }];
+  const p = setup(planOf([impl({ status: 'in_progress', phase: 'first_use', skipped })]));
+  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'integrate', skipped })])), 'allow');
+  const q = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
+  expectDecision(writePlan(q, planOf([impl({ status: 'in_progress', phase: 'first_use', skipped })])), 'deny', /mandatory and cannot be skipped/);
+});
