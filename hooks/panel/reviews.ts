@@ -46,7 +46,18 @@ export async function readReviews($: any, main: string, stageId: string): Promis
 }
 
 export const openOnes = (r: Reviews) => r.findings.filter(f => f.status === 'open')
-export const stuck = (r: Reviews) => r.round >= MAX_ROUNDS && openOnes(r).length > 0
+/**
+ * The user's turn: findings still open after MAX_ROUNDS rounds in a row with findings. A clean round
+ * starts the count again, so a correction's review (3.6.0) does not inherit the stage's old rounds.
+ */
+export function stuck(r: Reviews): boolean {
+  if (openOnes(r).length === 0) return false
+  const before = (Array.isArray(r.history) ? r.history : [])
+    .filter(h => h && Array.isArray(h.findings))
+    .sort((a, b) => Number(b.round) - Number(a.round))
+    .slice(0, MAX_ROUNDS - 1)
+  return before.length === MAX_ROUNDS - 1 && before.every(h => h.findings.length > 0)
+}
 export const howMany = (lang: Lang, n: number) => (n === 1 ? tr(lang, 'reviewOne') : tr(lang, 'reviewMany', { n }))
 
 // Module memory: when this session first refreshed, and when it first saw each round.

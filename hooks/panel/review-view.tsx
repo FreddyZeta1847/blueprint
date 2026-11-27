@@ -126,7 +126,7 @@ export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
         </Button>
       )}
       {showFixed && [...fixed].sort(bySeverity).map(f => FindingRow($, ctx, stage, f, false))}
-      {open + sent > 0 && r.round < MAX_ROUNDS && <Text wrap="wrap" dimColor>{tr(ctx.lang, 'reviewFoot', { next: r.round + 1 })}</Text>}
+      {open + sent > 0 && !isStuck && <Text wrap="wrap" dimColor>{tr(ctx.lang, 'reviewFoot', { next: r.round + 1 })}</Text>}
     </Box>
   )
 }
