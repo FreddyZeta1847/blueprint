@@ -146,7 +146,7 @@ The loops are in `data/loops.json`. They say which phases a stage goes through a
 | `delivery` | something to show: mockup, demo, document | context check, prepare, *rehearse* (you), deliver (you), feedback |
 | `quick_task` | a short, low-risk job | context check, do, check, report (you) |
 
-- *Italic* phases are optional and skipped only with a written reason. `test`, `review`, `first use` and `check and publish` go back to `build` when something is wrong.
+- *Italic* phases are optional and skipped only with a written reason. `test` and `review` fix a problem in place, with no new steps in the plan; `first use` and `check and publish` go back to `build`, with a new letter in the plan.
 - The **divergent proposal** lays out the serious options, then recommends one and says why.
 - The **recap** reads back the question, the choice and the rejected options from what was written.
 - **First use** is mandatory and tests do not replace it: Claude starts the work with the instructions you will get and uses it, ticking concrete checks chosen for the kind of project (an app, a firmware, an LLM system).

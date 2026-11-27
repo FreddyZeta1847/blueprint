@@ -200,7 +200,7 @@ Then tell the user the plan is saved and ask whether to open the first stage.
 
 **What triggers it:** the user asks; a deadline moves; the card changes (role, approver, budget);
 tests or a review show the plan itself was wrong (not a correction: before the user's «publish», a
-problem goes back to build in the same stage, §7 Corrections); delivery feedback asks for something else; a new task arrives on a running
+problem is fixed in the same stage, §7 Corrections); delivery feedback asks for something else; a new task arrives on a running
 project and fits this plan.
 
 **How:**
@@ -336,8 +336,8 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   Their «tutto ok, pubblica» is the approval of that pull request: merge it and, when the project
   has versions, release it; the release (or the merge, with no versions) closes the stage. A push
   during the stage closes nothing: it only keeps the code safe;
-- **Corrections.** A red test or a review finding is fixed inside its own phase, as above (the
-  test phase goes back to `build`; the review writes its next round): no new letter. Until the user
+- **Corrections.** A red test or a review finding is fixed inside its own phase, as above: no
+  going back and no new steps in the plan (the tests run again; the review writes its next round). Until the user
   says «publish», anything that is not right in the simulated first use or at the user's check (a
   screenshot, a local test of theirs) goes back to `build` at once, without asking. Add the next letter to the plain plan, in the section of
   the session that fixes it (`## Madre` once the children are merged): `### E. Correzione: …` with

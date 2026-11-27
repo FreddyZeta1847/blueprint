@@ -36,6 +36,7 @@ const OLD = [
   ['readme', 'At most 3 rounds.'],
   ['readme', 'a stop after 3 rounds'],
   ['createPlan', 'anything that is not right — a red test, a review'],
+  ['createPlan', 'test phase goes back to `build`'],
 ];
 
 /** Where an old sentence is still written, as «file: sentence» lines. */
@@ -50,6 +51,10 @@ test('the implementation loop ends with the user\'s check and publish; the first
   assert.equal(last.user, true);
   assert.notEqual(last.optional, true);
   assert.equal(last.back_to, 'build');
+  // test and review fix in place: no going back from them (3.6.0)
+  assert.equal(phases.find((p) => p.id === 'test').back_to, undefined);
+  assert.equal(phases.find((p) => p.id === 'review').back_to, undefined);
+  assert.equal(phases.find((p) => p.id === 'first_use').back_to, 'build');
   assert.notEqual(phases.find((p) => p.id === 'first_use').user, true);
 });
 

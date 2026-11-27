@@ -141,12 +141,16 @@ test('an in_progress per_stage stage needs a phase; phases move one at a time', 
   expectDecision(writePlan(p, at('test')), 'deny', /mandatory phase "build"/);
 });
 
-test('going back only to back_to', () => {
-  const p = setup(planOf([impl({ status: 'in_progress', phase: 'review' })]));
+test('going back only to back_to: test and review fix in place, first use and the user\'s check go back to build (3.6.0)', () => {
   const at = (phase) => planOf([impl({ status: 'in_progress', phase })]);
-  expectDecision(writePlan(p, at('build')), 'allow');
-  expectDecision(writePlan(p, at('test')), 'deny', /only to "build"/);
-  expectDecision(writePlan(p, at('plan')), 'deny', /only to "build"/);
+  for (const from of ['test', 'review']) {
+    const p = setup(planOf([impl({ status: 'in_progress', phase: from })]));
+    expectDecision(writePlan(p, at('build')), 'deny', /can go back to no phase/);
+  }
+  const f = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
+  expectDecision(writePlan(f, at('build')), 'allow');
+  expectDecision(writePlan(f, at('test')), 'deny', /only to "build"/);
+  expectDecision(writePlan(f, at('plan')), 'deny', /only to "build"/);
 });
 
 test('a per_stage stage cannot be done before the last mandatory phase, nor with open topics', () => {
