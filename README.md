@@ -58,7 +58,7 @@ In a project with a plan, Blueprint opens a pane beside the chat. It rereads `bl
 - **Plan.** One row per stage with a bar of its phases. Open a stage and step through its phases with the arrows.
 - **Work tree** (implementation). The plain plan `blueprint/plans/<stage>.md`: session, letter A, Task A1, sub-task A1.1. The sub-task in progress colours the path above it. It holds only the build; you approve it, with the technical plan, before the build starts. A child session ticks a copy in its own folder.
 - **Test counts.** Each group shows a fraction like «14/14», read from the real output of its test command.
-- **Review dashboard.** Every round added up (fixed and open, per severity, per tool). Each open finding has a **Correggi** (fix) button. A new round is sent to Claude after 30 seconds. At most 3 rounds.
+- **Review dashboard.** Every round added up (fixed and open, per severity, per tool). Each open finding has a **Correggi** (fix) button. A new round is sent to Claude after 30 seconds. Three rounds in a row with problems still open: your turn.
 - **Decision cards** (discussion). Each decision shows if it is hard to change, who decided, and when opened, why and what was rejected.
 - **Notes.** Add, edit or delete a note on a stage. Claude reads the new ones when the next session starts.
 - **Sessions and Legend.** The mother session and one child per parallel part. A legend of the marks and of every stage type.

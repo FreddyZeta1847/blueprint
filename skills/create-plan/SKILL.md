@@ -342,10 +342,11 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   the session that fixes it (`## Madre` once the children are merged): `### E. Correzione: …` with
   its plain words, its `Test (…)` and `Finita quando` lines, one Task `#### E1.` and its sub-tasks
   (understand what happened; fix it, with the test that catches the error written first); and the
-  same chapter to the technical plan, then the usual round: build → test → review → first use, and back to the user
-  only when the correction came from the check. No discussion, no new plan to approve, no
-  confirmations in between: the plan changes only by that letter. Every fixed error leaves a test
-  that catches it; the same problem still there after 3 rounds → stop and call the user. The round
+  same chapter to the technical plan, then the usual round: build → test → review → first use →
+  the user's check, where every round ends, like the stage. No discussion, no new plan to approve,
+  no confirmations in between: the plan changes only by that letter. Every fixed error leaves a test
+  that catches it. Three rounds in a row with the problem still there (a test still red, or the
+  review still finding problems) → stop and call the user; a clean round starts the count again. The round
   is always the same, whatever the correction touches: only its length changes;
 - a result that is not good enough goes back to the phase in its `back_to`, nowhere else;
 - an optional phase is skipped only with a reason in `skipped`;

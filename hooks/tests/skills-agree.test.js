@@ -32,6 +32,8 @@ const OLD = [
   ['createPlan', 'on round 3 with findings still open, stop and ask the user'],
   ['createPlan', 'first use (started with your own instructions'],
   ['createPlan', 'with sub-tasks such as understand, fix, test'],
+  ['createPlan', 'only when the correction came from the check'],
+  ['readme', 'At most 3 rounds.'],
 ];
 
 /** Where an old sentence is still written, as «file: sentence» lines. */
@@ -58,6 +60,8 @@ test('the skills and the README say what the loop says (3.6.0)', () => {
   assert.ok(TEXTS.createPlan.includes('then sample data, the real clock'), 'create-plan: an app is tried empty, then with data, with the real clock');
   assert.ok(TEXTS.readme.includes('when the project has versions'), 'README: a release only when the project has versions');
   assert.ok(TEXTS.getContext.includes('**Not for corrections.**'), 'get-context: corrections skip it');
+  assert.ok(TEXTS.createPlan.includes('Three rounds in a row with the problem still there'), 'create-plan: one stop rule');
+  assert.ok(TEXTS.readme.includes('Three rounds in a row with problems still open'), 'README: the same stop rule');
 });
 
 test('no sentence of the loop before 3.6.0 is left', () => {
