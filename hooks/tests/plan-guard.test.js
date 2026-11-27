@@ -294,3 +294,17 @@ test('a broken done stage on disk is still refused at the next write (review rou
   const p = setup(planOf([broken, impl({ status: 'in_progress', phase: 'build' })]));
   expectDecision(writePlan(p, planOf([broken, impl({ status: 'in_progress', phase: 'test' })])), 'deny', /rule 4: stage «Broken»/);
 });
+
+test('the tolerance is only for plans written before 3.6.0: done at first use, or the merge skipped, and only while done (review round 2)', () => {
+  const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
+  const next = impl({ status: 'in_progress', phase: 'test' });
+  const atBuild = impl({ id: 'early', name: 'Early', status: 'done', phase: 'build', topics: doneTopics });
+  const p = setup(planOf([atBuild, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(p, planOf([atBuild, next])), 'deny', /rule 4: stage «Early»/);
+  const noTests = impl({ id: 'no-tests', name: 'No tests', status: 'done', phase: 'first_use', skipped: [{ id: 'test', reason: 'x' }], topics: doneTopics });
+  const q = setup(planOf([noTests, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(q, planOf([noTests, next])), 'deny', /"test" is mandatory and cannot be skipped/);
+  const old = impl({ id: 'old', name: 'Old', status: 'done', phase: 'first_use', skipped: [{ id: 'integrate', reason: 'no merge' }], topics: doneTopics });
+  const r = setup(planOf([old]));
+  expectDecision(writePlan(r, planOf([{ ...old, status: 'in_progress' }])), 'deny', /"integrate" is mandatory and cannot be skipped/);
+});

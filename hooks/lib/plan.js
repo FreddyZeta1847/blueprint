@@ -12,15 +12,14 @@
  *      with a single part has none); the old field name "steps" is refused; every name in
  *      `independent_parts` is one of the stage's topics;
  *   2. phase ids belong to the type's loop (on the stage for per_stage types, on the topics for
- *      per_step types); `skipped` names only optional phases, each with a reason (a phase a done
- *      stage on disk already skipped stays allowed, so plans written before a loop made it
- *      mandatory stay valid);
+ *      per_step types); `skipped` names only optional phases, each with a reason (an implementation
+ *      stage done before 3.6.0 keeps its skipped `integrate` while it stays done: BEFORE_360);
  *   3. a phase moves only to the next phase (optional ones in between must be in `skipped`) or
  *      back to the old phase's `back_to`; it is never cleared; in_progress per_stage stages
  *      have a phase. New stages/topics are checked as if they started before the first phase;
  *   4. done (stage, or a per_step topic) only at or after the last mandatory phase (a topic
  *      already done at the same phase in the plan on disk is left alone, so plans written
- *      before a loop grew a phase stay valid; a stage already done at the same phase on disk too); a done
+ *      before a loop grew a phase stay valid; an implementation stage done at `first_use` before 3.6.0 too); a done
  *      per_step stage has every topic done or postponed with a reason; a done per_stage stage
  *      has every topic done;
  *   5. a stage that was done cannot be changed or removed → ask (the user may have asked);
@@ -34,6 +33,9 @@ const path = require('path');
 const { readJson } = require('./common');
 
 const LOOPS_FILE = path.join(__dirname, '..', '..', 'data', 'loops.json');
+/** Implementation plans written before 3.6.0, when `integrate` was optional and `first_use` the
+ * last mandatory phase: a stage done then stays valid — only these two cases, only while done. */
+const BEFORE_360 = { type: 'implementation', donePhase: 'first_use', skipped: 'integrate' };
 const STATUSES = ['todo', 'in_progress', 'done', 'postponed'];
 const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -119,7 +121,8 @@ function checkIndependentParts(stage, deny) {
 function checkSkipped(stage, loop, deny, old) {
   if (stage.skipped === undefined) return;
   if (!Array.isArray(stage.skipped)) return deny.push(`rule 2: stage ${label(stage)}: "skipped" must be an array of { id, reason }.`);
-  const before = old && old.type === stage.type && old.status === 'done' ? skippedIdsOf(old) : new Set();
+  const oldDone = old && old.type === stage.type && old.status === 'done' && stage.status === 'done' && stage.type === BEFORE_360.type;
+  const before = oldDone && skippedIdsOf(old).has(BEFORE_360.skipped) ? new Set([BEFORE_360.skipped]) : new Set();
   for (const s of stage.skipped) {
     const phase = isObject(s) && loop.phases.find((p) => p.id === s.id);
     if (!phase) deny.push(`rule 2: stage ${label(stage)}: skipped "${isObject(s) ? s.id : s}" is not a ${stage.type} phase.`);
@@ -240,7 +243,8 @@ function checkDone(stage, before, loop, deny) {
   }
   if (stage.status !== 'done') return;
   // already done at this phase on disk: a loop that grew a mandatory phase later (3.6.0) keeps it valid
-  const keptDone = before && before.type === stage.type && before.status === 'done' && before.phase === stage.phase;
+  const keptDone = before && stage.type === BEFORE_360.type && before.type === stage.type && before.status === 'done'
+    && before.phase === stage.phase && stage.phase === BEFORE_360.donePhase;
   if (!keptDone && ids.indexOf(stage.phase) < lastMandatory(loop)) {
     deny.push(`rule 4: stage ${label(stage)} is done before the phase "${need}"; record "${need}" first.`);
   }
