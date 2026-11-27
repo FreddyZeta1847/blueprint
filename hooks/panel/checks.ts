@@ -104,10 +104,10 @@ async function stageOf($: any, main: string, child: boolean): Promise<StageModel
   // the main session: the first stage being built or tested, not merely the first one open (an
   // earlier stage may still wait at «integrate» for its pull request)
   // a stage built in parallel is the children's while they build it (their worktrees exist); the
-  // main session counts it in its test phase, or when it builds the stage alone
+  // main session counts it in its test and review phases, or when it builds the stage alone
   for (const s of plan.stages) {
     if (!ok(s)) continue
-    if (s.independentParts.length === 0 || s.phase === 'test') return s
+    if (s.independentParts.length === 0 || s.phase === 'test' || s.phase === 'review') return s
     const kids = await Promise.all(s.independentParts.map(p => $.fs.exists(`${main}/.claude/worktrees/${slug(p)}`).catch(() => false)))
     if (!kids.some(Boolean)) return s
   }

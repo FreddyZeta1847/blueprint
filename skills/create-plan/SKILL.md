@@ -210,6 +210,8 @@ project and fits this plan.
    a new stage in the right place.
 2. Wait for the user's yes.
 3. Rewrite `blueprint/plan.json`. The plan-guard hook checks it.
+4. A stage in `test` or `review` does not go back: the new work (new letters in both plans) is
+   built where the stage is, and then the stage goes on from there.
 
 **Stages already done are not touched** unless the user explicitly asks. Git keeps the history of
 the plan; don't keep old versions in the file.

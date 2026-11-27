@@ -126,8 +126,8 @@ Sette colonne, una per giorno, con i posti liberi di ogni corso.
   to the user for the OK before the build. After that it changes only by ticks, by a correction's
   new letter (no approval, `blueprint:create-plan` §7), or when the plan changes (say so to the user).
 
-**Test counts** (`blueprint/checks/`). While an implementation stage is in its `build` or `test`
-phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the
+**Test counts** (`blueprint/checks/`). While an implementation stage is in its `build`, `test` or
+`review` phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the
 output of a match is read (node, bun and `claude plugin test`, vitest, jest, pytest, and rtk's
 condensed lines) and the group's count written to that session's file. A command counts for a
 group only when it runs **exactly** that group's key: the key's words in a row, with nothing after

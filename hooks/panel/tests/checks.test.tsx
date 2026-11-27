@@ -160,3 +160,10 @@ test('a command that ends with an error and prints no test summary writes nothin
   await $.tool.call({ tool: 'Bash', command: 'ls nope' })
   expect(file(seen)).toBe(undefined)
 })
+
+test('in the review of a parallel stage the main session\'s runs count, even with the children\'s worktrees still there (review round 5)', async ($, on) => {
+  const seen = engine(on, { ...world('review'), files: { ...world('review').files, '.claude/worktrees/area-admin': '' } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
+  expect(file(seen)).toBeDefined()
+})

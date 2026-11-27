@@ -75,6 +75,8 @@ test('the skills and the README say what the loop says (3.6.0)', () => {
   assert.ok(TEXTS.createPlan.includes('Three rounds in a row with the problem still there'), 'create-plan: one stop rule');
   assert.ok(TEXTS.readme.includes('Three rounds in a row with problems still open'), 'README: the same stop rule');
   assert.ok(TEXTS.createPlan.includes('A red test or a review finding is fixed inside its own phase'), 'create-plan: tests and reviews keep their own loop');
+  assert.ok(TEXTS.createPlan.includes('A stage in `test` or `review` does not go back'), 'create-plan: re-planning from test or review is built in place');
+  assert.ok(TEXTS.docs.includes('`build`, `test` or `review` phase'), 'docs-management: test runs count in review too');
   assert.ok(TEXTS.readme.includes('red tests and review findings are fixed inside their own phase'), 'README: the same');
 });
 

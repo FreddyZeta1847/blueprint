@@ -6,8 +6,8 @@
  * open, how many per severity, and per tool a bar of what it found (grey in past rounds, amber in
  * this one); then the open findings from the most severe down (severity as three bars and a word,
  * «trovato da», «Correggi»); the fixed ones behind a button. A round already there when the
- * session started has no countdown: it waits for a press. Round 3 with findings still open says it
- * is the user's turn and offers no button; before the first round, one line saying so.
+ * session started has no countdown: it waits for a press. Three rounds in a row with findings still
+ * open say it is the user's turn and offer no button (a clean round starts the count again); before the first round, one line saying so.
  * Data and sending: reviews.ts.
  */
 import type { StageModel, ViewCtx } from './types'
