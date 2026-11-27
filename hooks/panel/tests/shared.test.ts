@@ -132,3 +132,10 @@ test('the simulated first use is Claude\'s: it runs, it does not wait for the us
   expect(plan?.stages[2]!.segments[5]).toBe('running')
   expect(plan?.stages[2]!.yourTurn).toBe(false)
 })
+
+test('a stage done at first use before 3.6.0 does not show the user\'s check as done (review round 2)', async () => {
+  const old = { ...PLAN, stages: PLAN.stages.map(s => (s.id === 'fb' ? { ...s, status: 'done', phase: 'first_use' } : s)) }
+  const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(old), 'data/loops.json': LOOPS }), MAIN)
+  expect(plan?.stages[2]!.segments[5]).toBe('done')
+  expect(plan?.stages[2]!.segments[6]).toBe('skipped')
+})

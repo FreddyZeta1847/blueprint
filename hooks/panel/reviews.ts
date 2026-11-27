@@ -6,7 +6,8 @@
  * idle), and so does the countdown, 30 s after the round was written. Sent findings are marked
  * `sent` in the file before the prompt goes, so a reload never sends them twice. After fixing,
  * Claude runs the tools again and writes the next round; a round with no finding ends the review.
- * On round 3 with findings still open nothing is sent: it is the user's turn.
+ * After three rounds in a row with findings still open nothing is sent: it is the user's turn (a
+ * clean round starts the count again, so a correction's review does not inherit the old rounds).
  * The countdown runs only for a round that appeared while this session was open (a round already
  * there when the session started, e.g. in a cloned project, waits for a press), and is timed from
  * when this session first saw it, never from the file's own clock. Only one sending at a time, and
@@ -54,9 +55,11 @@ export function stuck(r: Reviews): boolean {
   if (openOnes(r).length === 0) return false
   const before = (Array.isArray(r.history) ? r.history : [])
     .filter(h => h && Array.isArray(h.findings))
-    .sort((a, b) => Number(b.round) - Number(a.round))
+    .sort((a, b) => (Number(b.round) || 0) - (Number(a.round) || 0))
     .slice(0, MAX_ROUNDS - 1)
-  return before.length === MAX_ROUNDS - 1 && before.every(h => h.findings.length > 0)
+  // a file without its past rounds still stops at MAX_ROUNDS: never an endless auto-fix
+  if (before.length < MAX_ROUNDS - 1) return r.round >= MAX_ROUNDS
+  return before.every(h => h.findings.length > 0)
 }
 export const howMany = (lang: Lang, n: number) => (n === 1 ? tr(lang, 'reviewOne') : tr(lang, 'reviewMany', { n }))
 

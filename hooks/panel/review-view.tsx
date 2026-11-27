@@ -14,7 +14,7 @@ import type { StageModel, ViewCtx } from './types'
 import { C, ringSvg, severitySvg, splitBarSvg } from './marks'
 import { tr } from './text'
 import { atom, read, update } from 'claude-code'
-import { AUTO_FIX_MS, MAX_ROUNDS, allFindings, howMany, openOnes, readReviews, secondsLeft, sendFixes, stuck, type Finding, type Reviews } from './reviews'
+import { AUTO_FIX_MS, allFindings, howMany, openOnes, readReviews, secondsLeft, sendFixes, stuck, type Finding, type Reviews } from './reviews'
 
 const ORDER = { high: 0, medium: 1, low: 2 }
 const LEVELS = ['high', 'medium', 'low'] as const

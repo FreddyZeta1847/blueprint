@@ -172,3 +172,12 @@ test('a correction\'s review does not inherit the stage\'s old rounds: after a c
   expect(await again.find({ text: /^Tre giri di fila con problemi ancora aperti: tocca a te\.$/ })).toBeDefined()
   await again.unmount()
 })
+
+test('a review file with no past rounds still stops at round 3: never an endless auto-fix (review round 2)', async ($, on) => {
+  const seen = await open($, on, reviews({ round: 3 }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect(await ui.find({ text: /^Tre giri di fila con problemi ancora aperti: tocca a te\.$/ })).toBeDefined()
+  await seen.clock.advance(40_000)
+  expect(seen.prompts).toEqual([])
+  await ui.unmount()
+})
