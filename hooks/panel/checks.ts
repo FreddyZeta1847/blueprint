@@ -1,6 +1,6 @@
 /*
  * Test results per group of the plain plan (group C of stage «Test e revisione»). When a session
- * runs a Bash or PowerShell command while its implementation stage is in the build or test phase,
+ * runs a Bash or PowerShell command while its implementation stage is in the build, test or review phase,
  * and the command belongs to a group (the key of the group's «Test (key):» line), the output is
  * read and the group's counts are written. Each session writes its own file,
  * blueprint/checks/<stage id>--<worktree or «main»>.json, so two children never overwrite each
@@ -20,7 +20,8 @@ import type { StageModel } from './types'
 export type GroupResult = Count & { source: 'seen' | 'told'; at: string }
 type ChecksFile = { v: 1; groups: Record<string, GroupResult> }
 
-const RECORDED_PHASES = new Set(['build', 'test'])
+// review too: its findings are fixed in place (3.6.0), and so are the tests they break
+const RECORDED_PHASES = new Set(['build', 'test', 'review'])
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/
 
 /** The name a group's result is kept under: its title, or the session's name when it has none. */

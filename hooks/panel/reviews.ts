@@ -7,7 +7,7 @@
  * `sent` in the file before the prompt goes, so a reload never sends them twice. After fixing,
  * Claude runs the tools again and writes the next round; a round with no finding ends the review.
  * After three rounds in a row with findings still open nothing is sent: it is the user's turn (a
- * clean round starts the count again, so a correction's review does not inherit the old rounds).
+ * clean round starts the count again).
  * The countdown runs only for a round that appeared while this session was open (a round already
  * there when the session started, e.g. in a cloned project, waits for a press), and is timed from
  * when this session first saw it, never from the file's own clock. Only one sending at a time, and
@@ -49,7 +49,8 @@ export async function readReviews($: any, main: string, stageId: string): Promis
 export const openOnes = (r: Reviews) => r.findings.filter(f => f.status === 'open')
 /**
  * The user's turn: findings still open after MAX_ROUNDS rounds in a row with findings. A clean round
- * starts the count again, so a correction's review (3.6.0) does not inherit the stage's old rounds.
+ * starts the count again (3.6.0): rounds that all found something keep counting, even across a
+ * correction.
  */
 export function stuck(r: Reviews): boolean {
   if (openOnes(r).length === 0) return false

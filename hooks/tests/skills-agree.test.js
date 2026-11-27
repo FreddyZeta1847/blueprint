@@ -21,6 +21,7 @@ const TEXTS = {
   getContext: read('skills/get-context/SKILL.md'),
   docs: read('skills/docs-management/SKILL.md'),
   readme: read('README.md'),
+  panel: read('hooks/panel/text.ts'),
 };
 
 /** Sentences that described the loop before 3.6.0: none may come back. */
@@ -35,6 +36,10 @@ const OLD = [
   ['createPlan', 'only when the correction came from the check'],
   ['readme', 'At most 3 rounds.'],
   ['readme', 'a stop after 3 rounds'],
+  ['readme', 'Until you say publish, a<br/>problem goes back to build'],
+  ['panel', "phd_test: 'test verdi; se no si torna a costruire.'"],
+  ['panel', "phd_review: 'revisione del lavoro; se no si torna a costruire.'"],
+  ['panel', "phd_test: 'green tests; if not, back to build.'"],
   ['createPlan', 'anything that is not right — a red test, a review'],
   ['createPlan', 'test phase goes back to `build`'],
 ];

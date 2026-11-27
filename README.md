@@ -40,7 +40,7 @@ flowchart TD
     P --> O[Open a stage: you say OK]
     O --> Y{Type of stage}
     Y --> DI["discussion, for each topic:<br/>clarify, proposal,<br/>choice (you), decision,<br/>recap (you)"]
-    Y --> IM["implementation:<br/>clarify, plan (you), build,<br/>test, review, first use,<br/>check and publish (you).<br/>Until you say publish, a<br/>problem goes back to build"]
+    Y --> IM["implementation:<br/>clarify, plan (you), build,<br/>test, review, first use,<br/>check and publish (you).<br/>Until you say publish, a problem<br/>in first use or in your check<br/>goes back to build"]
     Y --> DE["delivery:<br/>clarify, prepare,<br/>rehearse (you),<br/>deliver (you), feedback"]
     Y --> QT["quick task:<br/>clarify, do, check,<br/>report (you)"]
 ```

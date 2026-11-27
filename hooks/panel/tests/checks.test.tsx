@@ -53,12 +53,19 @@ test('while children build a parallel stage, the main session\'s runs are not th
   expect(file(seen)).toBe(undefined)
 })
 
-test('outside build and test, or with a command of no group, nothing is written', async ($, on) => {
-  const review = engine(on, world('review'))
+test('outside build, test and review, or with a command of no group, nothing is written', async ($, on) => {
+  const plan = engine(on, world('plan'))
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
   await $.tool.call({ tool: 'Bash', command: 'ls' })
-  expect(file(review)).toBe(undefined)
+  expect(file(plan)).toBe(undefined)
+})
+
+test('a run during the review counts too: review findings are fixed in place, and so are the tests they break (3.6.0, review round 4)', async ($, on) => {
+  const review = engine(on, world('review'))
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'npm test -- corsi' })
+  expect(file(review)).toBeDefined()
 })
 
 test('a command is a group\'s only when it runs exactly its key: a launcher, flags and a «cd … &&» are fine, a longer path or another file is not', async ($, on) => {
