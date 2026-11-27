@@ -325,7 +325,7 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   Start the work exactly with the instructions the user will get (every way of starting it you
   offer) and use it as a person would, ticking the concrete checks of the plain plan's
   `Finita quando` lines, chosen for the kind of project: an app — every button works, every page
-  opens, no console error, an empty store says what is missing; a firmware — the device reacts to
+  opens, no console error, on an empty store (it says what is missing) and then sample data, the real clock; a firmware — the device reacts to
   the real input; an LLM system — the answers to real questions. What can be checked automatically
   and repeatably (an API answers, a limit holds) is a `Test` line, not a check here. Graphics, UX
   and taste are the user's, at the check. Never give the user start-up instructions you have not

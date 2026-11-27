@@ -91,7 +91,7 @@ function StepRow(ctx: ViewCtx, step: { state: PhaseState; text: string }, line: 
   )
 }
 
-/** The «Test:» or «Finita quando:» (first-use phase: the user's checklist) line of each session or group. */
+/** The «Test:» or «Finita quando:» (first-use phase: Claude's concrete checks) line of each session or group. */
 async function Checks($: any, ctx: ViewCtx, stage: StageModel, key: 'test' | 'doneWhen') {
   const { Box, Text } = ctx.el
   const rows = (await readSteps($, ctx.main, stage)).filter(s => s[key])

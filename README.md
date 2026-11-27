@@ -150,7 +150,7 @@ The loops are in `data/loops.json`. They say which phases a stage goes through a
 - The **divergent proposal** lays out the serious options, then recommends one and says why.
 - The **recap** reads back the question, the choice and the rejected options from what was written.
 - **First use** is mandatory and tests do not replace it: Claude starts the work with the instructions you will get and uses it, ticking concrete checks chosen for the kind of project (an app, a firmware, an LLM system).
-- **Check and publish** is yours and closes the stage: you try the work; until you say «publish», every problem is a correction inside the same stage (a new letter of the plan, the usual round, no confirmations, a test for each fixed error, a stop after 3 rounds). «Publish» merges the work and releases the version.
+- **Check and publish** is yours and closes the stage: you try the work; until you say «publish», every problem is a correction inside the same stage (a new letter of the plan, the usual round, no confirmations, a test for each fixed error, a stop after 3 rounds). «Publish» merges the work and, when the project has versions, releases it.
 - A **topic** is one line of what a stage is about. In a discussion each topic is one decision. In other stages topics are optional and list parts. `independent_parts` are the topics that can be built in parallel.
 - In an implementation, the plain plan `blueprint/plans/<stage>.md` is the index of the technical plan. Review findings go in `blueprint/reviews/<stage>.json`, with past rounds in `history`.
 
