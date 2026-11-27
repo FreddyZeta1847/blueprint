@@ -22,6 +22,8 @@ const TEXTS = {
   docs: read('skills/docs-management/SKILL.md'),
   readme: read('README.md'),
   panel: read('hooks/panel/text.ts'),
+  using: read('skills/using-blueprint/SKILL.md'),
+  discussion: read('skills/topic-discussion/SKILL.md'),
 };
 
 /** Sentences that described the loop before 3.6.0: none may come back. */
@@ -42,6 +44,16 @@ const OLD = [
   ['panel', "phd_test: 'green tests; if not, back to build.'"],
   ['createPlan', 'anything that is not right — a red test, a review'],
   ['createPlan', 'test phase goes back to `build`'],
+  // before 3.6.1 the opening explained the machinery: phases, the "how", a context check said aloud
+  ['createPlan', 'and answer it out loud'],
+  ['createPlan', 'say in one line why, and the phase is done'],
+  ['createPlan', 'and **how you would do it**'],
+  ['using', 'the topics, the phases and how it would do it'],
+  ['using', 'you tell the user how you would do it'],
+  ['using', '(topics if any, phases, how)'],
+  ['discussion', 'so say so in one line and move on'],
+  ['panel', 'dicendoti argomenti, fasi e come lavorerà'],
+  ['panel', 'telling you topics, phases and how it will work'],
 ];
 
 /** Where an old sentence is still written, as «file: sentence» lines. */
@@ -78,6 +90,13 @@ test('the skills and the README say what the loop says (3.6.0)', () => {
   assert.ok(TEXTS.createPlan.includes('A stage in `test` or `review` does not go back'), 'create-plan: re-planning from test or review is built in place');
   assert.ok(TEXTS.docs.includes('`build`, `test` or `review` phase'), 'docs-management: test runs count in review too');
   assert.ok(TEXTS.readme.includes('red tests and review findings are fixed inside their own phase'), 'README: the same');
+});
+
+test('the opening of a stage is short and never explains the machinery (3.6.1)', () => {
+  assert.ok(TEXTS.createPlan.includes('**The opening message is short.**'), 'create-plan: the short opening');
+  assert.ok(TEXTS.createPlan.includes('the phase is done and you say nothing about it'), 'create-plan: a context check that passes is silent');
+  assert.ok(TEXTS.using.includes('Never explain how Blueprint works either'), 'using-blueprint: hard rule 1 covers the machinery');
+  assert.ok(TEXTS.discussion.includes('so move on without saying it'), 'topic-discussion: a context check that passes is silent');
 });
 
 test('no sentence of the loop before 3.6.0 is left', () => {

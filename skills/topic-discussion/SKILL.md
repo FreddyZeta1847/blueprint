@@ -66,8 +66,8 @@ reason told to the user. Topics finished at `decision` before Blueprint 3.1.0 st
    AI models, cloud services, prices), ask *"Do you already use or want to use a tool for this?"*
    Record the answer in the area file.
 4. **Context check (`clarify`).** Ask yourself: *"Do I have enough context to take this topic on
-   my own?"* Usually yes — the discussion is where the context comes from — so say so in one line
-   and move on. If not (what this topic is for, a limit someone set, a word you don't understand),
+   my own?"* Usually yes — the discussion is where the context comes from — so move on without
+   saying it. If not (what this topic is for, a limit someone set, a word you don't understand),
    ask one or two questions first. Same when the user tells you the context was misread: go back
    here, ask, then brief the specialists again.
 5. **Unknowns.** If a decision depends on something nobody knows yet (does this library handle our

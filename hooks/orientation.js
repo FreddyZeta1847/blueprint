@@ -35,7 +35,7 @@ const { readCard, openList } = require('./lib/card');
 
 const BUDGET = 1500;
 const LOAD_SKILL = 'Load `blueprint:using-blueprint` before any Blueprint step.';
-const NOT_OPENED = 'Not opened yet: before starting, tell the user its topics (if any), phases and how you would do it, and wait for the OK.';
+const NOT_OPENED = 'Not opened yet: before starting, tell the user its name and topics (if any), ask only what you need from them (missing context, a real choice), and wait for the OK. Never list its phases or explain how you will work.';
 
 // ---------------------------------------------------------------- the plan
 

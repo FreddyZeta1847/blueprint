@@ -65,7 +65,7 @@ test('a todo current stage gets the "not opened yet" line; per_step shows topics
   assert.match(ctx, /stage 2\/2 «Admin design» \(discussion\) · topics 0\/1 · deadline 2999-12-31/);
   assert.doesNotMatch(ctx, /overdue/);
   assert.doesNotMatch(ctx.split('\n')[0], /phase/);
-  assert.match(ctx, /Not opened yet: before starting, tell the user its topics \(if any\), phases and how you would do it, and wait for the OK\./);
+  assert.match(ctx, /Not opened yet: before starting, tell the user its name and topics \(if any\), ask only what you need from them \(missing context, a real choice\), and wait for the OK\. Never list its phases or explain how you will work\./);
 });
 
 test('a per_stage stage without topics shows its phase and no topic counter', () => {
