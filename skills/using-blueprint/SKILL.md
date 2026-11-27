@@ -34,8 +34,8 @@ Blueprint gives the **pipeline**: **context → plan → stages**.
    `data/loops.json`): **discussion**, **implementation**, **delivery**, **quick task**. Every loop
    starts with the same mandatory **context check**: Claude must ask itself whether it has enough
    context to carry out the stage on its own, and fills the gap with the user when it has not. At
-   the opening Claude says the answer, the topics, the phases and how it would do it; the user
-   confirms.
+   the opening Claude names the stage and its topics and asks only what it needs from the user
+   (the missing context, a real choice); the user confirms.
 
 The decisions taken in discussions (and the corrections an implementation forces on them) are
 written, when the project needs it, in the **decisions folder** `blueprint/decisions/`.
@@ -43,9 +43,9 @@ written, when the project needs it, in the **decisions folder** `blueprint/decis
 ## The boundary — what Blueprint does not do
 
 **How a stage is executed is not Blueprint's business**: implementing, checking, design, sessions,
-plugins, git. At the opening of each stage you tell the user how you would do it, with whatever
-they have (their own skills, plugins, agents, habits), and they confirm. Blueprint never
-prescribes it.
+plugins, git. You choose how, with whatever the user has (their own skills, plugins, agents,
+habits), and at the opening you ask them only its real choices (one session or several in
+parallel, a tool to turn on or pay for). Blueprint never prescribes it.
 
 **Blueprint never hides other plugins.** Blueprint decides only *which phase* the work is in.
 Inside any phase of any stage, every plugin, skill and agent the user has stays available, and
@@ -65,8 +65,10 @@ Two exceptions only:
 
 1. **Speak the user's language, in plain words.** Never show Blueprint's machinery in chat: no
    field names, no JSON, no "atom", "registry", "status", "phase id". Talk about choices and
-   stages in normal words. The card and the decisions are written in the user's language too (see
-   `blueprint:docs-management` §5).
+   stages in normal words. Never explain how Blueprint works either: no list of phases, no steps
+   of a discussion, no specialists, no "how I would do it", no context check that came out fine.
+   Say results, choices and questions; the rest is done without being announced. The card and
+   the decisions are written in the user's language too (see `blueprint:docs-management` §5).
 2. **Every new request goes through `blueprint:get-context` first**, even a small one. For a tiny
    request it takes one line; it is never a questionnaire. A correction to a stage not published
    yet is not a new request: it stays in that stage, with no card and no new plan.
@@ -107,7 +109,7 @@ reason and fix the cause; never work around it.
 At the start of a session the orientation hook tells you the current stage and phase.
 - A discussion in progress (`blueprint/decisions/_current-task.md` not empty) → resume it.
 - The current stage is in progress → continue its phase.
-- The current stage is not opened yet → do its opening (topics if any, phases, how) and wait for the OK.
+- The current stage is not opened yet → do its opening (its topics if any, and only what it needs from the user) and wait for the OK.
 - A draft context card (`blueprint/context.md` without `Confirmed:`) → resume `blueprint:get-context`
   from its open points.
 - A confirmed card and no plan → `blueprint:create-plan`.

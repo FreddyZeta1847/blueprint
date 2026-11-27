@@ -223,9 +223,8 @@ the plan; don't keep old versions in the file.
 Before any work on a stage, read it and its loop in `loops.json`.
 
 **The context check comes first, always.** Every loop starts with the mandatory phase `clarify`:
-ask yourself *"Do I have enough context to carry out this stage on my own?"* — and answer it out
-loud. Look at the card, the written decisions, the stage's notes, the code. How often the answer is
-"no" depends on the type:
+ask yourself *"Do I have enough context to carry out this stage on my own?"* Look at the card, the
+written decisions, the stage's notes, the code. How often the answer is "no" depends on the type:
 - **discussion** — rarely: the discussion itself is where the context comes from;
 - **implementation** — sometimes (a decision missing, code you don't know); the stage always has
   its own implementation plan anyway (the `plan` phase);
@@ -233,35 +232,43 @@ loud. Look at the card, the written decisions, the stage's notes, the code. How 
 - **delivery** — almost always: who it is for, the format, the message, the limits.
 
 If the answer is "no", the phase is a short — not hurried — discussion with the user that fills
-the gap (one or two questions per message, recommendation first). If it is "yes", say in one line
-why, and the phase is done.
+the gap (one or two questions per message, recommendation first). If it is "yes", the phase is
+done and you say nothing about it.
 
-Then tell the user three things: its **topics** (if it has any), the **phases** (strike the
-optional ones you would skip, with the reason) and **how you would do it** — phase by phase when
-different tools serve different phases. Then wait for the OK.
+**The opening message is short.** It says only:
+- the stage's name and its **topics** (if it has any), one line each;
+- what you **need from the user**: the questions of a context check that came out "no", and the
+  **real choices** — one session or several in parallel, a tool the user must turn on or pay for,
+  an optional phase you would skip that they might expect (a rehearsal, say).
 
-> Stage 3 "Admin mockup" (quick task, no topics).
-> Context: not enough — I don't know the style you want or what the client gave you. Two
-> questions first: …
-> Phases: context check → do → check → report.
-> How: the context check with you here; the mockup with impeccable; then I check it at phone
-> width. OK?
+Then "Shall I start?" (after the answers, when you asked questions). It never explains how Blueprint works: no list of phases, no steps of a
+discussion, no specialists, no "how I would do it" phase by phase, no "do I have enough context?
+yes". The user cares that the work is done well, not about the machinery.
 
-> Stage 2 "Frontend demo" (implementation). Topics: calendar, booking (independent).
-> Context: enough — the API contract and the stack are written in the decisions.
-> Phases: context check → plan → build → test → review → first use (I use it, with the concrete checks) → check and publish (you).
-> How: the two parts in parallel on the fixed API contract. OK?
+> Stage 1 "Content and data model": we decide four things.
+> 1. What goes into the first version.
+> 2. Habits and tasks: what they are and how they meet.
+> 3. What stays out, and how it is added later.
+> 4. Which outside data is really needed.
+>
+> Shall I start?
 
-The "how" is yours to propose with whatever the user has (their own skills, plugins, agents,
-habits); the user confirms or changes it. Blueprint never prescribes it and never limits it: any
-plugin, skill or agent can serve any phase of any stage (see `blueprint:using-blueprint`, "The
-boundary"). After the yes, write in `plan.json`:
+> Stage 3 "Admin mockup". Two questions first: which style do you want, and what did the client
+> give you?
+
+> Stage 2 "Frontend demo": calendar and booking. They only share the API contract: two sessions
+> in parallel, or one? Shall I start?
+
+The "how" is yours to choose with whatever the user has (their own skills, plugins, agents,
+habits); you ask only its real choices, and the user can change any of it. Blueprint never
+prescribes it and never limits it: any plugin, skill or agent can serve any phase of any stage
+(see `blueprint:using-blueprint`, "The boundary"). After the yes, write in `plan.json`:
 - `status: "in_progress"`;
-- `phase: "clarify"` (the context check is the first phase recorded, even when it took one line),
+- `phase: "clarify"` (the context check is the first phase recorded, even when it was silent),
   then forward one phase at a time — on the stage only for per-stage types, on each topic only for
   discussion (never both);
 - `skipped`: every optional phase skipped, each written as `{ "id": "<phase id>", "reason": "..." }`;
-- `how`: one line with what the user confirmed.
+- `how`: one line with how you will do it, for the record (the chat does not need to say it).
 
 ### Phases (not Blueprint)
 
@@ -392,3 +399,6 @@ result can change later stages → re-planning, §6), and whether to open the ne
 - Don't jump phases, and don't skip a mandatory one
 - Don't open a new stage, nor ask for a new plan, for a correction before the user said «publish»
 - Don't start a stage without the opening and the user's OK
+- Don't explain Blueprint's machinery at the opening (phases, discussion steps, specialists, the
+  "how" phase by phase, a context check that came out fine): name the stage and its topics, ask
+  what you need, and stop

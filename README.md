@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.6.0-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.6.1-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
@@ -271,4 +271,4 @@ TEST-FINDINGS.md  what the live test runs found, and what was fixed
 
 ## Status
 
-v3.6.0 — an implementation stage ends with your «check and publish»: until you say publish, a problem found in the first use or by you is a correction in the same stage (a new letter of the plan, the usual round, no confirmations, a test for each fixed error, a stop after three rounds in a row with the problem still there); the first use has concrete checks chosen for the kind of project. v3.5.3 — the same as v3.5.1 (the 3.5.2 work tree is withdrawn for now). v3.5.1 — fixes from a real parallel build: the plan holds only the build and is approved whole, red test runs are counted, child sessions tick a copy of the plan and are warned when it is missing, a contract is tried before the children start, and a lighter panel and skill list. v3.5.0 — the panel as a dashboard. Older versions: see [PROGRESS.md](PROGRESS.md).
+v3.6.1 — shorter stage openings: Claude names the stage and its topics and asks only what it needs from you (missing context, a real choice); it no longer explains phases, discussion steps, specialists or a context check that came out fine. v3.6.0 — an implementation stage ends with your «check and publish»: until you say publish, a problem found in the first use or by you is a correction in the same stage (a new letter of the plan, the usual round, no confirmations, a test for each fixed error, a stop after three rounds in a row with the problem still there); the first use has concrete checks chosen for the kind of project. v3.5.3 — the same as v3.5.1 (the 3.5.2 work tree is withdrawn for now). v3.5.1 — fixes from a real parallel build: the plan holds only the build and is approved whole, red test runs are counted, child sessions tick a copy of the plan and are warned when it is missing, a contract is tried before the children start, and a lighter panel and skill list. v3.5.0 — the panel as a dashboard. Older versions: see [PROGRESS.md](PROGRESS.md).
