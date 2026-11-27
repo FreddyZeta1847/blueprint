@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.5.3-1F4E8C?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/version-3.6.0-1F4E8C?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Claude_Code-Plugin-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
@@ -40,7 +40,7 @@ flowchart TD
     P --> O[Open a stage: you say OK]
     O --> Y{Type of stage}
     Y --> DI["discussion, for each topic:<br/>clarify, proposal,<br/>choice (you), decision,<br/>recap (you)"]
-    Y --> IM["implementation:<br/>clarify, plan (you), build,<br/>test, review, first use (you),<br/>merge (you). A failed<br/>check goes back to build"]
+    Y --> IM["implementation:<br/>clarify, plan (you), build,<br/>test, review, first use,<br/>check and publish (you).<br/>Until you say publish, a problem<br/>in first use or in your check<br/>goes back to build"]
     Y --> DE["delivery:<br/>clarify, prepare,<br/>rehearse (you),<br/>deliver (you), feedback"]
     Y --> QT["quick task:<br/>clarify, do, check,<br/>report (you)"]
 ```
@@ -58,7 +58,7 @@ In a project with a plan, Blueprint opens a pane beside the chat. It rereads `bl
 - **Plan.** One row per stage with a bar of its phases. Open a stage and step through its phases with the arrows.
 - **Work tree** (implementation). The plain plan `blueprint/plans/<stage>.md`: session, letter A, Task A1, sub-task A1.1. The sub-task in progress colours the path above it. It holds only the build; you approve it, with the technical plan, before the build starts. A child session ticks a copy in its own folder.
 - **Test counts.** Each group shows a fraction like «14/14», read from the real output of its test command.
-- **Review dashboard.** Every round added up (fixed and open, per severity, per tool). Each open finding has a **Correggi** (fix) button. A new round is sent to Claude after 30 seconds. At most 3 rounds.
+- **Review dashboard.** Every round added up (fixed and open, per severity, per tool). Each open finding has a **Correggi** (fix) button. A new round is sent to Claude after 30 seconds. Three rounds in a row with problems still open: your turn.
 - **Decision cards** (discussion). Each decision shows if it is hard to change, who decided, and when opened, why and what was rejected.
 - **Notes.** Add, edit or delete a note on a stage. Claude reads the new ones when the next session starts.
 - **Sessions and Legend.** The mother session and one child per parallel part. A legend of the marks and of every stage type.
@@ -142,14 +142,15 @@ The loops are in `data/loops.json`. They say which phases a stage goes through a
 | Type | For | Phases |
 |---|---|---|
 | `discussion` | deciding, no production code | context check, divergent proposal, convergence (you), decision, **recap** (you) — for each topic |
-| `implementation` | building parts | context check, plan (you approve both plans), build, test, review, **first use** (you see it working), *integrate* (you) |
+| `implementation` | building parts | context check, plan (you approve both plans), build, test, review, **first use** (Claude uses it, with concrete checks), **check and publish** (you try it; «publish» merges and releases it) |
 | `delivery` | something to show: mockup, demo, document | context check, prepare, *rehearse* (you), deliver (you), feedback |
 | `quick_task` | a short, low-risk job | context check, do, check, report (you) |
 
-- *Italic* phases are optional and skipped only with a written reason. `test` and `review` go back to `build` when they fail.
+- *Italic* phases are optional and skipped only with a written reason. `test` and `review` fix a problem in place, with no new steps in the plan; `first use` and `check and publish` go back to `build`, with a new letter in the plan.
 - The **divergent proposal** lays out the serious options, then recommends one and says why.
 - The **recap** reads back the question, the choice and the rejected options from what was written.
-- **First use** is mandatory and tests do not replace it: start the work with the instructions you will give the user, try every action, and show screenshots.
+- **First use** is mandatory and tests do not replace it: Claude starts the work with the instructions you will get and uses it, ticking concrete checks chosen for the kind of project (an app, a firmware, an LLM system).
+- **Check and publish** is yours and closes the stage: you try the work; until you say «publish», a problem found in the first use or by you is a correction inside the same stage (a new letter of the plan, the usual round, no confirmations, a test for each fixed error, a stop after three rounds in a row with the problem still there); red tests and review findings are fixed inside their own phase. «Publish» merges the work and, when the project has versions, releases it.
 - A **topic** is one line of what a stage is about. In a discussion each topic is one decision. In other stages topics are optional and list parts. `independent_parts` are the topics that can be built in parallel.
 - In an implementation, the plain plan `blueprint/plans/<stage>.md` is the index of the technical plan. Review findings go in `blueprint/reviews/<stage>.json`, with past rounds in `history`.
 
@@ -270,4 +271,4 @@ TEST-FINDINGS.md  what the live test runs found, and what was fixed
 
 ## Status
 
-v3.5.3 — the same as v3.5.1 (the 3.5.2 work tree is withdrawn for now). v3.5.1 — fixes from a real parallel build: the plan holds only the build and is approved whole, red test runs are counted, child sessions tick a copy of the plan and are warned when it is missing, a contract is tried before the children start, and a lighter panel and skill list. v3.5.0 — the panel as a dashboard. Older versions: see [PROGRESS.md](PROGRESS.md).
+v3.6.0 — an implementation stage ends with your «check and publish»: until you say publish, a problem found in the first use or by you is a correction in the same stage (a new letter of the plan, the usual round, no confirmations, a test for each fixed error, a stop after three rounds in a row with the problem still there); the first use has concrete checks chosen for the kind of project. v3.5.3 — the same as v3.5.1 (the 3.5.2 work tree is withdrawn for now). v3.5.1 — fixes from a real parallel build: the plan holds only the build and is approved whole, red test runs are counted, child sessions tick a copy of the plan and are warned when it is missing, a contract is tried before the children start, and a lighter panel and skill list. v3.5.0 — the panel as a dashboard. Older versions: see [PROGRESS.md](PROGRESS.md).

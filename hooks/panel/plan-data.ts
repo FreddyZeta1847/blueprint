@@ -67,7 +67,8 @@ function perStage(stage: RawStage, phases: LoopPhase[], stopRunning: boolean, pl
   const at = phases.findIndex(p => p.id === stage.phase)
   const rail = phases.map((p, i): { id: string; state: PhaseState; user?: boolean } => {
     let state: PhaseState = 'todo'
-    if (stage.status === 'done') state = skipped.has(p.id) ? 'skipped' : 'done'
+    // a stage closed at an earlier phase (an implementation done at first use before 3.6.0) never did the rest
+    if (stage.status === 'done') state = skipped.has(p.id) || (at >= 0 && i > at) ? 'skipped' : 'done'
     else if (stage.status === 'in_progress' && at >= 0) {
       if (i < at) state = skipped.has(p.id) ? 'skipped' : 'done'
       else if (i === at) state = (p.user && (p.id !== 'plan' || planReady)) || stopRunning ? 'stopped' : 'running'

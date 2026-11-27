@@ -91,7 +91,7 @@ function StepRow(ctx: ViewCtx, step: { state: PhaseState; text: string }, line: 
   )
 }
 
-/** The «Test:» or «Finita quando:» (first-use phase: the user's checklist) line of each session or group. */
+/** The «Test:» or «Finita quando:» (first-use phase: Claude's concrete checks) line of each session or group. */
 async function Checks($: any, ctx: ViewCtx, stage: StageModel, key: 'test' | 'doneWhen') {
   const { Box, Text } = ctx.el
   const rows = (await readSteps($, ctx.main, stage)).filter(s => s[key])
@@ -145,7 +145,7 @@ function Topics(ctx: ViewCtx, stage: StageModel, at: number) {
 }
 
 /** Phases that once showed nothing: each says what it waits for (decisions «Il pannello come cruscotto»). */
-const WAITS = new Set(['do', 'check', 'report', 'prepare', 'rehearse', 'deliver', 'feedback'])
+const WAITS = new Set(['do', 'check', 'report', 'prepare', 'rehearse', 'deliver', 'feedback', 'integrate'])
 
 /** What the phase looked at shows under the rail (decisions «Piano spiegato per passi»). */
 async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number) {
@@ -161,7 +161,7 @@ async function PhaseContent($: any, ctx: ViewCtx, stage: StageModel, at: number)
   if (id === 'build') return await Steps($, ctx, stage, false)
   if (id === 'test') return await TestResults($, ctx, stage)
   if (id === 'review') return await ReviewResults($, ctx, stage)
-  if (id === 'first_use') return await Checks($, ctx, stage, 'doneWhen') // the user's checklist
+  if (id === 'first_use') return await Checks($, ctx, stage, 'doneWhen') // Claude's concrete checks
   return null
 }
 

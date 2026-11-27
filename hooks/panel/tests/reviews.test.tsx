@@ -18,6 +18,13 @@ const reviews = (opts: { round?: number; agoS?: number; status?: string } = {}) 
   ],
 })
 
+/** A round with open findings after past rounds, each with one finding (none for the rounds in `clean`). */
+const withPast = (round: number, past: number[], clean: number[] = []) => {
+  const r = JSON.parse(reviews({ round }))
+  r.history = past.map(n => ({ round: n, findings: clean.includes(n) ? [] : [{ id: `p${n}`, tool: '/code-review', severity: 'low', text: `Giro ${n}.`, status: 'fixed' }] }))
+  return JSON.stringify(r)
+}
+
 async function open($: any, on: any, text: string) {
   const seen = engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': planJson({ phase: 'review' }), 'blueprint/reviews/fb.json': text } })
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
@@ -56,7 +63,7 @@ test('no open finding: no banner, the round line; round 3 with open findings: yo
   const seen = await open($, on, reviews({ status: 'fixed' }))
   let ui = await $.ui.mount(PANE('desktop'))
   // every finding fixed: say how many were found and fixed, and what each tool found (not «niente»)
-  expect(await ui.find({ text: /^2 problemi trovati, tutti corretti · giro 1 di 3$/ })).toBeDefined()
+  expect(await ui.find({ text: /^2 problemi trovati, tutti corretti · giro 1$/ })).toBeDefined()
   expect(await ui.find({ text: /^2 corretti · 0 aperti$/ })).toBeDefined()
   expect(await ui.find({ key: 'fix-all' })).toBeUndefined()
   expect(await ui.find({ text: /^La disdetta non controlla il socio\.$/ })).toBeUndefined() // fixed ones behind a button
@@ -65,9 +72,9 @@ test('no open finding: no banner, the round line; round 3 with open findings: yo
   expect((await ui.findAll({ text: /^✓ corretto$/ })).length).toBe(2)
   expect(await ui.find({ key: 'fix:f1' })).toBeUndefined() // nothing to fix any more
   await ui.unmount()
-  seen.files['blueprint/reviews/fb.json'] = reviews({ round: 3 })
+  seen.files['blueprint/reviews/fb.json'] = withPast(3, [1, 2])
   ui = await $.ui.mount(PANE('desktop'))
-  expect(await ui.find({ text: /^Giro 3 di 3 con problemi ancora aperti: tocca a te\.$/ })).toBeDefined()
+  expect(await ui.find({ text: /^Tre giri di fila con problemi ancora aperti: tocca a te\.$/ })).toBeDefined()
   expect(await ui.find({ key: 'fix:f1' })).toBeUndefined()
   await seen.clock.advance(40_000)
   expect(seen.prompts).toEqual([])
@@ -152,4 +159,36 @@ test('a past round\'s finding still open is listed (without «Correggi»); one r
   expect([await ui.find({ text: /^Rimasto aperto\.$/ }), await ui.find({ text: /^1 problema nel giro 1$/ })].every(Boolean)).toBe(true)
   expect(await ui.find({ key: 'fix:old' })).toBeUndefined()
   await ui.unmount()
+})
+
+test('a correction\'s review does not inherit the stage\'s old rounds: after a clean round the count starts again (3.6.0, review round 1)', async ($, on) => {
+  const seen = await open($, on, withPast(3, [1, 2], [2]))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect(await ui.find({ text: /^Tre giri di fila con problemi ancora aperti: tocca a te\.$/ })).toBeUndefined()
+  expect(await ui.find({ key: 'fix:f1' })).toBeDefined()
+  await ui.unmount()
+  seen.files['blueprint/reviews/fb.json'] = withPast(5, [1, 2, 3, 4], [2])
+  const again = await $.ui.mount(PANE('desktop'))
+  expect(await again.find({ text: /^Tre giri di fila con problemi ancora aperti: tocca a te\.$/ })).toBeDefined()
+  await again.unmount()
+})
+
+test('a review file with no past rounds still stops at round 3: never an endless auto-fix (review round 2)', async ($, on) => {
+  const seen = await open($, on, reviews({ round: 3 }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect(await ui.find({ text: /^Tre giri di fila con problemi ancora aperti: tocca a te\.$/ })).toBeDefined()
+  await seen.clock.advance(40_000)
+  expect(seen.prompts).toEqual([])
+  await ui.unmount()
+})
+
+test('an earlier stage waiting at «controllo e pubblicazione»: the countdown of the later stage in review still sends its fixes (review round 6)', async ($, on) => {
+  const plan = JSON.parse(planJson({ phase: 'review' }))
+  plan.stages.splice(2, 0, { id: 'prima', name: 'Prima', type: 'implementation', status: 'in_progress', phase: 'integrate' })
+  const seen = engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/reviews/fb.json': reviews({ status: 'fixed' }) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2 })
+  await seen.clock.advance(5_000)
+  await seen.clock.advance(31_000)
+  expect(seen.prompts.length).toBe(1)
 })

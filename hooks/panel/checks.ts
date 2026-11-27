@@ -1,6 +1,6 @@
 /*
  * Test results per group of the plain plan (group C of stage «Test e revisione»). When a session
- * runs a Bash or PowerShell command while its implementation stage is in the build or test phase,
+ * runs a Bash or PowerShell command while its implementation stage is in the build, test or review phase,
  * and the command belongs to a group (the key of the group's «Test (key):» line), the output is
  * read and the group's counts are written. Each session writes its own file,
  * blueprint/checks/<stage id>--<worktree or «main»>.json, so two children never overwrite each
@@ -20,7 +20,8 @@ import type { StageModel } from './types'
 export type GroupResult = Count & { source: 'seen' | 'told'; at: string }
 type ChecksFile = { v: 1; groups: Record<string, GroupResult> }
 
-const RECORDED_PHASES = new Set(['build', 'test'])
+// review too: its findings are fixed in place (3.6.0), and so are the tests they break
+const RECORDED_PHASES = new Set(['build', 'test', 'review'])
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/
 
 /** The name a group's result is kept under: its title, or the session's name when it has none. */
@@ -100,13 +101,13 @@ async function stageOf($: any, main: string, child: boolean): Promise<StageModel
   if (!plan) return null
   const ok = (s?: StageModel): s is StageModel => !!s && SAFE_ID.test(s.id) && s.type === 'implementation' && s.status === 'in_progress' && RECORDED_PHASES.has(s.phase ?? '')
   if (child) { const s = plan.stages[plan.parallelIndex]; return ok(s) ? s : null }
-  // the main session: the first stage being built or tested, not merely the first one open (an
+  // the main session: the first stage being built, tested or reviewed, not merely the first one open (an
   // earlier stage may still wait at «integrate» for its pull request)
   // a stage built in parallel is the children's while they build it (their worktrees exist); the
-  // main session counts it in its test phase, or when it builds the stage alone
+  // main session counts it in its test and review phases, or when it builds the stage alone
   for (const s of plan.stages) {
     if (!ok(s)) continue
-    if (s.independentParts.length === 0 || s.phase === 'test') return s
+    if (s.independentParts.length === 0 || s.phase === 'test' || s.phase === 'review') return s
     const kids = await Promise.all(s.independentParts.map(p => $.fs.exists(`${main}/.claude/worktrees/${slug(p)}`).catch(() => false)))
     if (!kids.some(Boolean)) return s
   }

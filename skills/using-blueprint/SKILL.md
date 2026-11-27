@@ -23,6 +23,8 @@ Blueprint gives the **pipeline**: **context → plan → stages**.
    is, how difficult, at what pace. The conclusions decide what happens next:
    - **tiny** → one line of confirmation and do it, no files, no plan;
    - **fits the existing plan** → re-planning: new topics or a new stage, before → after;
+   - a **correction** to a stage not published yet («this didn't work», a screenshot) is no new
+     request: it goes back to build inside that stage (`blueprint:create-plan` §7, Corrections);
    - **new work** (small, medium or a project) → the context card `blueprint/context.md`, confirmed
      by the user, then the plan.
 2. **Plan** (`blueprint:create-plan`). Stages, each of one type, with optional topics and
@@ -66,7 +68,8 @@ Two exceptions only:
    stages in normal words. The card and the decisions are written in the user's language too (see
    `blueprint:docs-management` §5).
 2. **Every new request goes through `blueprint:get-context` first**, even a small one. For a tiny
-   request it takes one line; it is never a questionnaire.
+   request it takes one line; it is never a questionnaire. A correction to a stage not published
+   yet is not a new request: it stays in that stage, with no card and no new plan.
 3. **Nothing is planned before the context card is confirmed, and no stage starts before its
    opening is confirmed.** The card is confirmed in `blueprint:get-context`; the opening is in
    `blueprint:create-plan` §7.

@@ -8,7 +8,7 @@ import { expect, mock, test } from 'claude-code/testing'
 
 const MAIN = 'C:/proj'
 const LOOPS = JSON.stringify({ types: {
-  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan' }, { id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use', user: true }, { id: 'integrate', optional: true }] },
+  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan' }, { id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use' }, { id: 'integrate', user: true, back_to: 'build' }] },
   quick_task: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'do' }, { id: 'check' }, { id: 'report' }] },
 } })
 const plan = (phase: string) => JSON.stringify({ version: 3, project: 'demo', stages: [
@@ -78,14 +78,14 @@ test('no plan: no pane by itself, no status line', async ($, on) => {
 })
 
 test('your turn: status line says so, and one push when the option is on', { options: { notifyWhenWaiting: true } }, async ($, on) => {
-  const seen = engine(on, { plan: plan('first_use') })
+  const seen = engine(on, { plan: plan('integrate') })
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   expect(seen.status).toContain('Blueprint · tocca a te: tappa 2')
   expect(seen.pushes).toEqual(['Blueprint: tocca a te nella tappa «Costruzione»'])
 })
 
 test('your turn with the option off: no push', async ($, on) => {
-  const seen = engine(on, { plan: plan('first_use') })
+  const seen = engine(on, { plan: plan('integrate') })
   await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
   expect(seen.pushes).toEqual([])
 })
@@ -107,4 +107,10 @@ test('a spare session moved into the project later: the panel finds the plan and
   await seen.clock.advance(5000)
   expect(seen.opened).toEqual(['blueprint'])
   expect(seen.status.at(-1)).toMatch(/2\/3/)
+})
+
+test('the simulated first use sends no push: only «controllo e pubblicazione» calls the user (3.6.0)', { options: { notifyWhenWaiting: true } }, async ($, on) => {
+  const seen = engine(on, { plan: plan('first_use') })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  expect(seen.pushes).toEqual([])
 })

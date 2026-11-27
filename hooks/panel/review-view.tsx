@@ -6,15 +6,15 @@
  * open, how many per severity, and per tool a bar of what it found (grey in past rounds, amber in
  * this one); then the open findings from the most severe down (severity as three bars and a word,
  * «trovato da», «Correggi»); the fixed ones behind a button. A round already there when the
- * session started has no countdown: it waits for a press. Round 3 with findings still open says it
- * is the user's turn and offers no button; before the first round, one line saying so.
+ * session started has no countdown: it waits for a press. Three rounds in a row with findings still
+ * open say it is the user's turn and offer no button (a clean round starts the count again); before the first round, one line saying so.
  * Data and sending: reviews.ts.
  */
 import type { StageModel, ViewCtx } from './types'
 import { C, ringSvg, severitySvg, splitBarSvg } from './marks'
 import { tr } from './text'
 import { atom, read, update } from 'claude-code'
-import { AUTO_FIX_MS, MAX_ROUNDS, allFindings, howMany, openOnes, readReviews, secondsLeft, sendFixes, stuck, type Finding, type Reviews } from './reviews'
+import { AUTO_FIX_MS, allFindings, howMany, openOnes, readReviews, secondsLeft, sendFixes, stuck, type Finding, type Reviews } from './reviews'
 
 const ORDER = { high: 0, medium: 1, low: 2 }
 const LEVELS = ['high', 'medium', 'low'] as const
@@ -126,7 +126,7 @@ export async function ReviewResults($: any, ctx: ViewCtx, stage: StageModel) {
         </Button>
       )}
       {showFixed && [...fixed].sort(bySeverity).map(f => FindingRow($, ctx, stage, f, false))}
-      {open + sent > 0 && r.round < MAX_ROUNDS && <Text wrap="wrap" dimColor>{tr(ctx.lang, 'reviewFoot', { next: r.round + 1 })}</Text>}
+      {open + sent > 0 && !isStuck && <Text wrap="wrap" dimColor>{tr(ctx.lang, 'reviewFoot', { next: r.round + 1 })}</Text>}
     </Box>
   )
 }

@@ -107,7 +107,11 @@ Sette colonne, una per giorno, con i posti liberi di ogni corso.
   sub-tasks behind its button; the sub-task in progress colours its Task, letter and session, and
   only that path shows its plain words), the same tree unticked in the plan phase, the
   `Test` lines with each group's count in the test phase, the review's findings in the review
-  phase, and the `Finita quando:` lines in the first-use phase, as the user's checklist.
+  phase, and the `Finita quando:` lines in the first-use phase, as Claude's checklist.
+- **`Finita quando` lines are concrete checks**, chosen for the kind of project, that Claude can do
+  by using the work («every button of the booking page works and the console stays clean», «the
+  device lights up when the real doorbell rings»), not general goals. What can be checked
+  automatically goes in the `Test` line instead; graphics and taste are the user's, at the check.
 - Tick a sub-task (`- [x]`) as soon as it is finished. **Each session ticks only its own section, in its
   own copy of the file**: the main session in the project; a child in its own folder
   (`<worktree>/blueprint/plans/<stage id>.md`, the panel reads it there), never outside it. When
@@ -119,11 +123,11 @@ Sette colonne, una per giorno, con i posti liberi di ogni corso.
 - The file is written in the `plan` phase in three moves (`blueprint:create-plan` §7): the skeleton
   (letters with title, plain words, `Test` line and session) for the user's OK; then the technical
   plan with the letters as its chapters; then the Tasks and sub-tasks. Then both complete plans go
-  to the user for the OK before the build. After that it changes only by ticks, or when the plan
-  changes (say so to the user).
+  to the user for the OK before the build. After that it changes only by ticks, by a correction's
+  new letter (no approval, `blueprint:create-plan` §7), or when the plan changes (say so to the user).
 
-**Test counts** (`blueprint/checks/`). While an implementation stage is in its `build` or `test`
-phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the
+**Test counts** (`blueprint/checks/`). While an implementation stage is in its `build`, `test` or
+`review` phase, every Bash or PowerShell command a session runs is matched against the `Test (…)` lines; the
 output of a match is read (node, bun and `claude plugin test`, vitest, jest, pytest, and rtk's
 condensed lines) and the group's count written to that session's file. A command counts for a
 group only when it runs **exactly** that group's key: the key's words in a row, with nothing after

@@ -14,7 +14,7 @@ const MAIN = 'C:/proj'
 
 const LOOPS = JSON.stringify({ types: {
   discussion: { cycle: 'per_step', phases: [{ id: 'clarify' }, { id: 'proposal' }, { id: 'convergence', user: true }, { id: 'decision' }] },
-  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan' }, { id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use', user: true }, { id: 'integrate', optional: true }] },
+  implementation: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'plan' }, { id: 'build' }, { id: 'test' }, { id: 'review' }, { id: 'first_use' }, { id: 'integrate', user: true, back_to: 'build' }] },
   delivery: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'prepare' }, { id: 'rehearse', optional: true }, { id: 'deliver', user: true }, { id: 'feedback', user: true }] },
   quick_task: { cycle: 'per_stage', phases: [{ id: 'clarify' }, { id: 'do' }, { id: 'check' }, { id: 'report' }] },
 } })
@@ -106,9 +106,9 @@ test('a blocked child stops the running phase and makes it your turn', async () 
 })
 
 test('a phase that needs the user is stopped: your turn', async () => {
-  const atFirstUse = { ...PLAN, stages: PLAN.stages.map(s => (s.id === 'fb' ? { ...s, phase: 'first_use' } : s)) }
-  const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(atFirstUse), 'data/loops.json': LOOPS }), MAIN)
-  expect(plan?.stages[2]!.segments[5]).toBe('stopped')
+  const atCheck = { ...PLAN, stages: PLAN.stages.map(s => (s.id === 'fb' ? { ...s, phase: 'integrate' } : s)) }
+  const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(atCheck), 'data/loops.json': LOOPS }), MAIN)
+  expect(plan?.stages[2]!.segments[6]).toBe('stopped')
   expect(plan?.stages[2]!.yourTurn).toBe(true)
 })
 
@@ -124,4 +124,18 @@ test('two stages running: the children belong to the one built in parallel, not 
   expect(plan?.parallelIndex).toBe(2)
   expect(plan?.stages[2]!.kids).toBe(2)
   expect(plan?.stages[0]!.kids).toBe(0)
+})
+
+test('the simulated first use is Claude\'s: it runs, it does not wait for the user (3.6.0)', async () => {
+  const atFirstUse = { ...PLAN, stages: PLAN.stages.map(s => (s.id === 'fb' ? { ...s, phase: 'first_use' } : s)) }
+  const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(atFirstUse), 'data/loops.json': LOOPS }), MAIN)
+  expect(plan?.stages[2]!.segments[5]).toBe('running')
+  expect(plan?.stages[2]!.yourTurn).toBe(false)
+})
+
+test('a stage done at first use before 3.6.0 does not show the user\'s check as done (review round 2)', async () => {
+  const old = { ...PLAN, stages: PLAN.stages.map(s => (s.id === 'fb' ? { ...s, status: 'done', phase: 'first_use' } : s)) }
+  const plan = await readPlan(fake({ 'blueprint/plan.json': JSON.stringify(old), 'data/loops.json': LOOPS }), MAIN)
+  expect(plan?.stages[2]!.segments[5]).toBe('done')
+  expect(plan?.stages[2]!.segments[6]).toBe('skipped')
 })

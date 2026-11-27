@@ -141,30 +141,45 @@ test('an in_progress per_stage stage needs a phase; phases move one at a time', 
   expectDecision(writePlan(p, at('test')), 'deny', /mandatory phase "build"/);
 });
 
-test('going back only to back_to', () => {
-  const p = setup(planOf([impl({ status: 'in_progress', phase: 'review' })]));
+test('going back only to back_to: test and review fix in place, first use and the user\'s check go back to build (3.6.0)', () => {
   const at = (phase) => planOf([impl({ status: 'in_progress', phase })]);
-  expectDecision(writePlan(p, at('build')), 'allow');
-  expectDecision(writePlan(p, at('test')), 'deny', /only to "build"/);
-  expectDecision(writePlan(p, at('plan')), 'deny', /only to "build"/);
+  for (const from of ['test', 'review']) {
+    const p = setup(planOf([impl({ status: 'in_progress', phase: from })]));
+    expectDecision(writePlan(p, at('build')), 'deny', /can go back to no phase/);
+  }
+  const f = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
+  expectDecision(writePlan(f, at('build')), 'allow');
+  expectDecision(writePlan(f, at('test')), 'deny', /only to "build"/);
+  expectDecision(writePlan(f, at('plan')), 'deny', /only to "build"/);
 });
 
 test('a per_stage stage cannot be done before the last mandatory phase, nor with open topics', () => {
   const sk = undefined;
   const p = setup(planOf([impl({ status: 'in_progress', phase: 'test', skipped: sk })]));
   const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
-  expectDecision(writePlan(p, planOf([impl({ status: 'done', phase: 'test', skipped: sk, topics: doneTopics })])), 'deny', /done before the phase "first_use"/);
+  expectDecision(writePlan(p, planOf([impl({ status: 'done', phase: 'test', skipped: sk, topics: doneTopics })])), 'deny', /done before the phase "integrate"/);
 
-  const q = setup(planOf([impl({ status: 'in_progress', phase: 'first_use', skipped: sk })]));
-  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'first_use', skipped: sk })])), 'deny', /some topics are not/);
-  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'first_use', skipped: sk, topics: doneTopics })])), 'allow');
+  const q = setup(planOf([impl({ status: 'in_progress', phase: 'integrate', skipped: sk })]));
+  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'integrate', skipped: sk })])), 'deny', /some topics are not/);
+  expectDecision(writePlan(q, planOf([impl({ status: 'done', phase: 'integrate', skipped: sk, topics: doneTopics })])), 'allow');
+});
+
+test('implementation: a stage closes only after «controllo e pubblicazione», which can send it back to build (3.6.0)', () => {
+  const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
+  const f = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
+  expectDecision(writePlan(f, planOf([impl({ status: 'done', phase: 'first_use', topics: doneTopics })])), 'deny', /done before the phase "integrate"/);
+  expectDecision(writePlan(f, planOf([impl({ status: 'in_progress', phase: 'integrate' })])), 'allow');
+  const i = setup(planOf([impl({ status: 'in_progress', phase: 'integrate' })]));
+  expectDecision(writePlan(i, planOf([impl({ status: 'in_progress', phase: 'build' })])), 'allow');
+  expectDecision(writePlan(i, planOf([impl({ status: 'in_progress', phase: 'review' })])), 'deny', /only to "build"/);
+  expectDecision(writePlan(i, planOf([impl({ status: 'in_progress', phase: 'integrate', skipped: [{ id: 'integrate', reason: 'x' }] })])), 'deny', /mandatory and cannot be skipped/);
 });
 
 test('implementation: the first-use check is mandatory — review cannot jump to integrate or done', () => {
   const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
   const r = setup(planOf([impl({ status: 'in_progress', phase: 'review' })]));
   expectDecision(writePlan(r, planOf([impl({ status: 'in_progress', phase: 'integrate' })])), 'deny', /first_use/);
-  expectDecision(writePlan(r, planOf([impl({ status: 'done', phase: 'review', topics: doneTopics })])), 'deny', /done before the phase "first_use"/);
+  expectDecision(writePlan(r, planOf([impl({ status: 'done', phase: 'review', topics: doneTopics })])), 'deny', /done before the phase "integrate"/);
   expectDecision(writePlan(r, planOf([impl({ status: 'in_progress', phase: 'first_use' })])), 'allow');
   // a failed first-use check goes back to build
   const f = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
@@ -244,12 +259,56 @@ test('plans written before the recap phase stay valid: a topic already done at "
   expectDecision(writePlan(q, planOf([disc([{ name: 'Stack', done: true, phase: 'decision' }], { status: 'done' }), impl({ status: 'in_progress', phase: 'clarify' })])), 'allow');
 });
 
-test('implementation: the plan phase is a phase for the user (3.5.1)', () => {
+test('implementation: the plan and «controllo e pubblicazione» are the user\'s; the simulated first use is Claude\'s (3.5.1, 3.6.0)', () => {
   const { loadLoops } = require('../lib/plan');
   const phases = loadLoops().types.implementation.phases;
-  const user = (id) => phases.find((p) => p.id === id).user === true;
+  const phase = (id) => phases.find((p) => p.id === id);
+  const user = (id) => phase(id).user === true;
   assert.equal(user('plan'), true);
-  assert.equal(user('first_use'), true);
+  assert.equal(user('first_use'), false);
   assert.equal(user('integrate'), true);
   assert.equal(user('build'), false);
+  assert.notEqual(phase('integrate').optional, true);
+  assert.equal(phase('integrate').back_to, 'build');
+  assert.equal(phases[phases.length - 1].id, 'integrate');
+});
+
+test('plans written before 3.6.0 stay valid: done stages that ended at first use, or skipped the merge (3.6.0)', () => {
+  const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
+  const old = impl({ id: 'old', name: 'Old', status: 'done', phase: 'first_use', topics: doneTopics });
+  const oldSkipped = impl({ id: 'old-skip', name: 'Old skip', status: 'done', phase: 'first_use', skipped: [{ id: 'integrate', reason: 'no merge' }], topics: doneTopics });
+  const p = setup(planOf([old, oldSkipped, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(p, planOf([old, oldSkipped, impl({ status: 'in_progress', phase: 'test' })])), 'allow');
+  // a done stage that is changed still asks (rule 5)
+  expectDecision(writePlan(p, planOf([{ ...old, name: 'Renamed' }, oldSkipped, impl({ status: 'in_progress', phase: 'build' })])), 'ask', /done and would be changed/);
+});
+
+test('a running stage that skipped the merge before 3.6.0 drops the skip and goes on to «controllo e pubblicazione»; a new skip is refused (3.6.0, review round 1)', () => {
+  const skipped = [{ id: 'integrate', reason: 'no merge' }];
+  const p = setup(planOf([impl({ status: 'in_progress', phase: 'first_use', skipped })]));
+  // kept, the old skip would draw the user's check as «skipped» in the panel: it must go
+  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'integrate', skipped })])), 'deny', /mandatory and cannot be skipped/);
+  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'integrate' })])), 'allow');
+  const q = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
+  expectDecision(writePlan(q, planOf([impl({ status: 'in_progress', phase: 'first_use', skipped })])), 'deny', /mandatory and cannot be skipped/);
+});
+
+test('a broken done stage on disk is still refused at the next write (review round 1)', () => {
+  const broken = impl({ id: 'broken', name: 'Broken', status: 'done', phase: 'build', topics: [{ name: 'Calendar', done: false }] });
+  const p = setup(planOf([broken, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(p, planOf([broken, impl({ status: 'in_progress', phase: 'test' })])), 'deny', /rule 4: stage «Broken»/);
+});
+
+test('the tolerance is only for plans written before 3.6.0: done at first use, or the merge skipped, and only while done (review round 2)', () => {
+  const doneTopics = [{ name: 'Calendar', done: true }, { name: 'Booking', done: true }];
+  const next = impl({ status: 'in_progress', phase: 'test' });
+  const atBuild = impl({ id: 'early', name: 'Early', status: 'done', phase: 'build', topics: doneTopics });
+  const p = setup(planOf([atBuild, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(p, planOf([atBuild, next])), 'deny', /rule 4: stage «Early»/);
+  const noTests = impl({ id: 'no-tests', name: 'No tests', status: 'done', phase: 'first_use', skipped: [{ id: 'test', reason: 'x' }], topics: doneTopics });
+  const q = setup(planOf([noTests, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(q, planOf([noTests, next])), 'deny', /"test" is mandatory and cannot be skipped/);
+  const old = impl({ id: 'old', name: 'Old', status: 'done', phase: 'first_use', skipped: [{ id: 'integrate', reason: 'no merge' }], topics: doneTopics });
+  const r = setup(planOf([old]));
+  expectDecision(writePlan(r, planOf([{ ...old, status: 'in_progress' }])), 'deny', /"integrate" is mandatory and cannot be skipped/);
 });

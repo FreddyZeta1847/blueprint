@@ -70,6 +70,7 @@
 │   │   ├── one-way-guard.test.js
 │   │   ├── orientation.test.js
 │   │   ├── plan-guard.test.js
+│   │   ├── skills-agree.test.js
 │   │   └── step-close.test.js
 │   ├── file-watcher.js
 │   ├── hooks.json

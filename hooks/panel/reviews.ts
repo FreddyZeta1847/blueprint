@@ -6,7 +6,8 @@
  * idle), and so does the countdown, 30 s after the round was written. Sent findings are marked
  * `sent` in the file before the prompt goes, so a reload never sends them twice. After fixing,
  * Claude runs the tools again and writes the next round; a round with no finding ends the review.
- * On round 3 with findings still open nothing is sent: it is the user's turn.
+ * After three rounds in a row with findings still open nothing is sent: it is the user's turn (a
+ * clean round starts the count again).
  * The countdown runs only for a round that appeared while this session was open (a round already
  * there when the session started, e.g. in a cloned project, waits for a press), and is timed from
  * when this session first saw it, never from the file's own clock. Only one sending at a time, and
@@ -46,7 +47,21 @@ export async function readReviews($: any, main: string, stageId: string): Promis
 }
 
 export const openOnes = (r: Reviews) => r.findings.filter(f => f.status === 'open')
-export const stuck = (r: Reviews) => r.round >= MAX_ROUNDS && openOnes(r).length > 0
+/**
+ * The user's turn: findings still open after MAX_ROUNDS rounds in a row with findings. A clean round
+ * starts the count again (3.6.0): rounds that all found something keep counting, even across a
+ * correction.
+ */
+export function stuck(r: Reviews): boolean {
+  if (openOnes(r).length === 0) return false
+  const before = (Array.isArray(r.history) ? r.history : [])
+    .filter(h => h && Array.isArray(h.findings))
+    .sort((a, b) => (Number(b.round) || 0) - (Number(a.round) || 0))
+    .slice(0, MAX_ROUNDS - 1)
+  // a file without its past rounds still stops at MAX_ROUNDS: never an endless auto-fix
+  if (before.length < MAX_ROUNDS - 1) return r.round >= MAX_ROUNDS
+  return before.every(h => h.findings.length > 0)
+}
 export const howMany = (lang: Lang, n: number) => (n === 1 ? tr(lang, 'reviewOne') : tr(lang, 'reviewMany', { n }))
 
 // Module memory: when this session first refreshed, and when it first saw each round.
@@ -93,12 +108,12 @@ async function sendNow($: any, main: string, stageId: string, ids: string[] | 'a
 }
 
 /**
- * The countdown of the current stage, when it is in its review phase with open findings: the
- * seconds left, or null when there is none. At 0 it sends every open finding.
+ * The countdown of the stage in its review phase with open findings (an earlier stage may wait at
+ * «integrate»): the seconds left, or null when there is none. At 0 it sends every open finding.
  */
 export async function autoFix($: any, main: string, plan: PlanModel | null, lang: Lang): Promise<{ open: number; seconds: number } | null> {
-  const stage = plan?.stages[plan.currentIndex]
-  if (!stage || stage.type !== 'implementation' || stage.status !== 'in_progress' || stage.phase !== 'review') return null
+  const stage = plan?.stages.find(s => s.type === 'implementation' && s.status === 'in_progress' && s.phase === 'review')
+  if (!stage) return null
   const r = await readReviews($, main, stage.id)
   if (!r || stuck(r)) return null
   const open = openOnes(r).length
