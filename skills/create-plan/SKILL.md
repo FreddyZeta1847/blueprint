@@ -336,9 +336,10 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   Their «tutto ok, pubblica» is the approval of that pull request: merge it and, when the project
   has versions, release it; the release (or the merge, with no versions) closes the stage. A push
   during the stage closes nothing: it only keeps the code safe;
-- **Corrections.** Until the user says «publish», anything that is not right — a red test, a review
-  finding, the simulated first use, a screenshot or a local test of the user's at the check — goes
-  back to `build` at once, without asking. Add the next letter to the plain plan, in the section of
+- **Corrections.** A red test or a review finding is fixed inside its own phase, as above (the
+  test phase goes back to `build`; the review writes its next round): no new letter. Until the user
+  says «publish», anything that is not right in the simulated first use or at the user's check (a
+  screenshot, a local test of theirs) goes back to `build` at once, without asking. Add the next letter to the plain plan, in the section of
   the session that fixes it (`## Madre` once the children are merged): `### E. Correzione: …` with
   its plain words, its `Test (…)` and `Finita quando` lines, one Task `#### E1.` and its sub-tasks
   (understand what happened; fix it, with the test that catches the error written first); and the

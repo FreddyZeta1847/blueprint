@@ -34,6 +34,8 @@ const OLD = [
   ['createPlan', 'with sub-tasks such as understand, fix, test'],
   ['createPlan', 'only when the correction came from the check'],
   ['readme', 'At most 3 rounds.'],
+  ['readme', 'a stop after 3 rounds'],
+  ['createPlan', 'anything that is not right — a red test, a review'],
 ];
 
 /** Where an old sentence is still written, as «file: sentence» lines. */
@@ -62,6 +64,8 @@ test('the skills and the README say what the loop says (3.6.0)', () => {
   assert.ok(TEXTS.getContext.includes('**Not for corrections.**'), 'get-context: corrections skip it');
   assert.ok(TEXTS.createPlan.includes('Three rounds in a row with the problem still there'), 'create-plan: one stop rule');
   assert.ok(TEXTS.readme.includes('Three rounds in a row with problems still open'), 'README: the same stop rule');
+  assert.ok(TEXTS.createPlan.includes('A red test or a review finding is fixed inside its own phase'), 'create-plan: tests and reviews keep their own loop');
+  assert.ok(TEXTS.readme.includes('red tests and review findings are fixed inside their own phase'), 'README: the same');
 });
 
 test('no sentence of the loop before 3.6.0 is left', () => {
