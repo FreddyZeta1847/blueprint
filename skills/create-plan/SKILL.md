@@ -241,7 +241,7 @@ done and you say nothing about it.
   **real choices** — one session or several in parallel, a tool the user must turn on or pay for,
   an optional phase you would skip that they might expect (a rehearsal, say).
 
-Then "Shall I start?". It never explains how Blueprint works: no list of phases, no steps of a
+Then "Shall I start?" (after the answers, when you asked questions). It never explains how Blueprint works: no list of phases, no steps of a
 discussion, no specialists, no "how I would do it" phase by phase, no "do I have enough context?
 yes". The user cares that the work is done well, not about the machinery.
 
@@ -256,19 +256,19 @@ yes". The user cares that the work is done well, not about the machinery.
 > Stage 3 "Admin mockup". Two questions first: which style do you want, and what did the client
 > give you?
 
-> Stage 2 "Frontend demo": calendar and booking. They are independent on the API contract: two
-> sessions in parallel, or one? Shall I start?
+> Stage 2 "Frontend demo": calendar and booking. They only share the API contract: two sessions
+> in parallel, or one? Shall I start?
 
 The "how" is yours to choose with whatever the user has (their own skills, plugins, agents,
 habits); you ask only its real choices, and the user can change any of it. Blueprint never
 prescribes it and never limits it: any plugin, skill or agent can serve any phase of any stage
 (see `blueprint:using-blueprint`, "The boundary"). After the yes, write in `plan.json`:
 - `status: "in_progress"`;
-- `phase: "clarify"` (the context check is the first phase recorded, even when it took one line),
+- `phase: "clarify"` (the context check is the first phase recorded, even when it was silent),
   then forward one phase at a time — on the stage only for per-stage types, on each topic only for
   discussion (never both);
 - `skipped`: every optional phase skipped, each written as `{ "id": "<phase id>", "reason": "..." }`;
-- `how`: one line with how you will do it (the panel shows it; the chat does not need to).
+- `how`: one line with how you will do it, for the record (the chat does not need to say it).
 
 ### Phases (not Blueprint)
 

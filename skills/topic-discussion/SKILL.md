@@ -111,7 +111,7 @@ Combine the specialists' work into **one message**, in plain words. It is **dive
 the range first, then recommends.
 - **The decisions that matter** (one-way, or a real choice), each with: **the possible options —
   the whole serious range, including the less obvious ones** — what each means in practice, then
-  **your recommendation and why it beats the others**, and where specialists disagree. If two or
+  **your recommendation and why it beats the others**, and where the views really disagree. If two or
   more options are still alive on a one-way decision, ask it as a multiple-choice question,
   recommendation first.
 - **The details** (two-way, low stakes): one short list with your choice for each, one line each.
