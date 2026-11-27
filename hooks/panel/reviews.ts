@@ -108,12 +108,12 @@ async function sendNow($: any, main: string, stageId: string, ids: string[] | 'a
 }
 
 /**
- * The countdown of the current stage, when it is in its review phase with open findings: the
- * seconds left, or null when there is none. At 0 it sends every open finding.
+ * The countdown of the stage in its review phase with open findings (an earlier stage may wait at
+ * «integrate»): the seconds left, or null when there is none. At 0 it sends every open finding.
  */
 export async function autoFix($: any, main: string, plan: PlanModel | null, lang: Lang): Promise<{ open: number; seconds: number } | null> {
-  const stage = plan?.stages[plan.currentIndex]
-  if (!stage || stage.type !== 'implementation' || stage.status !== 'in_progress' || stage.phase !== 'review') return null
+  const stage = plan?.stages.find(s => s.type === 'implementation' && s.status === 'in_progress' && s.phase === 'review')
+  if (!stage) return null
   const r = await readReviews($, main, stage.id)
   if (!r || stuck(r)) return null
   const open = openOnes(r).length

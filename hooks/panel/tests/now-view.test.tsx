@@ -76,3 +76,14 @@ test('a discussion says which topic and phase; a quick task with no topics still
   expect(await ui.find({ text: /^Sessione principale · controllo/ })).toBeDefined()
   await ui.unmount()
 })
+
+test('an earlier stage waiting at «controllo e pubblicazione»: a later stage in review still signals its open findings (review round 6)', async ($, on) => {
+  const reviews = JSON.stringify({ v: 1, round: 1, foundAt: '2026-11-16T09:00:00.000Z', findings: [{ id: 'f1', tool: 't', severity: 'low', text: 'x', status: 'open' }] })
+  const twoOpen = plan(p => {
+    p.stages[2].phase = 'review'
+    p.stages.splice(2, 0, { id: 'prima', name: 'Prima', type: 'implementation', status: 'in_progress', phase: 'integrate' })
+  })
+  const { ui, has } = await mount($, on, { 'blueprint/plan.json': twoOpen, 'blueprint/reviews/fb.json': reviews })
+  expect(await has(/^! 1 problema della revisione$/)).toBe(true)
+  await ui.unmount()
+})

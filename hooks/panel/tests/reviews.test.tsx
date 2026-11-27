@@ -181,3 +181,14 @@ test('a review file with no past rounds still stops at round 3: never an endless
   expect(seen.prompts).toEqual([])
   await ui.unmount()
 })
+
+test('an earlier stage waiting at «controllo e pubblicazione»: the countdown of the later stage in review still sends its fixes (review round 6)', async ($, on) => {
+  const plan = JSON.parse(planJson({ phase: 'review' }))
+  plan.stages.splice(2, 0, { id: 'prima', name: 'Prima', type: 'implementation', status: 'in_progress', phase: 'integrate' })
+  const seen = engine(on, { files: { ...defaultFiles(), 'blueprint/plan.json': JSON.stringify(plan), 'blueprint/reviews/fb.json': reviews({ status: 'fixed' }) } })
+  await $.session.start({ cwd: MAIN, surface: 'desktop', isInteractive: true })
+  seen.files['blueprint/reviews/fb.json'] = reviews({ round: 2 })
+  await seen.clock.advance(5_000)
+  await seen.clock.advance(31_000)
+  expect(seen.prompts.length).toBe(1)
+})

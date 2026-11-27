@@ -101,7 +101,7 @@ async function stageOf($: any, main: string, child: boolean): Promise<StageModel
   if (!plan) return null
   const ok = (s?: StageModel): s is StageModel => !!s && SAFE_ID.test(s.id) && s.type === 'implementation' && s.status === 'in_progress' && RECORDED_PHASES.has(s.phase ?? '')
   if (child) { const s = plan.stages[plan.parallelIndex]; return ok(s) ? s : null }
-  // the main session: the first stage being built or tested, not merely the first one open (an
+  // the main session: the first stage being built, tested or reviewed, not merely the first one open (an
   // earlier stage may still wait at «integrate» for its pull request)
   // a stage built in parallel is the children's while they build it (their worktrees exist); the
   // main session counts it in its test and review phases, or when it builds the stage alone
