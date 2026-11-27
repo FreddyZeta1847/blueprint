@@ -199,7 +199,8 @@ Then tell the user the plan is saved and ask whether to open the first stage.
 ## 6. Re-planning
 
 **What triggers it:** the user asks; a deadline moves; the card changes (role, approver, budget);
-tests or a review show the plan was wrong; delivery feedback asks for something else; a new task arrives on a running
+tests or a review show the plan itself was wrong (not a correction: before the user's «publish», a
+problem goes back to build in the same stage, §7 Corrections); delivery feedback asks for something else; a new task arrives on a running
 project and fits this plan.
 
 **How:**
@@ -337,9 +338,11 @@ through `blueprint:topic-discussion`. Blueprint only records each move:
   during the stage closes nothing: it only keeps the code safe;
 - **Corrections.** Until the user says «publish», anything that is not right — a red test, a review
   finding, the simulated first use, a screenshot or a local test of the user's at the check — goes
-  back to `build` at once, without asking. Add the next letter to the plain plan
-  (`### E. Correzione: …`, with sub-tasks such as understand, fix, test) and the same chapter to the
-  technical plan, then the usual round: build → test → review → first use, and back to the user
+  back to `build` at once, without asking. Add the next letter to the plain plan, in the section of
+  the session that fixes it (`## Madre` once the children are merged): `### E. Correzione: …` with
+  its plain words, its `Test (…)` and `Finita quando` lines, one Task `#### E1.` and its sub-tasks
+  (understand what happened; fix it, with the test that catches the error written first); and the
+  same chapter to the technical plan, then the usual round: build → test → review → first use, and back to the user
   only when the correction came from the check. No discussion, no new plan to approve, no
   confirmations in between: the plan changes only by that letter. Every fixed error leaves a test
   that catches it; the same problem still there after 3 rounds → stop and call the user. The round

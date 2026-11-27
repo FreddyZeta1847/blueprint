@@ -19,6 +19,10 @@ mistake costs, which parts the work has. This skill finds that out, draws the co
 for new work, writes them on one card and gets the user's yes. First read
 `blueprint:using-blueprint` (hard rules, plain language).
 
+**Not for corrections.** A problem with a stage that is not published yet («this didn't work», a
+screenshot, a test of the user's) skips this skill: no draft card, no re-planning. It goes back to
+build inside that stage (`blueprint:create-plan` §7, Corrections).
+
 ## 1. What must be known
 
 Read `data/context-questions.json` at the root of the Blueprint plugin (two folders up from this
