@@ -12,9 +12,9 @@
  *      with a single part has none); the old field name "steps" is refused; every name in
  *      `independent_parts` is one of the stage's topics;
  *   2. phase ids belong to the type's loop (on the stage for per_stage types, on the topics for
- *      per_step types); `skipped` names only optional phases, each with a reason (a phase the
+ *      per_step types); `skipped` names only optional phases, each with a reason (a phase a done
  *      stage on disk already skipped stays allowed, so plans written before a loop made it
- *      mandatory stay valid); a stage done on disk and left unchanged is not checked again (rule 5);
+ *      mandatory stay valid);
  *   3. a phase moves only to the next phase (optional ones in between must be in `skipped`) or
  *      back to the old phase's `back_to`; it is never cleared; in_progress per_stage stages
  *      have a phase. New stages/topics are checked as if they started before the first phase;
@@ -113,12 +113,13 @@ function checkIndependentParts(stage, deny) {
   if (missing.length) deny.push(`rule 1: stage ${label(stage)}: independent part(s) ${missing.map((p) => `"${p}"`).join(', ')} are not topics of the stage; each independent part must also be a topic with the same name.`);
 }
 
-/** A phase the stage on disk already skipped stays skipped: a loop that made it mandatory later
- * (implementation's `integrate`, 3.6.0) must not turn the plans written before it into errors. */
+/** A done stage on disk keeps the phases it skipped: a loop that made one mandatory later
+ * (implementation's `integrate`, 3.6.0) must not turn the plans written before it into errors. A
+ * running stage drops the skip instead, or the panel would draw that phase as skipped. */
 function checkSkipped(stage, loop, deny, old) {
   if (stage.skipped === undefined) return;
   if (!Array.isArray(stage.skipped)) return deny.push(`rule 2: stage ${label(stage)}: "skipped" must be an array of { id, reason }.`);
-  const before = old && old.type === stage.type ? skippedIdsOf(old) : new Set();
+  const before = old && old.type === stage.type && old.status === 'done' ? skippedIdsOf(old) : new Set();
   for (const s of stage.skipped) {
     const phase = isObject(s) && loop.phases.find((p) => p.id === s.id);
     if (!phase) deny.push(`rule 2: stage ${label(stage)}: skipped "${isObject(s) ? s.id : s}" is not a ${stage.type} phase.`);
@@ -127,9 +128,6 @@ function checkSkipped(stage, loop, deny, old) {
   }
   return undefined;
 }
-
-/** A stage done on disk and left as it is: rule 5 guards it, rules 2–4 are not checked again. */
-const untouchedDone = (stage, old) => Boolean(old && old.status === 'done' && canonical(stage) === canonical(old));
 
 function checkStage(stage, loops, ids, deny, old) {
   if (!isObject(stage)) return deny.push('rule 1: every stage must be an object.');
@@ -143,7 +141,6 @@ function checkStage(stage, loops, ids, deny, old) {
   checkIndependentParts(stage, deny);
   const loop = loops.types[stage.type];
   if (!loop) return deny.push(`rule 1: stage ${label(stage)}: type "${stage.type}" does not exist; use one of ${Object.keys(loops.types).join(', ')}.`);
-  if (untouchedDone(stage, old)) return undefined;
   if (stage.phase !== undefined) {
     if (loop.cycle === 'per_step') deny.push(`rule 2: stage ${label(stage)} is ${stage.type} (one phase per topic): put "phase" on each topic, not on the stage.`);
     else if (!loop.phases.some((p) => p.id === stage.phase)) deny.push(`rule 2: stage ${label(stage)}: "${stage.phase}" is not a ${stage.type} phase (${loop.phases.map((p) => p.id).join(', ')}).`);
@@ -286,7 +283,6 @@ function validatePlan(next, previous, loops) {
   if (deny.length) return { deny, ask };   // rules 3–6 need a well-formed plan
 
   for (const stage of next.stages) {
-    if (untouchedDone(stage, before.get(stage.id))) continue;
     const loop = loops.types[stage.type];
     checkMoves(stage, before.get(stage.id), loop, deny);
     checkDone(stage, before.get(stage.id), loop, deny);

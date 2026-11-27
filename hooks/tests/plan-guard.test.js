@@ -279,10 +279,18 @@ test('plans written before 3.6.0 stay valid: done stages that ended at first use
   expectDecision(writePlan(p, planOf([{ ...old, name: 'Renamed' }, oldSkipped, impl({ status: 'in_progress', phase: 'build' })])), 'ask', /done and would be changed/);
 });
 
-test('a running stage that already skipped the merge goes on to «controllo e pubblicazione»; a new skip is refused (3.6.0)', () => {
+test('a running stage that skipped the merge before 3.6.0 drops the skip and goes on to «controllo e pubblicazione»; a new skip is refused (3.6.0, review round 1)', () => {
   const skipped = [{ id: 'integrate', reason: 'no merge' }];
   const p = setup(planOf([impl({ status: 'in_progress', phase: 'first_use', skipped })]));
-  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'integrate', skipped })])), 'allow');
+  // kept, the old skip would draw the user's check as «skipped» in the panel: it must go
+  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'integrate', skipped })])), 'deny', /mandatory and cannot be skipped/);
+  expectDecision(writePlan(p, planOf([impl({ status: 'in_progress', phase: 'integrate' })])), 'allow');
   const q = setup(planOf([impl({ status: 'in_progress', phase: 'first_use' })]));
   expectDecision(writePlan(q, planOf([impl({ status: 'in_progress', phase: 'first_use', skipped })])), 'deny', /mandatory and cannot be skipped/);
+});
+
+test('a broken done stage on disk is still refused at the next write (review round 1)', () => {
+  const broken = impl({ id: 'broken', name: 'Broken', status: 'done', phase: 'build', topics: [{ name: 'Calendar', done: false }] });
+  const p = setup(planOf([broken, impl({ status: 'in_progress', phase: 'build' })]));
+  expectDecision(writePlan(p, planOf([broken, impl({ status: 'in_progress', phase: 'test' })])), 'deny', /rule 4: stage «Broken»/);
 });
